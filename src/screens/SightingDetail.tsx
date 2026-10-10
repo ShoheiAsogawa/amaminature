@@ -1,41 +1,109 @@
-import { Calendar, CloudOff, EyeOff, MapPin, Pencil, Share2, Trash2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { loadPhotoUrl, PhotoImg } from '../components/PhotoImg';
-import { CategoryIcon, EmptyState, formatDate, PageHeader, RarityGems, Sheet, toast } from '../components/ui';
+import { useNavigate, useParams } from 'react-router-dom';
+import { CollectibleCard } from '../components/CollectibleCard';
+import { IconCloudCheck, IconWarning, IconWarningCircleFill } from '../components/icons';
+import { loadPhotoUrl } from '../components/PhotoImg';
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  formatDateJa,
+  Group,
+  InfoRow,
+  Input,
+  ListRow,
+  ScreenHeader,
+  Sheet,
+  Textarea,
+  toast,
+  useDocumentTitle,
+} from '../components/ui';
 import { AREA_BY_ID } from '../data/areas';
-import { CATEGORY_META, SPECIES_BY_ID } from '../data/species';
+import { SPECIES_BY_ID } from '../data/species';
 import { renderShareCard, shareCard } from '../lib/share';
+import type { Sighting } from '../lib/types';
 import { deleteEverywhere } from '../store/sync';
 import { useStore } from '../store/useStore';
 
-const ROAD_LABEL = { roadkill: 'ロードキル報告', injured: 'けがをした動物の報告', 'on-road': '路上にいた生き物' } as const;
+// 記録詳細（docs/DESIGN_SYSTEM.md §8.6）。図鑑カード（影なし、裏返らない）と、記録の項目のグループ。
+
+const ROAD_LABEL = { roadkill: '交通事故にあった生き物', injured: 'けがをしている生き物', 'on-road': '路上にいた生き物' } as const;
+
+/** 位置の行の値（座標そのものは出さない） */
+function locationText(s: Sighting): string {
+  if (s.locationProtected) return '希少種のため座標は保存していません';
+  if (s.lat != null && s.lng != null) return '約100mぼかして保存';
+  return '保存していません';
+}
+
+/** 同期の行。LINE 連携していない（端末だけに保存した）記録は出さない */
+function SyncValue({ state }: { state: NonNullable<Sighting['syncState']> }) {
+  if (state === 'synced') {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        同期済み
+        <IconCloudCheck size={16} className="shrink-0 text-success" />
+      </span>
+    );
+  }
+  if (state === 'pending') {
+    return (
+      <>
+        <span className="inline-flex items-center gap-1.5">
+          未同期
+          <IconWarning size={16} className="shrink-0 text-warning" />
+        </span>
+        <span className="mt-0.5 block text-sub text-fg-2">電波が戻ったら送信します</span>
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="inline-flex items-center gap-1.5">
+        保存されていません
+        <IconWarningCircleFill size={16} className="shrink-0 text-danger" />
+      </span>
+      <span className="mt-0.5 block text-sub text-fg-2">同じ写真の記録があるため、クラウドに保存していません。ポイントの対象外です</span>
+    </>
+  );
+}
 
 export default function SightingDetail() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
   const sighting = useStore((s) => s.sightings.find((x) => x.id === id));
+  const sp = sighting?.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
+  // §7.3 ニックネーム（なければ和名）
+  useDocumentTitle(sighting ? sighting.nickname || sp?.name || sighting.customName || '記録' : '記録');
+
+  if (!sighting) {
+    return (
+      <main>
+        <ScreenHeader variant="nav" title="記録" />
+        <EmptyState title="記録が見つかりません" body="削除されたか、別の端末の記録です" actionLabel="ホームへ" to="/" />
+      </main>
+    );
+  }
+  return <Detail sighting={sighting} />;
+}
+
+function Detail({ sighting }: { sighting: Sighting }) {
+  const navigate = useNavigate();
   const updateSighting = useStore((s) => s.updateSighting);
   const lineMode = useStore((s) => s.account.mode === 'line');
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [nickname, setNickname] = useState(sighting?.nickname ?? '');
-  const [memo, setMemo] = useState(sighting?.memo ?? '');
+  const [nickname, setNickname] = useState(sighting.nickname ?? '');
+  const [memo, setMemo] = useState(sighting.memo ?? '');
   const [busy, setBusy] = useState(false);
-
-  if (!sighting) {
-    return (
-      <>
-        <PageHeader back title="記録" />
-        <EmptyState title="記録が見つかりません" action={<Link to="/" className="btn-ghost">ホームへ</Link>} />
-      </>
-    );
-  }
+  const [deleting, setDeleting] = useState(false);
 
   const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
   const area = sighting.areaId ? AREA_BY_ID[sighting.areaId] : null;
+  const title = sighting.nickname || sp?.name || sighting.customName || '記録';
 
   const share = async () => {
+    if (busy) return;
     setBusy(true);
     try {
       const url = sighting.photoId ? await loadPhotoUrl(sighting.photoId, 'full') : null;
@@ -49,103 +117,68 @@ export default function SightingDetail() {
     }
   };
 
+  const openEdit = () => {
+    setNickname(sighting.nickname ?? '');
+    setMemo(sighting.memo ?? '');
+    setEditing(true);
+  };
+
   return (
-    <main className="pb-[calc(40px+var(--safe-bottom))]">
-      <PageHeader
-        back
-        label="FIELD NOTE"
-        title={sighting.nickname || sp?.name || sighting.customName || '記録'}
-        right={
-          <button onClick={share} disabled={busy} className="grid h-10 w-10 place-items-center rounded-full active:bg-ink/5" aria-label="共有">
-            <Share2 className="h-5 w-5" />
-          </button>
-        }
-      />
+    <main className="pb-[calc(32px+var(--safe-bottom))]">
+      <ScreenHeader variant="nav" title={title} />
 
-      <div className="px-4">
-        {sighting.photoId ? (
-          <PhotoImg photoId={sighting.photoId} size="full" alt={sp?.name ?? ''} className="aspect-[4/5] w-full rounded-4xl shadow-lift" />
-        ) : (
-          <div className="grid aspect-[4/3] place-items-center rounded-4xl text-white" style={{ background: sp ? CATEGORY_META[sp.category].color : '#808C86' }}>
-            {sp && <CategoryIcon category={sp.category} className="h-16 w-16 opacity-70" />}
-            <span className="text-[12px] text-white/80">写真なしの記録（声・痕跡・目撃）</span>
-          </div>
-        )}
+      <div className="flex justify-center px-4 pt-4">
+        <CollectibleCard species={sp} nickname={sighting.nickname} name={sighting.customName} photoId={sighting.photoId} />
       </div>
 
-      {sighting.roadReport && (
-        <div className="mx-4 mt-4 flex items-center gap-2 rounded-2xl bg-sango/10 px-4 py-3 text-[13px] font-bold text-sango">
-          <TriangleAlert className="h-4 w-4" /> {ROAD_LABEL[sighting.roadReport]}
-        </div>
-      )}
-
-      <section className="mx-4 mt-4 card p-5">
-        {sp ? (
-          <Link to={`/species/${sp.id}`} className="flex items-center justify-between">
-            <div>
-              <RarityGems rarity={sp.rarity} size={6} />
-              <div className="mt-1 font-serif text-[22px] font-bold">{sp.name}</div>
-              <div className="sci text-[14px] text-ink3">{sp.sci}</div>
-            </div>
-            <span className="text-[12px] font-bold text-accent">図鑑へ</span>
-          </Link>
-        ) : (
-          <div>
-            <div className="label">図鑑にない生き物</div>
-            <div className="mt-1 font-serif text-[22px] font-bold">{sighting.customName || 'なぞの生き物'}</div>
-          </div>
-        )}
-        {sighting.nickname && <div className="mt-3 text-[15px] font-bold text-kin">「{sighting.nickname}」</div>}
-        {sighting.memo && <p className="mt-3 whitespace-pre-wrap text-[14px] leading-relaxed text-ink2">{sighting.memo}</p>}
-
-        <dl className="mt-4 space-y-2 border-t hairline pt-4 text-[13px]">
-          <div className="flex items-center gap-2 text-ink2">
-            <Calendar className="h-4 w-4 text-ink3" />
-            {formatDate(sighting.observedAt, true)}
-          </div>
-          <div className="flex items-center gap-2 text-ink2">
-            <MapPin className="h-4 w-4 text-ink3" />
-            {area ? `${area.name}（${area.island}）` : '地域未設定'}
-          </div>
-          {sighting.locationProtected && (
-            <div className="flex items-center gap-2 text-ink2">
-              <EyeOff className="h-4 w-4 text-ink3" /> 希少種のため座標は保存していません
-            </div>
-          )}
-          {sighting.syncState === 'rejected' && (
-            <div className="flex items-center gap-2 text-danger">
-              <CloudOff className="h-4 w-4" /> 同じ写真の記録があるため、クラウドに保存されていません（ポイント対象外）
-            </div>
-          )}
-          {sighting.syncState === 'pending' && (
-            <div className="flex items-center gap-2 text-ink2">
-              <CloudOff className="h-4 w-4 text-ink3" /> 電波が戻ったら送信します
-            </div>
-          )}
-        </dl>
-      </section>
-
-      <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
-        <button className="btn-ghost" onClick={() => setEditing(true)}>
-          <Pencil className="h-4 w-4" /> 編集
-        </button>
-        <button className="btn-ghost text-danger" onClick={() => setConfirmDelete(true)}>
-          <Trash2 className="h-4 w-4" /> 削除
-        </button>
+      <div className="mt-6 flex gap-2 px-4">
+        {/* LINE の中では LINE で送る。LINE の外（デモ）では LINE グリーンを使わない */}
+        <Button variant={lineMode ? 'line' : 'secondary'} size="md" className="flex-1" onClick={share} aria-busy={busy}>
+          {lineMode ? 'LINEで送る' : '画像を共有'}
+        </Button>
+        <Button variant="secondary" size="md" className="flex-1" onClick={openEdit}>
+          編集
+        </Button>
       </div>
 
-      <Sheet open={editing} onClose={() => setEditing(false)} title="記録を編集">
+      <Group className="mt-6">
+        {sighting.roadReport && <InfoRow label="路上レポート">{ROAD_LABEL[sighting.roadReport]}</InfoRow>}
+        <InfoRow label="日時">
+          {formatDateJa(sighting.observedAt, { time: true })}
+        </InfoRow>
+        <InfoRow label="地域">{area ? area.name : <span className="text-fg-3">未設定</span>}</InfoRow>
+        {sighting.memo && (
+          <InfoRow label="メモ">
+            <span className="whitespace-pre-wrap">{sighting.memo}</span>
+          </InfoRow>
+        )}
+        {sighting.kind === 'sign' && <InfoRow label="写真">なし（声・痕跡・目撃の記録）</InfoRow>}
+        <InfoRow label="位置">{locationText(sighting)}</InfoRow>
+        {sighting.syncState && (
+          <InfoRow label="同期">
+            <SyncValue state={sighting.syncState} />
+          </InfoRow>
+        )}
+      </Group>
+
+      <div className="mt-6">
+        {sp && <ListRow to={`/species/${sp.id}`} title="この生き物の図鑑を見る" chevron />}
+      </div>
+      <div className="px-3 pt-2">
+        <Button variant="danger-text" size="hit" onClick={() => setConfirmDelete(true)}>
+          この記録を削除
+        </Button>
+      </div>
+
+      <Sheet open={editing} onClose={() => setEditing(false)} title="記録を編集" keyboard>
         <div className="space-y-4">
-          <label className="block">
-            <span className="label mb-1.5 block">ニックネーム</span>
-            <input value={nickname} onChange={(e) => setNickname(e.target.value)} className="input" maxLength={24} />
-          </label>
-          <label className="block">
-            <span className="label mb-1.5 block">メモ</span>
-            <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={4} className="input resize-none" maxLength={500} />
-          </label>
-          <button
-            className="btn-primary w-full"
+          <Field label="ニックネーム">
+            <Input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={24} />
+          </Field>
+          <Field label="メモ">
+            <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={4} maxLength={500} />
+          </Field>
+          <Button
             onClick={async () => {
               await updateSighting({ ...sighting, nickname: nickname.trim(), memo: memo.trim() });
               setEditing(false);
@@ -153,28 +186,29 @@ export default function SightingDetail() {
             }}
           >
             保存する
-          </button>
+          </Button>
         </div>
       </Sheet>
 
-      <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="この記録を削除しますか？">
-        <p className="text-[13px] text-ink2">写真もあわせて削除されます。この操作は取り消せません。</p>
-        <div className="mt-5 grid gap-2">
-          <button
-            className="btn bg-danger text-white"
-            onClick={async () => {
-              await deleteEverywhere(sighting);
-              toast('削除しました');
-              navigate(-1);
-            }}
-          >
-            削除する
-          </button>
-          <button className="btn-ghost" onClick={() => setConfirmDelete(false)}>
-            やめる
-          </button>
-        </div>
-      </Sheet>
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="この記録を削除しますか？"
+        body="写真もあわせて削除されます。この操作は取り消せません。"
+        confirmLabel="削除する"
+        busy={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            await deleteEverywhere(sighting);
+            toast('削除しました');
+            navigate(-1);
+          } catch {
+            toast('削除できませんでした。もう一度お試しください');
+            setDeleting(false);
+          }
+        }}
+      />
     </main>
   );
 }

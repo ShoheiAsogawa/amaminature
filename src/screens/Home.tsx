@@ -1,308 +1,459 @@
-import { motion } from 'framer-motion';
-import { Camera, ChevronRight, CloudOff, Gift, Moon, RefreshCw, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Wordmark } from '../components/Brand';
-import { ExperienceCard } from '../components/ExperienceCard';
-import { PhotoImg } from '../components/PhotoImg';
-import { CategoryIcon, EmptyState, Kasuri, Page, ProgressBar, ProgressRing, RarityGems, SectionHeader } from '../components/ui';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ExperienceItem, ExperienceSheet } from '../components/ExperienceCard';
+import { IconArrowClockwise, IconCaretRight, IconCheckCircleFill, IconCloudSlash, IconFlagBanner } from '../components/icons';
+import { Phrase } from '../components/Phrase';
+import { usePhotoUrl } from '../components/PhotoImg';
+import { SpeciesName } from '../components/SpeciesName';
+import { referencePhoto, SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
+import {
+  button,
+  cn,
+  Group,
+  InfoRow,
+  ListRow,
+  Notice,
+  Num,
+  Page,
+  ProgressBar,
+  RarityGems,
+  SectionHeader,
+  Sheet,
+} from '../components/ui';
 import { EXPERIENCES } from '../data/experiences';
-import { CATEGORY_META, SPECIES, SPECIES_BY_ID, speciesInSeason } from '../data/species';
-import { SEASON_LABEL, seasonOf } from '../lib/progress';
-import { useCollection } from '../store/useCollection';
+import { SPECIES, SPECIES_BY_ID, speciesInSeason } from '../data/species';
+import type { Species } from '../data/types';
+import type { QuestProgress } from '../lib/progress';
+import type { Sighting } from '../lib/types';
+import { useCollection, type CollectionEntry } from '../store/useCollection';
 import { useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
 
-export const MONTH_THEME: Record<number, string> = {
-  1: 'ザトウクジラの季節',
-  2: '冬の森とクジラ',
-  3: '森が芽吹く早春',
-  4: '夏鳥が帰ってくる',
-  5: 'イジュの花咲く森',
-  6: '梅雨の森',
-  7: 'ウミガメの夏',
-  8: '夏の夜の森',
-  9: 'クワガタの季節',
-  10: 'サシバの渡り',
-  11: 'アサギマダラの旅',
-  12: 'クジラがやってくる',
+/**
+ * 月ごとの季節の一文と、その月の注目種（docs/DESIGN_SYSTEM.md §8.1）。
+ * 注目種は「会えるかも」の先頭に置き、参考写真がある時だけ写真を出す。
+ */
+const SEASON_NOTE: Record<number, { text: string; speciesId: string }> = {
+  1: { text: 'ザトウクジラが子育てのため、奄美の海にやってきています', speciesId: 'zatoukujira' },
+  2: { text: '冬の森は静かです。沖ではザトウクジラの潮吹きが見られます', speciesId: 'zatoukujira' },
+  3: { text: '森が芽吹き、アマミセイシカの花が咲きはじめます', speciesId: 'amami-seishika' },
+  4: { text: 'リュウキュウアカショウビンなどの夏鳥が、南から帰ってきます', speciesId: 'ryukyu-akashobin' },
+  5: { text: '森のあちこちで、イジュの白い花が咲きます', speciesId: 'iju' },
+  6: { text: '梅雨の雨で森が潤い、夜はカエルの声でにぎやかです', speciesId: 'otton-gaeru' },
+  7: { text: 'ウミガメが夜の砂浜に上がり、卵を産みます', speciesId: 'akaumigame' },
+  8: { text: '夏の夜の森では、夜行性の生き物たちが活発に動きます', speciesId: 'otton-gaeru' },
+  9: { text: '夜の森で、アマミマルバネクワガタが動きはじめます', speciesId: 'amami-marubane' },
+  10: { text: 'サシバが南へ渡る途中、奄美で羽を休めます', speciesId: 'sashiba' },
+  11: { text: 'アサギマダラが海を越えて、南へ旅していきます', speciesId: 'asagimadara' },
+  12: { text: 'ザトウクジラが、冬の奄美の海にやってきます', speciesId: 'zatoukujira' },
 };
 
-const MANNER_TIPS = [
-  '夜の林道は時速20〜30kmでゆっくり。クロウサギの交通事故を防ごう。',
-  '希少な生き物の場所はSNSで広めない。このアプリは自動で位置をぼかします。',
-  '生き物には触らない・追いかけない・餌をあげない。',
-  'ハブに注意。夜はライトで足元を照らし、草むらに手を入れない。',
-  '金作原は認定ガイドの同行がルール。安全に深い森を楽しもう。',
-];
+/** ホームに出す行の数（季節の種・クエスト） */
+const ROWS = 3;
+/** 最近の記録の横スクロールに出す数 */
+const RECENT = 10;
 
-function greeting(): string {
+type SheetKind = 'season' | 'quests' | 'quest' | 'records' | 'experience';
+
+/** 夜（18:00〜翌5:59）か。夜の道路の注意を出す */
+function isNightNow(): boolean {
   const h = new Date().getHours();
-  if (h < 5) return '夜の森は静かに';
-  if (h < 11) return 'おはようございます';
-  if (h < 17) return 'こんにちは';
-  return 'こんばんは';
+  return h >= 18 || h < 6;
+}
+
+/** 開催月を「10月〜11月」にする。続いていなければ「4月、6月」 */
+function monthRange(months: number[]): string {
+  const set = new Set(months);
+  if (set.size >= 12) return '一年中';
+  const starts = months.filter((m) => !set.has(m === 1 ? 12 : m - 1));
+  if (starts.length === 1) {
+    let end = starts[0];
+    while (set.has(end === 12 ? 1 : end + 1)) end = end === 12 ? 1 : end + 1;
+    return end === starts[0] ? `${end}月` : `${starts[0]}月〜${end}月`;
+  }
+  return [...set]
+    .sort((a, b) => a - b)
+    .map((m) => `${m}月`)
+    .join('、');
+}
+
+/** 記録の名前（ニックネーム → 和名 → わかる範囲の名前） */
+function sightingName(s: Sighting): string {
+  const sp = s.speciesId ? SPECIES_BY_ID[s.speciesId] : null;
+  return s.nickname.trim() || sp?.name || s.customName || 'なぞの生き物';
 }
 
 export default function Home() {
-  const navigate = useNavigate();
   const sightings = useStore((s) => s.sightings);
-  const settings = useStore((s) => s.settings);
-  const account = useStore((s) => s.account);
   const collection = useCollection();
   const { stats, points, rank, quests, month } = useProgress();
 
-  const seasonal = speciesInSeason(month).sort((a, b) => b.rarity - a.rarity);
-  const activeQuests = quests.filter((q) => q.active && !q.done).slice(0, 3);
-  const recent = sightings.slice(0, 6);
-  const tip = MANNER_TIPS[new Date().getDate() % MANNER_TIPS.length];
+  const [sheet, setSheet] = useState<SheetKind | null>(null);
+  // 閉じるアニメーションの間も中身を残すため、選んだクエストは閉じても消さない
+  const [questId, setQuestId] = useState<string | null>(null);
+  const close = () => setSheet(null);
+
+  const note = SEASON_NOTE[month];
+  const featured = note ? SPECIES_BY_ID[note.speciesId] : undefined;
+  const featuredPhoto = featured ? referencePhoto(featured) : null;
+
+  // 注目種を先頭に、あとはレア度の高い順（同じなら図鑑番号順）
+  const seasonal = speciesInSeason(month).sort(
+    (a, b) => Number(b.id === featured?.id) - Number(a.id === featured?.id) || b.rarity - a.rarity || a.no - b.no,
+  );
+  const activeQuests = quests.filter((q) => q.active && !q.done);
+  const recent = sightings.slice(0, RECENT);
   const exp = EXPERIENCES.filter((e) => e.months.includes(month) && e.months.length < 12)[0] ?? EXPERIENCES[0];
-  const pending = sightings.filter((s) => s.syncState === 'pending').length;
-  const isNight = new Date().getHours() >= 17 || new Date().getHours() < 5;
+  const night = isNightNow();
+  const selectedQuest = quests.find((q) => q.quest.id === questId) ?? null;
 
   return (
     <Page>
-      <header className="pt-safe px-5">
-        <div className="flex h-16 items-center justify-between">
-          <Wordmark />
-          {account.mode === 'line' ? (
-            <div className="flex items-center gap-2">
-              {account.syncing ? (
-                <RefreshCw className="h-4 w-4 animate-spin text-ink3" aria-label="同期中" />
-              ) : pending > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-ink3">
-                  <CloudOff className="h-3.5 w-3.5" /> 未送信 {pending}
-                </span>
-              ) : null}
-              {account.pictureUrl ? (
-                <img src={account.pictureUrl} alt="" className="h-9 w-9 rounded-full ring-2 ring-card" />
-              ) : null}
-            </div>
-          ) : (
-            <span className="chip">デモ</span>
-          )}
+      {/* ───── 季節の見出し（ヒーローは置かない） ───── */}
+      <header className="pt-safe px-4">
+        <div className="flex items-start gap-3 pt-4">
+          <h1 className="min-w-0 flex-1 text-display text-fg">{month}月の奄美</h1>
+          <SyncStatus />
         </div>
+        {note && (
+          <p className="mt-1 text-callout text-fg-2">
+            <Phrase text={note.text} />
+          </p>
+        )}
       </header>
 
-      {/* ───── ヒーロー：図鑑の進み具合 ───── */}
-      <section className="px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="relative overflow-hidden rounded-4xl bg-forest-900 p-5 text-washi shadow-lift"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_100%_0%,rgba(42,79,163,.55),transparent_60%),radial-gradient(90%_70%_at_0%_100%,rgba(43,103,80,.7),transparent_60%)]" />
-          <Kasuri className="text-white/[0.05]" />
-          <div className="relative">
-            <div className="text-[10px] font-bold tracking-label text-forest-300">
-              {month}月 · {SEASON_LABEL[seasonOf(month)]} — {MONTH_THEME[month]}
-            </div>
-            <p className="mt-2 font-serif text-[20px] font-bold leading-snug">
-              {greeting()}
-              {settings.name ? `、${settings.name}さん` : ''}
-            </p>
-            <div className="mt-5 flex items-center gap-5">
-              <ProgressRing value={stats.discovered / SPECIES.length} size={116} stroke={9} color="#C79A2E">
-                <div className="text-center leading-none">
-                  <div className="font-serif text-[30px] font-extrabold">{stats.discovered}</div>
-                  <div className="mt-1 text-[11px] text-washi/60">/ {SPECIES.length} 種</div>
-                </div>
-              </ProgressRing>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold tracking-label text-washi/50">RANK</div>
-                <div className="font-serif text-[19px] font-bold">{rank.current.title}</div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-serif text-[24px] font-extrabold text-gold">{points.toLocaleString()}</span>
-                  <span className="text-[11px] text-washi/60">pt</span>
-                </div>
-                <ProgressBar value={rank.progress} color="#C79A2E" className="mt-2 bg-white/10" />
-                <div className="mt-1.5 text-[10px] text-washi/55">
-                  {rank.next ? `次の「${rank.next.title}」まで ${rank.next.min - points}pt` : '最高ランクに到達'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ───── クイックアクション ───── */}
-      <section className="mt-4 grid grid-cols-4 gap-2 px-4">
-        {[
-          { label: '記録する', icon: Camera, to: '/capture', tone: 'bg-accent/10 text-accent' },
-          { label: '路上レポート', icon: TriangleAlert, to: '/capture?mode=road', tone: 'bg-sango/10 text-sango' },
-          { label: 'セーフドライブ', icon: ShieldCheck, to: '/safe-drive', tone: 'bg-ruri/10 text-ruri' },
-          { label: 'ポイント交換', icon: Gift, to: '/rewards', tone: 'bg-kin/10 text-kin' },
-        ].map((a) => (
-          <Link key={a.label} to={a.to} className="card relative flex flex-col items-center gap-1.5 px-1 py-3 active:scale-[0.97]">
-            <span className={`grid h-10 w-10 place-items-center rounded-2xl ${a.tone}`}>
-              <a.icon className="h-5 w-5" strokeWidth={1.9} />
-            </span>
-            <span className="text-[10.5px] font-bold text-ink2">{a.label}</span>
+      {featured && featuredPhoto && (
+        <figure className="mx-4 mt-4">
+          <Link to={`/species/${featured.id}`} className="block active:opacity-[.72]">
+            <img
+              src={featuredPhoto.src}
+              alt={featured.name}
+              draggable={false}
+              className="photo aspect-[4/3] w-full rounded-md bg-fill object-cover"
+            />
           </Link>
-        ))}
-      </section>
-
-      {isNight && (
-        <section className="mt-4 px-4">
-          <Link to="/safe-drive" className="flex items-center gap-3 rounded-3xl bg-[#101B33] p-4 text-washi shadow-card">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10">
-              <Moon className="h-5 w-5 text-gold" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold">夜の運転の前に、セーフドライブ宣言</div>
-              <div className="text-[11px] text-washi/60">林道はゆっくり。宣言で +10pt（1日1回）</div>
-            </div>
-            <ChevronRight className="h-5 w-5 text-washi/40" />
-          </Link>
-        </section>
+          {featuredPhoto.credit && <figcaption className="mt-1.5 text-right text-caption text-fg-3">© {featuredPhoto.credit}</figcaption>}
+        </figure>
       )}
 
-      {/* ───── 今月出会えるかも ───── */}
-      <section className="mt-8">
-        <SectionHeader
-          label="IN SEASON"
-          title={`${month}月に出会えるかも`}
-          action={
-            <Link to="/zukan" className="text-[12px] font-bold text-accent">
-              図鑑へ
-            </Link>
-          }
-        />
-        <div className="no-scrollbar flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 pb-2">
-          {seasonal.map((sp) => {
-            const found = collection.has(sp.id);
-            return (
-              <Link
-                key={sp.id}
-                to={`/species/${sp.id}`}
-                className="card relative w-[148px] shrink-0 snap-start overflow-hidden"
-              >
-                <div className="relative h-24" style={{ background: CATEGORY_META[sp.category].color }}>
-                  {found && collection.get(sp.id)?.photoId ? (
-                    <PhotoImg photoId={collection.get(sp.id)!.photoId} alt={sp.name} className="absolute inset-0 h-full w-full" />
-                  ) : (
-                    <>
-                      <Kasuri className="text-white/10" size={20} />
-                      <CategoryIcon category={sp.category} className="absolute bottom-3 right-3 h-9 w-9 text-white/70" strokeWidth={1.4} />
-                    </>
-                  )}
-                  {found && (
-                    <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-forest-900">
-                      記録済み
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <RarityGems rarity={sp.rarity} size={5} />
-                  <div className="mt-1 line-clamp-1 font-serif text-[14px] font-bold">{sp.name}</div>
-                  <div className="sci line-clamp-1 text-[12px] text-ink3">{sp.sci}</div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      {/* ───── 図鑑の進み具合（行全体で /zukan へ） ───── */}
+      <Link to="/zukan" className="mt-5 block px-4 py-3 active:bg-fill">
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 text-headline text-fg">図鑑</span>
+          <span className="text-headline text-fg">
+            <span className="num">
+              {stats.discovered}/{SPECIES.length}
+            </span>
+            種
+          </span>
+          <IconCaretRight size={16} className="shrink-0 text-fg-3" />
+        </span>
+        <ProgressBar id="zukan" value={stats.discovered / SPECIES.length} label="図鑑の進み具合" className="mt-2" />
+        <span className="mt-2 flex flex-wrap gap-x-3 text-sub text-fg-2">
+          <span>{rank.current.title}</span>
+          <Num value={points.toLocaleString('ja-JP')} unit="pt" />
+        </span>
+      </Link>
 
-      {/* ───── クエスト ───── */}
-      {activeQuests.length > 0 && (
-        <section className="mt-8">
-          <SectionHeader label="QUESTS" title="開催中のクエスト" />
-          <div className="space-y-3 px-4">
-            {activeQuests.map(({ quest, current, target }) => (
-              <div key={quest.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <Sparkles className="h-4 w-4 shrink-0 text-kin" />
-                      <span className="truncate">{quest.title}</span>
-                    </div>
-                    <p className="mt-1 text-[12px] leading-relaxed text-ink2">{quest.description}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-kin/10 px-2 py-1 text-[11px] font-bold text-kin">+{quest.reward}pt</span>
-                </div>
-                <div className="mt-3 flex items-center gap-3">
-                  <ProgressBar value={current / target} className="flex-1" />
-                  <span className="text-[11px] font-bold tabular-nums text-ink2">
-                    {current}/{target}
-                  </span>
-                </div>
-                {quest.sponsor && <div className="mt-2 text-[10px] text-ink3">協賛：{quest.sponsor}</div>}
-              </div>
+      {/* ───── 今月会えるかもしれない種 ───── */}
+      {seasonal.length > 0 && (
+        <section aria-labelledby="home-season">
+          <SectionHeader
+            id="home-season"
+            title={`${month}月に会えるかも`}
+            onAction={seasonal.length > ROWS ? () => setSheet('season') : undefined}
+            // 図鑑の行の下 12px の押下領域と合わせて、見出しの上を 32px にする
+            className="pt-5"
+          />
+          <div>
+            {seasonal.slice(0, ROWS).map((sp) => (
+              <SpeciesRow key={sp.id} species={sp} entry={collection.get(sp.id)} />
             ))}
           </div>
         </section>
       )}
 
-      {/* ───── 最近の記録 ───── */}
-      <section className="mt-8">
-        <SectionHeader label="FIELD NOTES" title="最近の記録" />
-        {recent.length === 0 ? (
-          <div className="mx-4 card">
-            <EmptyState
-              icon={Camera}
-              title="最初の1枚を撮りに行こう"
-              body="見つけた生き物を撮って名前をつけると、図鑑が埋まっていきます。"
-              action={
-                <button className="btn-primary" onClick={() => navigate('/capture')}>
-                  <Camera className="h-4 w-4" /> 記録をはじめる
-                </button>
-              }
-            />
+      {/* ───── クエスト ───── */}
+      {activeQuests.length > 0 && (
+        <section aria-labelledby="home-quests">
+          <SectionHeader id="home-quests" title="開催中のクエスト" onAction={() => setSheet('quests')} />
+          <div>
+            {activeQuests.slice(0, ROWS).map((qp) => (
+              <ListRow
+                key={qp.quest.id}
+                icon={IconFlagBanner}
+                title={qp.quest.title}
+                subtitle={<Num value={`+${qp.quest.reward}`} unit="pt" />}
+                value={
+                  <span className="num">
+                    {qp.current}/{qp.target}
+                  </span>
+                }
+                onClick={() => {
+                  setQuestId(qp.quest.id);
+                  setSheet('quest');
+                }}
+              />
+            ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-1.5 px-4">
-            {recent.map((s) => {
-              const sp = s.speciesId ? SPECIES_BY_ID[s.speciesId] : null;
-              return (
-                <Link key={s.id} to={`/sighting/${s.id}`} className="relative aspect-square overflow-hidden rounded-xl">
-                  {s.photoId ? (
-                    <PhotoImg photoId={s.photoId} alt={sp?.name ?? s.customName ?? ''} className="h-full w-full" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center bg-ink/[0.06]">
-                      {sp ? <CategoryIcon category={sp.category} className="h-7 w-7 text-ink3" /> : null}
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5 pt-5">
-                    <div className="truncate text-[10.5px] font-bold text-white">{s.nickname || sp?.name || s.customName}</div>
-                  </div>
-                </Link>
-              );
-            })}
+        </section>
+      )}
+
+      {/* ───── 最近の記録（記録がある時だけ） ───── */}
+      {recent.length > 0 && (
+        <section aria-labelledby="home-recent">
+          <SectionHeader id="home-recent" title="最近の記録" onAction={() => setSheet('records')} />
+          <div className="no-scrollbar flex items-start gap-2 overflow-x-auto px-4 pb-1">
+            {recent.map((s) => (
+              <RecentTile key={s.id} sighting={s} />
+            ))}
           </div>
-        )}
+        </section>
+      )}
+
+      {/* ───── おすすめの体験 ───── */}
+      <section aria-labelledby="home-experience">
+        <SectionHeader id="home-experience" title="おすすめの体験" />
+        <ExperienceItem exp={exp} onOpen={() => setSheet('experience')} />
       </section>
 
-      {/* ───── おすすめ体験 ───── */}
-      <section className="mt-8">
-        <SectionHeader
-          label="EXPERIENCE"
-          title="今の季節のおすすめ体験"
+      {/* ───── 夜だけ：夜の道路の注意 ───── */}
+      {night && (
+        <Notice
+          kind="night"
+          className="mt-8"
           action={
-            <Link to="/explore" className="text-[12px] font-bold text-accent">
-              すべて
+            <Link to="/safe-drive" className={cn(button({ variant: 'text', size: 'hit' }), 'gap-0.5')}>
+              セーフドライブ
+              <IconCaretRight size={14} />
             </Link>
           }
-        />
-        <div className="px-4">
-          <ExperienceCard exp={exp} />
+        >
+          夜の道路ではクロウサギが飛び出します
+        </Notice>
+      )}
+
+      <footer className="mt-10 px-4 text-caption text-fg-3">β版　運営：株式会社アマリンク</footer>
+
+      {/* ───── シート ───── */}
+      <Sheet open={sheet === 'season'} onClose={close} title={`${month}月に会えるかも`} snapPoints={[0.55, 1]}>
+        <div className="-mx-4">
+          {seasonal.map((sp) => (
+            <SpeciesRow key={sp.id} species={sp} entry={collection.get(sp.id)} />
+          ))}
         </div>
-      </section>
+      </Sheet>
 
-      {/* ───── マナー ───── */}
-      <section className="mt-8 px-4">
-        <Link to="/explore?tab=manner" className="relative block overflow-hidden rounded-3xl bg-kuri/10 p-5">
-          <div className="label text-kuri">FOR THE ISLAND</div>
-          <p className="mt-2 font-serif text-[16px] font-bold leading-relaxed text-ink">{tip}</p>
-          <div className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-kuri">
-            観察マナーを読む <ChevronRight className="h-4 w-4" />
-          </div>
-        </Link>
-      </section>
+      <Sheet open={sheet === 'quests'} onClose={close} title="クエスト" snapPoints={[0.55, 1]}>
+        <QuestList quests={quests} />
+      </Sheet>
 
-      <footer className="mt-10 px-6 text-center text-[10px] leading-relaxed text-ink3">
-        AMAMI NATURE β — operated by Amalink
-        <br />
-        解説データは監修前のβ版です
-      </footer>
+      <Sheet open={sheet === 'quest'} onClose={close} title={selectedQuest?.quest.title}>
+        {selectedQuest && <QuestDetail qp={selectedQuest} />}
+      </Sheet>
+
+      <Sheet open={sheet === 'records'} onClose={close} title="これまでの記録" snapPoints={[0.55, 1]}>
+        <div className="-mx-4">
+          {sightings.map((s) => (
+            <RecordRow key={s.id} sighting={s} />
+          ))}
+        </div>
+      </Sheet>
+
+      <ExperienceSheet exp={sheet === 'experience' ? exp : null} onClose={close} />
     </Page>
+  );
+}
+
+// ───────── 同期の状態（LINE 連携中だけ） ─────────
+
+/** 見出しの右に、同期中・未送信の件数を小さく出す。何もなければ出さない */
+function SyncStatus() {
+  const mode = useStore((s) => s.account.mode);
+  const syncing = useStore((s) => s.account.syncing);
+  const pending = useStore((s) => s.sightings.filter((x) => x.syncState === 'pending').length);
+  if (mode !== 'line') return null;
+  if (syncing) {
+    return (
+      <span role="status" className="flex h-9 shrink-0 items-center gap-1.5 pt-[2px] text-caption text-fg-2">
+        <IconArrowClockwise size={16} className="shrink-0" />
+        同期中
+      </span>
+    );
+  }
+  if (pending === 0) return null;
+  return (
+    <span role="status" className="flex h-9 shrink-0 items-center gap-1.5 pt-[2px] text-caption text-fg-2">
+      <IconCloudSlash size={16} className="shrink-0 text-warning" />
+      <span>
+        未送信 <span className="num">{pending}</span>件
+      </span>
+    </span>
+  );
+}
+
+// ───────── 種の行 ─────────
+
+/** 季節の種の行。サムネイルは利用者の写真 → 参考写真 → シルエット → 番号 */
+function SpeciesRow({ species, entry }: { species: Species; entry?: CollectionEntry }) {
+  const found = !!entry;
+  return (
+    <ListRow
+      to={`/species/${species.id}`}
+      leading={<SpeciesThumb species={species} photoId={entry?.photoId} discovered={found} showReference size={56} />}
+      thumbSize={56}
+      title={<SpeciesName species={species} />}
+      subtitle={<RarityGems rarity={species.rarity} withLabel />}
+      checked={found}
+    />
+  );
+}
+
+// ───────── 記録 ─────────
+
+/** 記録の絵。図鑑の種はプレート（写真 → 参考写真 → シルエット → 番号）、図鑑にない生き物は写真か fill */
+function RecordPlate({ sighting, className, small = false }: { sighting: Sighting; className?: string; small?: boolean }) {
+  const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
+  if (sp) return <SpeciesPlate species={sp} photoId={sighting.photoId} numberSize={small ? 'small' : 'tile'} className={className} />;
+  return <CustomPlate photoId={sighting.photoId} className={className} />;
+}
+
+function CustomPlate({ photoId, className }: { photoId: string | null; className?: string }) {
+  const url = usePhotoUrl(photoId, 'thumb');
+  return (
+    <div className={cn('relative overflow-hidden bg-fill', className)}>
+      {url && <img src={url} alt="" draggable={false} className="photo absolute inset-0 h-full w-full object-cover" />}
+    </div>
+  );
+}
+
+/** 最近の記録のタイル（96px、rounded-xs）。下に名前を 1 行（ニックネームは省略記号可、和名は省略しない） */
+function RecentTile({ sighting }: { sighting: Sighting }) {
+  const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
+  const nickname = sighting.nickname.trim();
+  return (
+    <Link to={`/sighting/${sighting.id}`} className="block w-24 shrink-0 select-none active:opacity-[.72]">
+      <RecordPlate sighting={sighting} className="h-24 w-24 rounded-xs" />
+      <span className="mt-1.5 block text-sub text-fg">
+        {nickname ? (
+          <span className="block truncate">{nickname}</span>
+        ) : sp ? (
+          <SpeciesName species={sp} />
+        ) : (
+          <span className="block truncate">{sighting.customName || 'なぞの生き物'}</span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+/** すべての記録のシートの行 */
+function RecordRow({ sighting }: { sighting: Sighting }) {
+  const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
+  const sameYear = new Date(sighting.observedAt).getFullYear() === new Date().getFullYear();
+  const d = new Date(sighting.observedAt);
+  const date = `${sameYear ? '' : `${d.getFullYear()}年`}${d.getMonth() + 1}月${d.getDate()}日`;
+  return (
+    <ListRow
+      to={`/sighting/${sighting.id}`}
+      leading={<RecordPlate sighting={sighting} small className="h-12 w-12 shrink-0 rounded-xs" />}
+      thumbSize={48}
+      title={sighting.nickname.trim() || !sp ? sightingName(sighting) : <SpeciesName species={sp} />}
+      subtitle={
+        <span className="flex flex-wrap gap-x-3">
+          <span>{date}</span>
+          {sighting.nickname.trim() && sp && <span>{sp.name}</span>}
+        </span>
+      }
+      chevron
+    />
+  );
+}
+
+// ───────── クエスト ─────────
+
+/** クエストの中身（説明、進み具合、報酬・期間・協賛）。1 つのクエストのシートで使う */
+function QuestDetail({ qp }: { qp: QuestProgress }) {
+  const { quest, current, target, done } = qp;
+  return (
+    <div>
+      <p className="text-body text-fg">
+        <Phrase text={quest.description} />
+      </p>
+      <div className="mt-4 flex items-center gap-3">
+        <ProgressBar value={current / target} label="クエストの進み具合" className="flex-1" />
+        {done ? (
+          <span className="flex shrink-0 items-center gap-1 text-sub text-fg-2">
+            <IconCheckCircleFill size={16} className="text-success" />
+            達成
+          </span>
+        ) : (
+          <span className="num shrink-0 text-callout font-semibold text-fg">
+            {current}/{target}
+          </span>
+        )}
+      </div>
+      <div className="-mx-4 mt-6">
+        <Group>
+          <InfoRow label="報酬">
+            <Num value={`+${quest.reward}`} unit="pt" />
+          </InfoRow>
+          <InfoRow label="期間">{quest.months ? monthRange(quest.months) : 'いつでも'}</InfoRow>
+          {quest.sponsor && <InfoRow label="協賛">{quest.sponsor}</InfoRow>}
+        </Group>
+      </div>
+    </div>
+  );
+}
+
+/** すべてのクエスト（開催中 → 期間外）。行を押さなくても説明まで読めるようにする */
+function QuestList({ quests }: { quests: QuestProgress[] }) {
+  const active = quests.filter((q) => q.active).sort((a, b) => Number(a.done) - Number(b.done));
+  const later = quests.filter((q) => !q.active);
+  return (
+    <div className="-mx-4">
+      {active.length > 0 && <QuestGroup heading="開催中" items={active} />}
+      {later.length > 0 && <QuestGroup heading="期間外" items={later} />}
+    </div>
+  );
+}
+
+function QuestGroup({ heading, items }: { heading: string; items: QuestProgress[] }) {
+  return (
+    <section className="mb-4">
+      <h3 className="px-4 pb-1 pt-2 text-sub font-semibold text-fg-2">{heading}</h3>
+      <ul>
+        {items.map(({ quest, current, target, done, active }) => (
+          <li key={quest.id} className="group/row flex pl-4">
+            <IconFlagBanner size={20} className="mt-3.5 shrink-0 text-fg-2" />
+            <div className="ml-3 min-w-0 flex-1 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
+              <div className="flex items-start gap-3">
+                <span className="min-w-0 flex-1 text-headline text-fg">
+                  <Phrase text={quest.title} />
+                </span>
+                {done ? (
+                  <>
+                    <IconCheckCircleFill size={20} className="shrink-0 text-success" />
+                    <span className="sr-only">達成</span>
+                  </>
+                ) : (
+                  <span className="num shrink-0 text-callout text-fg-2">
+                    {current}/{target}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-sub text-fg-2">
+                <Phrase text={quest.description} />
+              </p>
+              <p className="mt-1 flex flex-wrap gap-x-3 text-sub text-fg-2">
+                <Num value={`+${quest.reward}`} unit="pt" />
+                {quest.months && <span>{active ? `${monthRange(quest.months)}に開催中` : `${monthRange(quest.months)}に開催`}</span>}
+                {quest.sponsor && <span>協賛：{quest.sponsor}</span>}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

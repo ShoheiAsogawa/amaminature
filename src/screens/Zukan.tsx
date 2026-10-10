@@ -1,134 +1,212 @@
-import { Search, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SpeciesTile } from '../components/SpeciesTile';
-import { CategoryIcon, EmptyState, Page, PageHeader, ProgressBar } from '../components/ui';
+import { IconSlidersHorizontal } from '../components/icons';
+import { SpeciesGrid, SpeciesTile } from '../components/SpeciesTile';
+import {
+  Button,
+  CATEGORY_ICON,
+  CATEGORY_ICON_SELECTED,
+  Chip,
+  ChipRow,
+  cn,
+  EmptyState,
+  Group,
+  HeaderButton,
+  ListRow,
+  Page,
+  ProgressBar,
+  RadioMark,
+  ScreenHeader,
+  SearchField,
+  Segmented,
+  Sheet,
+} from '../components/ui';
 import { CATEGORY_META, CATEGORY_ORDER, SPECIES, searchSpecies } from '../data/species';
 import type { Category } from '../data/types';
-import { useCollection } from '../store/useCollection';
+import { useCollection, type CollectionEntry } from '../store/useCollection';
 
-type Filter = 'all' | 'found' | 'missing';
+// 図鑑（docs/DESIGN_SYSTEM.md §8.2）
+// 発見状態と並び順はフィルターのシートで選ぶ。カテゴリ（c）・発見状態（f）・並び順（s）は URL に持たせ、
+// 種詳細から戻っても条件が残るようにする。
+
+type Status = 'all' | 'found' | 'missing';
+type Sort = 'no' | 'rarity' | 'recent';
+
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'all', label: 'すべて' },
+  { value: 'found', label: '記録済み' },
+  { value: 'missing', label: '未発見' },
+];
+
+const SORT_OPTIONS: { value: Sort; label: string }[] = [
+  { value: 'no', label: '番号順' },
+  { value: 'rarity', label: 'レア度順' },
+  { value: 'recent', label: '最近記録した順' },
+];
+
+const STATUS_LABEL: Record<Status, string> = { all: 'すべて', found: '記録済み', missing: '未発見' };
+
+const CATEGORIES = new Set<string>(CATEGORY_ORDER);
+const DAY = 24 * 60 * 60 * 1000;
+
+/** その種を最後に記録した時刻（ms）。24 時間以内なら番号の後ろに点を付け、「最近記録した順」にも使う */
+function lastRecordedAt(entry: CollectionEntry | undefined): number {
+  if (!entry) return 0;
+  let t = 0;
+  for (const s of entry.sightings) {
+    const v = Date.parse(s.createdAt || s.observedAt);
+    if (Number.isFinite(v) && v > t) t = v;
+  }
+  return t;
+}
 
 export default function Zukan() {
   const [params, setParams] = useSearchParams();
-  const category = (params.get('c') as Category | null) ?? null;
+  const rawC = params.get('c');
+  const category = rawC && CATEGORIES.has(rawC) ? (rawC as Category) : null;
+  const rawF = params.get('f');
+  const status: Status = rawF === 'found' || rawF === 'missing' ? rawF : 'all';
+  const rawS = params.get('s');
+  const sort: Sort = rawS === 'rarity' || rawS === 'recent' ? rawS : 'no';
+
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [now] = useState(() => Date.now());
   const collection = useCollection();
 
+  const recorded = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [id, e] of collection) m.set(id, lastRecordedAt(e));
+    return m;
+  }, [collection]);
+
   const list = useMemo(() => {
-    return searchSpecies(query).filter((s) => {
+    const filtered = searchSpecies(query).filter((s) => {
       if (category && s.category !== category) return false;
-      if (filter === 'found' && !collection.has(s.id)) return false;
-      if (filter === 'missing' && collection.has(s.id)) return false;
+      if (status === 'found' && !collection.has(s.id)) return false;
+      if (status === 'missing' && collection.has(s.id)) return false;
       return true;
     });
-  }, [query, category, filter, collection]);
+    if (sort === 'rarity') return [...filtered].sort((a, b) => b.rarity - a.rarity || a.no - b.no);
+    if (sort === 'recent') return [...filtered].sort((a, b) => (recorded.get(b.id) ?? 0) - (recorded.get(a.id) ?? 0) || a.no - b.no);
+    return filtered;
+  }, [query, category, status, sort, collection, recorded]);
 
-  const scoped = category ? SPECIES.filter((s) => s.category === category) : SPECIES;
-  const foundInScope = scoped.filter((s) => collection.has(s.id)).length;
+  const total = SPECIES.length;
+  const found = SPECIES.filter((s) => collection.has(s.id)).length;
+  const pct = Math.round((found / Math.max(1, total)) * 100);
 
-  const setCategory = (c: Category | null) => {
+  const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
-    if (c) next.set('c', c);
-    else next.delete('c');
-    setParams(next, { replace: true });
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    setParams(next, { replace: true, preventScrollReset: true });
   };
+  const setCategory = (c: Category | null) => update({ c });
+  const clearAll = () => {
+    setQuery('');
+    update({ c: null, f: null });
+  };
+
+  // フィルターのシート（［この条件で表示］を押すまで反映しない）
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<Status>(status);
+  const [draftSort, setDraftSort] = useState<Sort>(sort);
+  const openSheet = () => {
+    setDraftStatus(status);
+    setDraftSort(sort);
+    setSheetOpen(true);
+  };
+  const apply = () => {
+    update({ f: draftStatus === 'all' ? null : draftStatus, s: draftSort === 'no' ? null : draftSort });
+    setSheetOpen(false);
+  };
+  const conditioned = status !== 'all' || sort !== 'no';
+
+  // ?c=plant などで開いた時、選択中のカテゴリのチップが画面の外にあれば見える位置まで送る（最初の 1 回だけ）
+  const chipsRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const scroller = chipsRef.current?.firstElementChild as HTMLElement | null;
+    if (!scroller || !category) return;
+    const chip = scroller.children[(status !== 'all' ? 1 : 0) + 1 + CATEGORY_ORDER.indexOf(category)] as HTMLElement | undefined;
+    if (chip && chip.offsetLeft + chip.offsetWidth > scroller.clientWidth - 16) scroller.scrollLeft = chip.offsetLeft - 16;
+  }, []);
 
   return (
     <Page>
-      <PageHeader label="FIELD GUIDE" title="奄美いきもの図鑑" />
-
-      <div className="px-4">
-        <div className="card p-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="label">{category ? CATEGORY_META[category].label : 'すべての生き物'}</div>
-              <div className="mt-1 font-serif text-[26px] font-extrabold leading-none">
-                {foundInScope}
-                <span className="ml-1 text-[14px] font-bold text-ink3">/ {scoped.length} 種</span>
-              </div>
-            </div>
-            <div className="text-right text-[12px] font-bold text-accent">
-              {Math.round((foundInScope / Math.max(1, scoped.length)) * 100)}%
-            </div>
-          </div>
-          <ProgressBar value={foundInScope / Math.max(1, scoped.length)} className="mt-3" />
-        </div>
-
-        <div className="relative mt-4">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink3" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="名前・学名で探す（例：るりかけす）"
-            className="input pl-10"
-            inputMode="search"
-            aria-label="図鑑を検索"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-ink/10"
-              aria-label="検索をクリア"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
-        <button
-          onClick={() => setCategory(null)}
-          className={`chip shrink-0 py-1.5 ${!category ? 'border-transparent bg-primary text-onprimary' : ''}`}
-        >
-          すべて
-        </button>
-        {CATEGORY_ORDER.map((c) => {
-          const total = SPECIES.filter((s) => s.category === c).length;
-          const found = SPECIES.filter((s) => s.category === c && collection.has(s.id)).length;
-          const active = category === c;
-          return (
-            <button
-              key={c}
-              onClick={() => setCategory(active ? null : c)}
-              className={`chip shrink-0 py-1.5 ${active ? 'border-transparent bg-primary text-onprimary' : ''}`}
-            >
-              <CategoryIcon category={c} className="h-3.5 w-3.5" strokeWidth={2} />
-              {CATEGORY_META[c].short}
-              <span className={active ? 'text-onprimary/70' : 'text-ink3'}>
+      <ScreenHeader
+        variant="tab"
+        title="図鑑"
+        right={
+          <div className="mr-2 flex items-baseline gap-2 pt-1">
+            <span className="text-callout font-semibold text-fg">
+              <span className="num">
                 {found}/{total}
               </span>
-            </button>
-          );
-        })}
+              種
+            </span>
+            <span className="num text-sub text-fg-2">{pct}%</span>
+          </div>
+        }
+      />
+      <div className="px-4">
+        <ProgressBar value={found / Math.max(1, total)} id="zukan" label="図鑑に記録した種の割合" />
       </div>
 
-      <div className="mt-2 flex gap-4 px-5 text-[12px] font-bold">
-        {(
-          [
-            ['all', 'すべて'],
-            ['found', '記録済み'],
-            ['missing', '未発見'],
-          ] as const
-        ).map(([v, label]) => (
-          <button
-            key={v}
-            onClick={() => setFilter(v)}
-            className={`border-b-2 py-1.5 transition ${filter === v ? 'border-accent text-ink' : 'border-transparent text-ink3'}`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mt-4 flex items-center gap-2 pl-4 pr-2">
+        <SearchField value={query} onChange={setQuery} aria-label="図鑑を検索" className="flex-1" />
+        <HeaderButton
+          icon={IconSlidersHorizontal}
+          label={conditioned ? '表示の条件（変更あり）' : '表示の条件'}
+          onClick={openSheet}
+          className={cn(conditioned && 'text-brand')}
+        />
+      </div>
+
+      <div ref={chipsRef}>
+        <ChipRow className="mt-3">
+          {status !== 'all' && (
+            <Chip selected removable onClick={() => update({ f: null })} aria-label={`${STATUS_LABEL[status]}の絞り込みを解除`}>
+              {STATUS_LABEL[status]}
+            </Chip>
+          )}
+          <Chip selected={!category} onClick={() => setCategory(null)}>
+            すべて
+          </Chip>
+          {CATEGORY_ORDER.map((c) => {
+            const inCat = SPECIES.filter((s) => s.category === c);
+            const foundInCat = inCat.filter((s) => collection.has(s.id)).length;
+            const active = category === c;
+            return (
+              <Chip
+                key={c}
+                selected={active}
+                icon={CATEGORY_ICON[c]}
+                selectedIcon={CATEGORY_ICON_SELECTED[c]}
+                count={`${foundInCat}/${inCat.length}`}
+                onClick={() => setCategory(active ? null : c)}
+              >
+                {CATEGORY_META[c].short}
+              </Chip>
+            );
+          })}
+        </ChipRow>
       </div>
 
       {list.length === 0 ? (
-        <EmptyState icon={Search} title="見つかりませんでした" body="ひらがなやカタカナ、学名でも探せます。" />
+        <EmptyState
+          className="mt-2"
+          title="該当する生き物はいません"
+          body={query ? 'ひらがな、カタカナ、学名でも探せます' : undefined}
+          actionLabel="条件を解除"
+          onAction={clearAll}
+        />
       ) : (
-        <div className="mt-3 grid grid-cols-3 gap-2.5 px-4">
-          {list.map((s, i) => {
+        <SpeciesGrid className="mt-4">
+          {list.map((s) => {
             const entry = collection.get(s.id);
+            const at = recorded.get(s.id) ?? 0;
             return (
               <SpeciesTile
                 key={s.id}
@@ -136,12 +214,41 @@ export default function Zukan() {
                 discovered={!!entry}
                 count={entry?.count ?? 0}
                 photoId={entry?.photoId}
-                index={i}
+                isNew={!!entry && at > 0 && now - at < DAY}
               />
             );
           })}
-        </div>
+        </SpeciesGrid>
       )}
+
+      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="表示の条件">
+        <p className="mb-1.5 text-sub font-semibold text-fg-2" id="zukan-status-label">
+          表示
+        </p>
+        <Segmented options={STATUS_OPTIONS} value={draftStatus} onChange={setDraftStatus} aria-label="表示" />
+
+        <p className="mb-1.5 mt-6 text-sub font-semibold text-fg-2" id="zukan-sort-label">
+          並び順
+        </p>
+        <Group boxClassName="mx-0">
+          <div role="radiogroup" aria-labelledby="zukan-sort-label">
+            {SORT_OPTIONS.map((o) => (
+              <ListRow
+                key={o.value}
+                role="radio"
+                aria-checked={draftSort === o.value}
+                leading={<RadioMark checked={draftSort === o.value} />}
+                title={o.label}
+                onClick={() => setDraftSort(o.value)}
+              />
+            ))}
+          </div>
+        </Group>
+
+        <Button className="mt-6" onClick={apply}>
+          この条件で表示
+        </Button>
+      </Sheet>
     </Page>
   );
 }

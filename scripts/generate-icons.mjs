@@ -1,4 +1,4 @@
-// PWA / LINE用アイコンを public/favicon.svg から書き出す
+// PWA / LINE用アイコンを public/favicon.svg（瑠璃の地に白いヒカゲヘゴ。docs/DESIGN_SYSTEM.md §6）から書き出す
 import { chromium } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -12,7 +12,7 @@ async function render(size, out, { maskable = false } = {}) {
   // maskable は安全領域（80%）に収めるため余白をつけ、角丸なしの背景で塗る
   const inner = maskable ? Math.round(size * 0.72) : size;
   const body = maskable
-    ? `<div style="width:${size}px;height:${size}px;background:#0E2A20;display:grid;place-items:center">${svg.replace('<svg ', `<svg width="${inner}" height="${inner}" `)}</div>`
+    ? `<div style="width:${size}px;height:${size}px;background:#1E50A2;display:grid;place-items:center">${svg.replace('<svg ', `<svg width="${inner}" height="${inner}" `)}</div>`
     : svg.replace('<svg ', `<svg width="${size}" height="${size}" `);
   await page.setContent(`<html><body style="margin:0;background:transparent">${body}</body></html>`);
   await page.screenshot({ path: out, omitBackground: !maskable, clip: { x: 0, y: 0, width: size, height: size } });

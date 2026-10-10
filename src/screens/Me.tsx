@@ -1,50 +1,100 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Wordmark } from '../components/Brand';
+import { IconCoins, IconPencilSimple, IconUser } from '../components/icons';
+import { Phrase } from '../components/Phrase';
+import { usePhotoUrl } from '../components/PhotoImg';
 import {
-  Building2,
-  ChevronRight,
-  Cloud,
-  FileDown,
-  FileUp,
-  Gift,
-  MessageCircle,
-  Pencil,
-  RotateCcw,
-  ShieldCheck,
-  Sparkles,
-} from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BADGE_ICON, formatDate, Kasuri, Page, PageHeader, ProgressBar, Segmented, Sheet, toast } from '../components/ui';
+  BadgeEmblem,
+  BadgeName,
+  BadgeSheet,
+  Button,
+  ConfirmDialog,
+  formatDateJa,
+  Group,
+  HeaderButton,
+  InfoRow,
+  Input,
+  ListRow,
+  Notice,
+  Num,
+  Page,
+  RadioMark,
+  SectionHeader,
+  Sheet,
+  Stat,
+  StatRow,
+  toast,
+} from '../components/ui';
 import { SPECIES } from '../data/species';
 import { api } from '../lib/api';
 import { exportBackup, importBackup } from '../lib/db';
 import { lineLogin, LIFF_ID } from '../lib/liff';
-import { BADGES } from '../lib/progress';
-import type { ThemePref } from '../lib/types';
+import { BADGES, computeStats, earnedBadges, type Badge } from '../lib/progress';
+import type { Settings, Sighting, ThemePref } from '../lib/types';
 import { useProgress } from '../store/useProgress';
-import { isPlusActive, useStore } from '../store/useStore';
+import { isPlusActive, localDateKey, useStore } from '../store/useStore';
 
 const ADD_FRIEND_URL = (import.meta.env.VITE_LINE_ADD_FRIEND_URL as string | undefined) ?? '';
 
-function MenuRow({ icon, label, sub, to, onClick }: { icon: ReactNode; label: string; sub?: string; to?: string; onClick?: () => void }) {
-  const inner = (
-    <>
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-ink/[0.05] text-ink2">{icon}</span>
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block text-[14px] font-bold">{label}</span>
-        {sub && <span className="block truncate text-[11px] text-ink3">{sub}</span>}
+const THEME_OPTIONS: { value: ThemePref; label: string; note?: string }[] = [
+  { value: 'system', label: '自動', note: '端末の設定に合わせます' },
+  { value: 'light', label: 'ライト' },
+  { value: 'dark', label: '夜の森' },
+];
+
+/** マイページの「最近獲得したバッジ」に出す数 */
+const RECENT_BADGES = 3;
+
+/**
+ * バッジを獲得した日時を、記録を古い順にたどって求める（「最近獲得した」の並びと説明シートの獲得日）。
+ * 記録で得るバッジは、条件を満たした記録の日時。セーフドライバーは 5 回目の宣言の日。
+ * 森との約束（オンボーディングで獲得）は日時がわからないので null（いちばん古い扱い）。
+ */
+function badgeEarnedTimes(sightings: Sighting[], settings: Settings): Map<string, string | null> {
+  const times = new Map<string, string | null>();
+  const at = (s: Sighting) => s.createdAt || s.observedAt;
+  const ordered = sightings.filter((s) => s.syncState !== 'rejected').sort((a, b) => at(a).localeCompare(at(b)));
+  const ctx = { pledged: false, safeDriveDays: 0 };
+  // 記録だけで決まるバッジ（約束・宣言の条件を外して数える）
+  const bySightings = new Set(earnedBadges(computeStats(ordered), ctx));
+  for (let i = 0; i < ordered.length && times.size < bySightings.size; i++) {
+    for (const id of earnedBadges(computeStats(ordered.slice(0, i + 1)), ctx)) {
+      if (!times.has(id)) times.set(id, at(ordered[i]));
+    }
+  }
+  if (settings.pledged) times.set('pledge', null);
+  const days = [...settings.safeDriveDates].sort();
+  if (days.length >= 5) times.set('safe-driver', `${days[4]}T00:00:00`);
+  return times;
+}
+
+/** 紋章と名前（caption、2 行まで）。押すとバッジの説明シートを開く */
+function BadgeCell({ badge, earned, size, onOpen }: { badge: Badge; earned: boolean; size: 56 | 64; onOpen: (b: Badge) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(badge)}
+      aria-label={`${badge.title}${earned ? '' : '（未獲得）'}`}
+      className="flex min-w-0 flex-col items-center gap-2 rounded-sm px-1 pb-1 pt-2 active:opacity-[.72]"
+    >
+      <BadgeEmblem badge={badge} earned={earned} size={size} />
+      <span aria-hidden className={`line-clamp-2 text-center text-caption ${earned ? 'text-fg' : 'text-fg-3'}`}>
+        <BadgeName badge={badge} />
       </span>
-      <ChevronRight className="h-4 w-4 text-ink3" />
-    </>
-  );
-  const cls = 'flex w-full items-center gap-3 px-4 py-3 active:bg-ink/5';
-  return to ? (
-    <Link to={to} className={cls}>
-      {inner}
-    </Link>
-  ) : (
-    <button onClick={onClick} className={cls}>
-      {inner}
     </button>
+  );
+}
+
+/** アバター: 利用者の最初の記録の写真。なければ LINE のプロフィール画像、それもなければ fill の円に user 32 */
+function Avatar({ photoId, pictureUrl }: { photoId: string | null; pictureUrl: string | null }) {
+  const url = usePhotoUrl(photoId, 'thumb');
+  const src = url ?? (photoId ? null : pictureUrl);
+  if (src) return <img src={src} alt="" className="photo h-16 w-16 shrink-0 rounded-full object-cover" draggable={false} />;
+  return (
+    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-fill text-fg-3">
+      <IconUser size={32} />
+    </span>
   );
 }
 
@@ -52,249 +102,286 @@ export default function Me() {
   const navigate = useNavigate();
   const settings = useStore((s) => s.settings);
   const account = useStore((s) => s.account);
+  const sightings = useStore((s) => s.sightings);
   const updateSettings = useStore((s) => s.updateSettings);
   const resetAll = useStore((s) => s.resetAll);
   const load = useStore((s) => s.load);
   const { stats, points, balance, rank, badges } = useProgress();
+  const plus = isPlusActive(settings);
+  const lineMode = account.mode === 'line';
+
   const [nameSheet, setNameSheet] = useState(false);
   const [name, setName] = useState(settings.name);
-  const [resetSheet, setResetSheet] = useState(false);
+  const [themeSheet, setThemeSheet] = useState(false);
+  const [lineSheet, setLineSheet] = useState(false);
+  const [allBadges, setAllBadges] = useState(false);
+  const [badge, setBadge] = useState<Badge | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const plus = isPlusActive(settings);
+
+  useEffect(() => {
+    if (nameSheet) setName(settings.name);
+  }, [nameSheet, settings.name]);
+
+  // 最初の記録（写真つき）。sightings は新しい順
+  const firstPhotoId = useMemo(() => {
+    for (let i = sightings.length - 1; i >= 0; i--) if (sightings[i].photoId) return sightings[i].photoId;
+    return null;
+  }, [sightings]);
+
+  const earnedAt = useMemo(() => badgeEarnedTimes(sightings, settings), [sightings, settings]);
+  const recent = useMemo(
+    () =>
+      BADGES.filter((b) => badges.has(b.id))
+        .map((b) => ({ b, t: earnedAt.get(b.id) ?? '' }))
+        .sort((x, y) => y.t.localeCompare(x.t))
+        .slice(0, RECENT_BADGES)
+        .map((x) => x.b),
+    [badges, earnedAt],
+  );
+
+  const pending = sightings.filter((s) => s.syncState === 'pending').length;
+  const themeLabel = THEME_OPTIONS.find((o) => o.value === settings.theme)?.label ?? '自動';
+  const displayName = settings.name || '観察者さん';
 
   const doExport = async () => {
-    const blob = await exportBackup();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `amami-nature-backup-${formatDate(new Date().toISOString()).replace(/\./g, '')}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    try {
+      const blob = await exportBackup();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `amami-nature-backup-${localDateKey().replace(/-/g, '')}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast.success('記録を書き出しました');
+    } catch {
+      toast.error('書き出せませんでした。端末の空き容量を確かめて、もう一度お試しください');
+    }
   };
 
   const doImport = async (file: File) => {
     try {
       const n = await importBackup(file);
       await load();
-      toast(`${n}件の記録を読み込みました`);
+      toast.success(`${n}件の記録を読み込みました`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : '読み込めませんでした');
+      toast.error(e instanceof Error ? e.message : '読み込めませんでした');
     }
   };
 
+  const saveName = () => {
+    updateSettings({ name: name.trim() });
+    if (lineMode) void api.updateMe({ nickname: name.trim() }).catch(() => undefined);
+    setNameSheet(false);
+  };
+
+  const addFriend = () => {
+    if (ADD_FRIEND_URL) window.open(ADD_FRIEND_URL, '_blank', 'noopener');
+    else toast('LINE公式アカウントは準備中です');
+  };
+
+  // LIFF があって未ログインの時は、LINE 連携の行を［LINEでログイン］に替える（§8.8）
+  const showLogin = !lineMode && !!LIFF_ID;
+
   return (
     <Page>
-      <PageHeader label="MY PAGE" title="マイページ" />
-
       {/* プロフィール */}
-      <section className="px-4">
-        <div className="relative overflow-hidden rounded-4xl bg-forest-900 p-5 text-washi shadow-lift">
-          <Kasuri className="text-white/[0.05]" />
-          <div className="relative flex items-center gap-4">
-            {account.pictureUrl ? (
-              <img src={account.pictureUrl} alt="" className="h-16 w-16 rounded-full ring-2 ring-gold/70" />
-            ) : (
-              <div className="grid h-16 w-16 place-items-center rounded-full bg-white/10 font-serif text-[24px] font-bold ring-2 ring-gold/60">
-                {(settings.name || '島')[0]}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <button onClick={() => setNameSheet(true)} className="flex items-center gap-1.5">
-                <span className="truncate font-serif text-[20px] font-bold">{settings.name || '観察者さん'}</span>
-                <Pencil className="h-3.5 w-3.5 text-washi/50" />
-              </button>
-              <div className="mt-0.5 text-[12px] text-gold">{rank.current.title}</div>
-              {plus && (
-                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-[10px] font-extrabold text-forest-950">
-                  <Sparkles className="h-3 w-3" /> AMAMI NATURE+
-                </span>
-              )}
-            </div>
+      <header className="pt-safe">
+        <div className="flex items-center gap-4 px-4 pb-2 pt-4">
+          <Avatar photoId={firstPhotoId} pictureUrl={account.pictureUrl} />
+          <div className="min-w-0 flex-1">
+            <h1 className="break-words text-title text-fg">{displayName}</h1>
+            <p className="text-sub text-fg-2">{rank.current.title}</p>
           </div>
-          <div className="relative mt-5 grid grid-cols-4 gap-2 text-center">
-            {[
-              ['記録', stats.total],
-              ['種', `${stats.discovered}/${SPECIES.length}`],
-              ['市町村', `${stats.areas.size}/12`],
-              ['路上報告', stats.roadReports],
-            ].map(([l, v]) => (
-              <div key={l as string} className="rounded-2xl bg-white/[0.07] py-2.5">
-                <div className="font-serif text-[18px] font-extrabold">{v}</div>
-                <div className="text-[10px] text-washi/55">{l}</div>
-              </div>
-            ))}
-          </div>
-          <div className="relative mt-4">
-            <div className="flex items-baseline justify-between text-[11px] text-washi/60">
-              <span>
-                累計 <b className="text-[15px] text-gold">{points.toLocaleString()}</b> pt
-              </span>
-              <span>{rank.next ? `次のランクまで ${rank.next.min - points}pt` : 'MAX'}</span>
-            </div>
-            <ProgressBar value={rank.progress} color="#C79A2E" className="mt-1.5 bg-white/10" />
-          </div>
+          <HeaderButton icon={IconPencilSimple} label="観察者ネームを変更" onClick={() => setNameSheet(true)} className="-mr-2 self-start" />
         </div>
-      </section>
+      </header>
 
-      {/* ポイント */}
-      <section className="mt-4 grid grid-cols-2 gap-2 px-4">
-        <Link to="/rewards" className="card p-4">
-          <Gift className="h-5 w-5 text-kin" />
-          <div className="mt-2 text-[11px] font-bold text-ink3">交換できるポイント</div>
-          <div className="font-serif text-[22px] font-extrabold">
-            {balance.toLocaleString()}
-            <span className="text-[12px] text-ink3"> pt</span>
-          </div>
-        </Link>
-        <Link to="/plus" className="card relative overflow-hidden p-4">
-          <Sparkles className="h-5 w-5 text-ruri" />
-          <div className="mt-2 text-[11px] font-bold text-ink3">AMAMI NATURE+</div>
-          <div className="text-[14px] font-bold">{plus ? `${formatDate(settings.plus!.until)}まで` : 'AI判定・限定フレーム'}</div>
-        </Link>
-      </section>
+      <StatRow className="mt-4">
+        <Stat value={stats.total} label="記録" />
+        <Stat value={`${stats.discovered}/${SPECIES.length}`} unit="種" label="図鑑" className="flex-[1.35]" />
+        <Stat value={`${stats.areas.size}/12`} label="市町村" />
+        <Stat value={badges.size} label="バッジ" />
+      </StatRow>
+
+      <Group className="mt-6">
+        <ListRow
+          icon={IconCoins}
+          title="ポイント"
+          subtitle={rank.next ? `次の「${rank.next.title}」まで${rank.next.min - points}pt` : undefined}
+          value={<Num value={balance.toLocaleString()} unit="pt" />}
+          chevron
+          to="/rewards"
+        />
+      </Group>
 
       {/* バッジ */}
-      <section className="mt-8 px-4">
-        <div className="mb-3 flex items-end justify-between px-1">
-          <div>
-            <div className="label">BADGES</div>
-            <h2 className="font-serif text-[18px] font-bold">バッジ</h2>
-          </div>
-          <span className="text-[12px] font-bold text-ink3">
-            {badges.size}/{BADGES.length}
-          </span>
+      <SectionHeader title="最近獲得したバッジ" onAction={() => setAllBadges(true)} />
+      {recent.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2 px-4">
+          {recent.map((b) => (
+            <BadgeCell key={b.id} badge={b} earned size={64} onOpen={setBadge} />
+          ))}
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {BADGES.map((b) => {
-            const Icon = BADGE_ICON[b.icon];
-            const got = badges.has(b.id);
-            return (
-              <button
-                key={b.id}
-                onClick={() => toast(`${b.title}：${b.description}${got ? '' : '（未獲得）'}`)}
-                className="flex flex-col items-center gap-1.5 rounded-2xl p-2 active:bg-ink/5"
-              >
-                <span
-                  className={`grid h-14 w-14 place-items-center rounded-full ${
-                    got ? 'bg-gradient-to-br from-[#E2C46F] to-gold text-forest-950 shadow-glow' : 'border border-dashed hairline text-ink/20'
-                  }`}
-                >
-                  <Icon className="h-6 w-6" strokeWidth={1.8} />
-                </span>
-                <span className={`line-clamp-2 text-center text-[10px] font-bold leading-tight ${got ? 'text-ink' : 'text-ink3'}`}>{b.title}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      ) : (
+        <p className="px-4 text-sub text-fg-2">生き物を記録すると、バッジがもらえます</p>
+      )}
 
       {/* アカウント */}
-      <section className="mt-8 px-4">
-        <div className="label mb-2 px-1">ACCOUNT</div>
-        {account.mode === 'line' ? (
-          <div className="card flex items-center gap-3 p-4">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#06C755] text-white">
-              <MessageCircle className="h-5 w-5" />
-            </span>
-            <div className="flex-1">
-              <div className="text-[14px] font-bold">LINEで連携中</div>
-              <div className="text-[11px] text-ink3">
-                <Cloud className="mr-1 inline h-3 w-3" />
-                記録はクラウドに保存されています{account.lastSyncAt ? `（${formatDate(account.lastSyncAt, true)} 同期）` : ''}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="card p-4">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#06C755] text-white">
-                <MessageCircle className="h-5 w-5" />
-              </span>
-              <div className="flex-1">
-                <div className="text-[14px] font-bold">LINEで使うともっと便利に</div>
-                <div className="text-[11px] leading-relaxed text-ink3">クラウド保存・AI判定・ポイント交換・トークで写真を送るだけで記録</div>
-              </div>
-            </div>
-            <button
-              className="btn mt-3 w-full bg-[#06C755] text-white"
-              onClick={() => {
-                if (LIFF_ID) void lineLogin();
-                else if (ADD_FRIEND_URL) window.open(ADD_FRIEND_URL, '_blank', 'noopener');
-                else toast('LINE公式アカウントは準備中です');
-              }}
-            >
-              {LIFF_ID ? 'LINEでログイン' : 'LINE公式アカウントを友だち追加'}
-            </button>
-          </div>
+      <SectionHeader title="アカウント" />
+      {showLogin && (
+        <div className="mb-6 px-4">
+          <Button variant="line" onClick={() => void lineLogin()}>
+            LINEでログイン
+          </Button>
+          <p className="mt-2 text-sub text-fg-2">ログインすると、記録をクラウドに保存でき、トークに写真を送るだけで記録できます</p>
+        </div>
+      )}
+      <Group>
+        {lineMode && (
+          <ListRow title="LINE 連携" value={account.me?.displayName || '連携中'} chevron onClick={() => setLineSheet(true)} />
         )}
-      </section>
+        <ListRow title="観察者ネーム" value={settings.name || '未設定'} chevron onClick={() => setNameSheet(true)} />
+      </Group>
+
+      {!lineMode && <Notice className="mt-6">デモモードです。記録はこの端末にだけ保存されます</Notice>}
 
       {/* 設定 */}
-      <section className="mt-8 px-4">
-        <div className="label mb-2 px-1">SETTINGS</div>
-        <div className="card p-4">
-          <div className="mb-2 text-[13px] font-bold">表示モード</div>
-          <Segmented<ThemePref>
-            value={settings.theme}
-            onChange={(theme) => updateSettings({ theme })}
-            options={[
-              { value: 'system', label: '自動' },
-              { value: 'light', label: 'ライト' },
-              { value: 'dark', label: '夜の森' },
-            ]}
-          />
-          <p className="mt-2 text-[11px] text-ink3">「夜の森」はナイトツアー中でも目にやさしい暗い表示です。</p>
-        </div>
-        <div className="mt-2 card divide-y divide-[var(--line)] overflow-hidden">
-          <MenuRow icon={<ShieldCheck className="h-4 w-4" />} label="セーフドライブ宣言" sub="夜の林道はゆっくり。1日1回 +10pt" to="/safe-drive" />
-          <MenuRow icon={<Building2 className="h-4 w-4" />} label="自治体・保護団体の方へ" sub="出現傾向・ロードキル報告のダッシュボード" to="/partners" />
-          <MenuRow icon={<FileDown className="h-4 w-4" />} label="記録を書き出す" sub="写真つきのバックアップファイル（JSON）" onClick={doExport} />
-          <MenuRow icon={<FileUp className="h-4 w-4" />} label="バックアップから読み込む" onClick={() => fileRef.current?.click()} />
-          <MenuRow icon={<RotateCcw className="h-4 w-4" />} label="この端末のデータを消去" onClick={() => setResetSheet(true)} />
-        </div>
-        <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])} />
-      </section>
+      <SectionHeader title="設定" />
+      <Group>
+        <ListRow title="表示モード" value={themeLabel} chevron onClick={() => setThemeSheet(true)} />
+        <ListRow title="セーフドライブ宣言" chevron to="/safe-drive" />
+      </Group>
 
-      <footer className="mt-10 px-6 text-center text-[10px] leading-relaxed text-ink3">
-        AMAMI NATURE β · 運営：株式会社アマリンク（Amalink）
-        <br />
-        図鑑データは監修前のβ版です。保護区分などは公式情報をご確認ください。
+      {/* データ */}
+      <SectionHeader title="データ" />
+      <Group note="書き出したファイルには写真も含まれます">
+        <ListRow title="記録を書き出す" chevron onClick={doExport} />
+        <ListRow title="バックアップから読み込む" chevron onClick={() => fileRef.current?.click()} />
+        <ListRow title={<span className="text-danger">この端末のデータを消去</span>} onClick={() => setResetOpen(true)} />
+      </Group>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void doImport(f);
+        }}
+      />
+
+      {/* その他 */}
+      <SectionHeader title="その他" />
+      <Group>
+        <ListRow title="自治体・保護団体の方へ" chevron to="/partners" />
+        <ListRow title="AMAMI NATURE+" value={plus ? `${formatDateJa(settings.plus!.until, { year: false })}まで` : undefined} chevron to="/plus" />
+      </Group>
+
+      {!showLogin && (
+        <div className="mt-8 px-4">
+          <Button variant="line" onClick={addFriend}>
+            LINEで友だち追加
+          </Button>
+        </div>
+      )}
+
+      <footer className="mt-8 px-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Wordmark size="sm" />
+          <span className="text-caption text-fg-3">β版　運営：株式会社アマリンク</span>
+        </div>
+        <p className="mt-2 text-caption text-fg-3">
+          <Phrase text="図鑑データは監修前のβ版です。保護区分などは公式情報をご確認ください。" />
+        </p>
       </footer>
 
-      <Sheet open={nameSheet} onClose={() => setNameSheet(false)} title="観察者ネーム">
-        <input value={name} onChange={(e) => setName(e.target.value)} className="input" maxLength={20} placeholder="例：しまのりす" />
-        <button
-          className="btn-primary mt-4 w-full"
-          onClick={() => {
-            updateSettings({ name: name.trim() });
-            if (account.mode === 'line') void api.updateMe({ nickname: name.trim() }).catch(() => undefined);
-            setNameSheet(false);
+      {/* 観察者ネーム */}
+      <Sheet open={nameSheet} onClose={() => setNameSheet(false)} title="観察者ネーム" keyboard>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveName();
           }}
         >
-          保存する
-        </button>
+          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} placeholder="例：しまのりす" aria-label="観察者ネーム" enterKeyHint="done" />
+          <Button type="submit" className="mt-4">
+            保存する
+          </Button>
+        </form>
       </Sheet>
 
-      <Sheet open={resetSheet} onClose={() => setResetSheet(false)} title="この端末のデータを消去しますか？">
-        <p className="text-[13px] leading-relaxed text-ink2">
-          この端末に保存された記録・写真・設定がすべて消えます。
-          {account.mode === 'line' ? 'クラウドに同期済みの記録は、次回ひらいたときに再び読み込まれます。' : '先にバックアップを書き出しておくことをおすすめします。'}
-        </p>
-        <div className="mt-5 grid gap-2">
-          <button
-            className="btn bg-danger text-white"
-            onClick={async () => {
-              await resetAll();
-              setResetSheet(false);
-              navigate('/onboarding', { replace: true });
-            }}
-          >
-            消去する
-          </button>
-          <button className="btn-ghost" onClick={() => setResetSheet(false)}>
-            やめる
-          </button>
-        </div>
+      {/* 表示モード */}
+      <Sheet open={themeSheet} onClose={() => setThemeSheet(false)} title="表示モード">
+        <Group className="-mx-4" note={<Phrase text="「夜の森」は、ナイトツアー中でも目にやさしい暗い表示です" />}>
+          <div role="radiogroup" aria-label="表示モード">
+            {THEME_OPTIONS.map((o) => (
+              <ListRow
+                key={o.value}
+                role="radio"
+                aria-checked={settings.theme === o.value}
+                leading={<RadioMark checked={settings.theme === o.value} />}
+                title={o.label}
+                subtitle={o.note}
+                onClick={() => {
+                  updateSettings({ theme: o.value });
+                  setThemeSheet(false);
+                }}
+              />
+            ))}
+          </div>
+        </Group>
       </Sheet>
+
+      {/* LINE 連携 */}
+      <Sheet open={lineSheet} onClose={() => setLineSheet(false)} title="LINE 連携">
+        <Group className="-mx-4" note="記録はクラウドに保存されています">
+          <InfoRow label="LINE の名前">{account.me?.displayName || '連携中'}</InfoRow>
+          <InfoRow label="同期">
+            {account.syncing ? '同期しています' : pending > 0 ? `未同期 ${pending}件` : '同期済み'}
+          </InfoRow>
+          <InfoRow label="最後の同期">{account.lastSyncAt ? formatDateJa(account.lastSyncAt, { time: true }) : 'まだ同期していません'}</InfoRow>
+        </Group>
+      </Sheet>
+
+      {/* バッジ（すべて） */}
+      <Sheet open={allBadges} onClose={() => setAllBadges(false)} title="バッジ">
+        <p className="-mt-2 text-sub text-fg-2">
+          {BADGES.length}個のうち<span className="num">{badges.size}</span>個を獲得しました
+        </p>
+        <div className="-mx-1 mt-3 grid grid-cols-4 gap-x-1 gap-y-3">
+          {BADGES.map((b) => (
+            <BadgeCell key={b.id} badge={b} earned={badges.has(b.id)} size={56} onOpen={setBadge} />
+          ))}
+        </div>
+        <BadgeSheet badge={allBadges ? badge : null} earned={!!badge && badges.has(badge.id)} earnedAt={badge ? earnedAt.get(badge.id) : null} onClose={() => setBadge(null)} />
+      </Sheet>
+      <BadgeSheet badge={allBadges ? null : badge} earned={!!badge && badges.has(badge.id)} earnedAt={badge ? earnedAt.get(badge.id) : null} onClose={() => setBadge(null)} />
+
+      {/* この端末のデータを消去 */}
+      <ConfirmDialog
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        title="この端末のデータを消去しますか？"
+        body={
+          <>
+            この端末に保存された記録、写真、設定がすべて消えます。
+            {lineMode ? 'クラウドに同期済みの記録は、次にひらいた時にまた読み込まれます。' : '先にバックアップを書き出しておくことをおすすめします。'}
+          </>
+        }
+        busy={resetting}
+        onConfirm={async () => {
+          setResetting(true);
+          try {
+            await resetAll();
+            setResetOpen(false);
+            navigate('/onboarding', { replace: true });
+          } finally {
+            setResetting(false);
+          }
+        }}
+      />
     </Page>
   );
 }

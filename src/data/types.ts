@@ -9,6 +9,8 @@ export interface Species {
   id: string;
   no: number;
   name: string;
+  /** 改行してよい位置を | で区切った和名（例: アマミノ|クロウサギ）。7 文字以上の和名には必ず入れる（docs/DESIGN_SYSTEM.md §3.5） */
+  nameBreak?: string;
   en: string;
   sci: string;
   category: Category;
@@ -30,6 +32,8 @@ export interface Species {
   tip: string;
   manner?: string;
   culture?: string;
+  /** 参考写真（提携先・環境省・CC BY のもの）。credit（撮影者・提供元）は必ず表示する（§6） */
+  photo?: { src: string; credit: string };
 }
 
 export interface Area {
@@ -54,6 +58,8 @@ export interface Experience {
   speciesIds: string[];
   provider: string;
   url?: string;
+  /** 事業者から提供された 16:9 の写真。credit（撮影者・提供元）は写真の下に必ず表示する。ない体験は写真なしの行になる（§6） */
+  image?: { src: string; credit: string };
 }
 
 export interface Quest {

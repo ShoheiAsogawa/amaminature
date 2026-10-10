@@ -61,22 +61,38 @@ page.on('console', (m) => ['warning', 'error'].includes(m.type()) && console.log
 await page.goto(`${BASE}/capture`);
 await page.waitForLoadState('networkidle');
 await page.locator('input[type=file]:not([capture])').setInputFiles(photoPath);
-await page.getByText('この生き物は？').waitFor();
+// 1 写真: 選んだ写真を舞台に出し、［この写真で進む］で 2 名前へ
+await page.getByRole('button', { name: 'この写真で進む' }).click();
+await page.getByText('なにを見ましたか？').waitFor();
 check('photo accepted → identify step', true);
 
 await page.getByLabel('生き物の名前で探す').fill('るりかけす');
 await page.getByRole('button', { name: /ルリカケス/ }).first().click();
-await page.getByText('ニックネームをつけよう').waitFor();
+await page.getByText('ニックネーム', { exact: true }).waitFor();
 await page.getByPlaceholder(/例：/).first().fill('ルリ太郎');
 await page.getByLabel('地域').selectOption('tatsugo');
 await page.screenshot({ path: `${OUT}/e2e-details.png` });
 await page.getByRole('button', { name: '図鑑に記録する' }).click();
 
-await page.getByText('NEW DISCOVERY').waitFor();
+await page.getByText('図鑑に登録しました').waitFor();
 await page.waitForTimeout(1600);
 await page.screenshot({ path: `${OUT}/e2e-reveal.png` });
 check('card reveal shown', await page.getByText('「ルリ太郎」').isVisible());
-check('reveal shows +30pt and badge', (await page.getByText('+30pt').isVisible()) && (await page.getByText('瑠璃の使者').isVisible()));
+check('reveal shows +30pt', await page.getByText('+30pt').isVisible());
+// バッジ獲得は閉じる操作（続けて記録）の後に、同じ舞台で 1 つずつ出る（§8.5）。［OK］で次へ進む
+await page.getByRole('button', { name: '続けて記録' }).click();
+const ok = page.getByRole('button', { name: 'OK' });
+await ok.waitFor();
+let ruriShown = false;
+for (let i = 0; i < 8 && (await ok.isVisible().catch(() => false)); i++) {
+  if (await page.getByText('瑠璃の使者').isVisible()) {
+    ruriShown = true;
+    await page.screenshot({ path: `${OUT}/e2e-badge.png` });
+  }
+  await ok.click();
+  await page.waitForTimeout(300);
+}
+check('badge shown after closing the reveal', ruriShown);
 
 // サーバー同期を確認
 let synced = null;

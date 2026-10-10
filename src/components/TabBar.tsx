@@ -1,53 +1,71 @@
-import { motion } from 'framer-motion';
-import { BookOpen, Camera, Compass, House, User } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
+import { cn } from '../lib/cn';
+import {
+  IconBookOpenText,
+  IconBookOpenTextFill,
+  IconCameraFill,
+  IconCompass,
+  IconCompassFill,
+  IconHouseSimple,
+  IconHouseSimpleFill,
+  IconUserCircle,
+  IconUserCircleFill,
+  type IconComponent,
+} from './icons';
 
-const TABS = [
-  { to: '/', label: 'ホーム', icon: House, end: true },
-  { to: '/zukan', label: '図鑑', icon: BookOpen },
-  null,
-  { to: '/explore', label: '体験', icon: Compass },
-  { to: '/me', label: 'マイページ', icon: User },
-] as const;
+type Tab = { to: string; label: string; icon: IconComponent; activeIcon: IconComponent; end?: boolean };
 
+// §5.3 通常は regular、選択中は fill
+const TABS: (Tab | null)[] = [
+  { to: '/', label: 'ホーム', icon: IconHouseSimple, activeIcon: IconHouseSimpleFill, end: true },
+  { to: '/zukan', label: '図鑑', icon: IconBookOpenText, activeIcon: IconBookOpenTextFill },
+  null, // 中央の記録ボタン
+  { to: '/explore', label: '体験', icon: IconCompass, activeIcon: IconCompassFill },
+  { to: '/me', label: 'マイページ', icon: IconUserCircle, activeIcon: IconUserCircleFill },
+];
+
+/**
+ * タブバー（docs/DESIGN_SYSTEM.md §7.2）。/ /zukan /explore /me だけで出す。
+ * 下端に固定、高さ 56px ＋ 安全領域、page の不透明な地、上辺に 1px の sep。浮かせない・角丸なし・影なし・ぼかしなし。
+ * 5 つの等幅の区画。選択中は fill のアイコンと brand の 600 のラベル（点や下線は付けない）。
+ * 中央は 48px の brand-fill の円に camera-fill（ラベルなし）。タップした時のアニメーションはない。
+ */
 export function TabBar() {
-  const navigate = useNavigate();
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-[480px]" aria-label="メインメニュー">
-      <div className="relative mx-3 mb-[calc(10px+var(--safe-bottom))] flex h-[66px] items-center rounded-[26px] border hairline bg-card/90 px-1 shadow-lift backdrop-blur-xl">
-        {TABS.map((t, i) =>
+    <nav
+      aria-label="メインメニュー"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] border-t border-sep bg-page pb-[var(--safe-bottom)]"
+    >
+      <div className="grid h-14 grid-cols-5">
+        {TABS.map((t) =>
           t === null ? (
-            <div key="capture" className="relative flex w-[76px] justify-center">
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                onClick={() => navigate('/capture')}
-                className="absolute -top-[38px] grid h-[64px] w-[64px] place-items-center rounded-full bg-gradient-to-b from-forest-600 to-forest-900 text-washi shadow-lift ring-[5px] ring-paper"
-                aria-label="いきものを記録する"
+            <div key="capture" className="grid place-items-center">
+              <Link
+                to="/capture"
+                aria-label="記録する"
+                className="grid h-12 w-12 place-items-center rounded-full bg-brand-fill text-on-brand active:bg-brand-pressed"
               >
-                <Camera className="h-[26px] w-[26px]" strokeWidth={1.8} />
-              </motion.button>
-              <span className="mt-7 text-[10px] font-bold text-ink2">記録</span>
+                <IconCameraFill size={24} />
+              </Link>
             </div>
           ) : (
             <NavLink
-              key={i}
+              key={t.to}
               to={t.to}
-              end={'end' in t ? t.end : false}
+              end={t.end}
               className={({ isActive }) =>
-                `relative flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-bold transition-colors ${
-                  isActive ? 'text-accent' : 'text-ink3'
-                }`
+                cn('flex select-none flex-col items-center justify-center pt-[2px]', isActive ? 'text-brand' : 'text-fg-2')
               }
             >
-              {({ isActive }) => (
-                <>
-                  <t.icon className="h-[22px] w-[22px]" strokeWidth={isActive ? 2.1 : 1.7} />
-                  <span>{t.label}</span>
-                  {isActive && (
-                    <motion.span layoutId="tab-dot" className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-accent" />
-                  )}
-                </>
-              )}
+              {({ isActive }) => {
+                const Icon = isActive ? t.activeIcon : t.icon;
+                return (
+                  <>
+                    <Icon size={24} />
+                    <span className={cn('mt-0.5 text-tab', isActive && 'font-semibold')}>{t.label}</span>
+                  </>
+                );
+              }}
             </NavLink>
           ),
         )}

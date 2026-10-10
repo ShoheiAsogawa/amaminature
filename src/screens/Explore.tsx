@@ -1,164 +1,185 @@
-import { motion } from 'framer-motion';
-import { Car, ChevronRight, Flashlight, Hand, Leaf, Moon, Route, ShieldCheck, Sprout, Stamp, TreePalm, TriangleAlert } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ExperienceCard } from '../components/ExperienceCard';
-import { Kasuri, Page, PageHeader, ProgressBar, Segmented } from '../components/ui';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ExperienceItem, ExperienceSheet } from '../components/ExperienceCard';
+import {
+  IconCarProfile,
+  IconEyeSlash,
+  IconFlashlight,
+  IconHandHeart,
+  IconLeaf,
+  IconPath,
+  IconPlant,
+  IconRoadHorizon,
+  IconTreePalm,
+  type IconComponent,
+} from '../components/icons';
+import { Phrase } from '../components/Phrase';
+import { ListRow, Notice, Page, ProgressBar, ScreenHeader, SectionHeader, Segmented, StampSeal } from '../components/ui';
 import { AREAS, ISLAND_ORDER } from '../data/areas';
 import { EXPERIENCES } from '../data/experiences';
 import { useStore } from '../store/useStore';
 
+// 体験タブ（docs/DESIGN_SYSTEM.md §8.7）。体験 / スタンプ / マナー をセグメントで切り替える。
+// どれを開いているかは ?tab=tours|stamps|manner で持つ（リッチメニューやスクリーンショットから直接開ける）。
+
 type Tab = 'tours' | 'stamps' | 'manner';
 
-const MANNERS = [
-  { icon: Car, title: '夜の林道はゆっくり走る', body: '時速20〜30km程度で。アマミノクロウサギなどの交通事故が後を絶ちません。ハイビームで照らし続けないことも大切です。' },
-  { icon: Route, title: '林道の夜間ルールを確認する', body: '三太郎線周辺などでは、夜間の通行台数の予約制などのルールが試行されています。出かける前に最新の公式情報を確認しましょう。' },
-  { icon: Leaf, title: '金作原は認定ガイドと', body: '世界自然遺産の金作原では利用ルールがあり、認定ガイドの同行が必要です。' },
-  { icon: Hand, title: '採らない・触らない・餌をあげない', body: '多くの希少種は法律や条例で捕獲・採取が禁止されています。写真で記録して、そっと見守りましょう。' },
-  { icon: ShieldCheck, title: '希少種の場所を広めない', body: '盗掘・密猟を防ぐため、SNSに場所がわかる投稿をしないでください。このアプリは希少種の位置を自動でぼかします。' },
-  { icon: Flashlight, title: 'ハブに注意', body: '夜はライトで足元を照らし、草むらや石垣のすき間に手を入れない。長靴がおすすめです。' },
-  { icon: Sprout, title: '外来種を持ち込まない・放さない', body: 'ペットや植物を野外に放さない。ネコは室内で飼い、捨てないことが島の生き物を守ります。' },
-  { icon: TreePalm, title: '海ではサンゴとウミガメにやさしく', body: 'サンゴに触れない・踏まない。産卵中のウミガメにライトを当てない。' },
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'tours', label: '体験' },
+  { value: 'stamps', label: 'スタンプ' },
+  { value: 'manner', label: 'マナー' },
 ];
 
 export default function Explore() {
   const [params, setParams] = useSearchParams();
-  const tab = (params.get('tab') as Tab | null) ?? 'tours';
-  const sightings = useStore((s) => s.sightings);
-  const month = new Date().getMonth() + 1;
-
-  const counts = new Map<string, number>();
-  for (const s of sightings) if (s.areaId) counts.set(s.areaId, (counts.get(s.areaId) ?? 0) + 1);
-  const visited = AREAS.filter((a) => counts.has(a.id)).length;
-
-  const tours = [...EXPERIENCES].sort((a, b) => Number(b.months.includes(month)) - Number(a.months.includes(month)));
+  const raw = params.get('tab');
+  const tab: Tab = raw === 'stamps' || raw === 'manner' ? raw : 'tours';
 
   return (
     <Page>
-      <PageHeader label="EXPLORE" title="奄美をめぐる" />
-      <div className="px-4 pb-4">
-        <Segmented<Tab>
-          value={tab}
-          onChange={(v) => setParams({ tab: v }, { replace: true })}
-          options={[
-            { value: 'tours', label: '体験・ツアー' },
-            { value: 'stamps', label: 'スタンプラリー' },
-            { value: 'manner', label: 'マナー' },
-          ]}
-        />
+      <ScreenHeader title="体験" />
+      <div className="px-4 pt-1">
+        <Segmented<Tab> aria-label="表示する内容" value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} options={TABS} />
+      </div>
+      {tab === 'tours' && <Tours />}
+      {tab === 'stamps' && <Stamps />}
+      {tab === 'manner' && <Manners />}
+    </Page>
+  );
+}
+
+// ───────── 体験 ─────────
+
+function Tours() {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const month = new Date().getMonth() + 1;
+  // 今の季節に催行している体験を先に
+  const tours = [...EXPERIENCES].sort((a, b) => Number(b.months.includes(month)) - Number(a.months.includes(month)));
+  const open = EXPERIENCES.find((e) => e.id === openId) ?? null;
+
+  return (
+    <>
+      <p className="px-4 pt-4 text-sub text-fg-2">夜の森や原生林は、認定ガイドと一緒なら安全です。生き物に出会える確率もぐっと上がります。</p>
+      <div className="mt-2">
+        {tours.map((e) => (
+          <ExperienceItem key={e.id} exp={e} onOpen={() => setOpenId(e.id)} />
+        ))}
+      </div>
+      <Notice className="mt-4">
+        <>掲載内容は提携前の掲載イメージです。料金は公開されている相場を参考にした目安です。実際の料金や予約条件は、各事業者の情報をご確認ください。</>
+      </Notice>
+
+      <SectionHeader title="道路と生き物" />
+      <div>
+        <ListRow icon={IconRoadHorizon} title="路上レポートを送る" subtitle="交通事故やけがをした生き物を見つけたら" to="/capture?mode=road" chevron />
+        <ListRow icon={IconCarProfile} title="セーフドライブ宣言" subtitle="夜の林道はゆっくり。1日1回 +10pt" to="/safe-drive" chevron />
       </div>
 
-      {tab === 'tours' && (
-        <div className="space-y-4 px-4">
-          <p className="px-1 text-[12.5px] leading-relaxed text-ink2">
-            夜の森や原生林は、認定ガイドと一緒なら安全に、そして出会える確率もぐっと上がります。
-          </p>
-          {tours.map((e) => (
-            <ExperienceCard key={e.id} exp={e} />
-          ))}
-          <p className="px-1 text-[10.5px] leading-relaxed text-ink3">
-            ※ 掲載内容は提携前の掲載イメージです。料金は公開されている相場を参考にした目安で、実際の料金・予約条件は各事業者の情報をご確認ください。
-          </p>
-        </div>
-      )}
+      <ExperienceSheet exp={open} onClose={() => setOpenId(null)} />
+    </>
+  );
+}
 
-      {tab === 'stamps' && (
-        <div className="px-4">
-          <div className="relative overflow-hidden rounded-4xl bg-kuri p-5 text-washi shadow-card">
-            <Kasuri className="text-white/[0.07]" />
-            <div className="relative flex items-center gap-4">
-              <Stamp className="h-10 w-10 text-gold" strokeWidth={1.5} />
-              <div className="flex-1">
-                <div className="text-[10px] font-bold tracking-label text-washi/60">12 MUNICIPALITIES</div>
-                <div className="font-serif text-[20px] font-bold">奄美群島 12市町村めぐり</div>
-                <ProgressBar value={visited / AREAS.length} color="#C79A2E" className="mt-2 bg-white/15" />
-              </div>
-              <div className="text-right font-serif text-[28px] font-extrabold">
-                {visited}
-                <span className="text-[13px] text-washi/60">/12</span>
-              </div>
+// ───────── スタンプ ─────────
+
+function Stamps() {
+  const sightings = useStore((s) => s.sightings);
+
+  // 市町村ごとに、最初に記録した日（スタンプの日付）
+  const firstAt = new Map<string, string>();
+  for (const s of sightings) {
+    if (!s.areaId) continue;
+    const cur = firstAt.get(s.areaId);
+    if (!cur || s.observedAt < cur) firstAt.set(s.areaId, s.observedAt);
+  }
+  const visited = AREAS.filter((a) => firstAt.has(a.id)).length;
+
+  return (
+    <>
+      <div className="px-4 pt-4">
+        <p className="text-callout text-fg">
+          <span className="num">{AREAS.length}</span>市町村のうち<span className="num">{visited}</span>か所
+        </p>
+        <ProgressBar value={visited / AREAS.length} id="stamps" label="スタンプを集めた市町村" className="mt-2" />
+      </div>
+
+      {ISLAND_ORDER.map((island) => {
+        const areas = AREAS.filter((a) => a.island.startsWith(island));
+        return (
+          <section key={island} className="mt-6 px-4" aria-label={island}>
+            <h2 className="text-sub font-semibold text-fg-2">{island}</h2>
+            <div className="mt-3 grid grid-cols-[repeat(4,72px)] gap-4">
+              {areas.map((a) => (
+                <StampSeal key={a.id} name={a.name} visited={firstAt.has(a.id)} date={firstAt.get(a.id)} />
+              ))}
             </div>
-            <p className="relative mt-3 text-[11.5px] leading-relaxed text-washi/70">
-              各市町村で生き物を記録するとスタンプが押されます。全制覇で記念品と交換できます（予定）。
-            </p>
-          </div>
+          </section>
+        );
+      })}
 
-          {ISLAND_ORDER.map((island) => {
-            const areas = AREAS.filter((a) => a.island.startsWith(island));
-            return (
-              <section key={island} className="mt-6">
-                <h3 className="mb-2 px-1 font-serif text-[15px] font-bold">{island}</h3>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {areas.map((a, i) => {
-                    const n = counts.get(a.id) ?? 0;
-                    return (
-                      <motion.div
-                        key={a.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.04 }}
-                        className={`relative grid aspect-square place-items-center rounded-3xl border ${n ? 'border-transparent bg-card shadow-card' : 'border-dashed hairline'}`}
-                      >
-                        {n > 0 ? (
-                          <div className="grid h-[74%] w-[74%] -rotate-12 place-items-center rounded-full border-[3px] border-sango/80 text-sango">
-                            <div className="text-center leading-tight">
-                              <div className="font-serif text-[15px] font-extrabold">{a.name}</div>
-                              <div className="text-[9px] font-bold">{n}件の記録</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <div className="font-serif text-[14px] font-bold text-ink3">{a.name}</div>
-                            <div className="mt-0.5 text-[9px] text-ink3">未訪問</div>
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
+      <Notice className="mt-8">
+        <>スタンプは、その市町村で生き物を記録するともらえます。12市町村すべてそろえると、記念品と交換できる予定です。</>
+      </Notice>
+    </>
+  );
+}
 
-      {tab === 'manner' && (
-        <div className="px-4">
-          <div className="relative overflow-hidden rounded-4xl bg-forest-900 p-5 text-washi">
-            <Kasuri className="text-white/[0.05]" />
-            <Moon className="relative h-7 w-7 text-gold" />
-            <h2 className="relative mt-3 font-serif text-[21px] font-bold leading-snug">
-              世界自然遺産の島で、
-              <br />
-              生き物と人がともに暮らすために
-            </h2>
-            <p className="relative mt-2 text-[12px] leading-relaxed text-washi/70">奄美大島と徳之島は、2021年に世界自然遺産に登録されました。</p>
-          </div>
-          <ol className="mt-4 space-y-2.5">
-            {MANNERS.map((m, i) => (
-              <li key={m.title} className="card flex gap-3 p-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-accent/10 text-accent">
-                  <m.icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <div className="text-[14px] font-bold">
-                    <span className="mr-1.5 font-latin text-[15px] italic text-ink3">{i + 1}.</span>
-                    {m.title}
-                  </div>
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-ink2">{m.body}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-          <Link to="/capture?mode=road" className="mt-4 flex items-center gap-3 rounded-3xl bg-sango/10 p-4">
-            <TriangleAlert className="h-6 w-6 shrink-0 text-sango" />
-            <div className="flex-1">
-              <div className="text-[14px] font-bold">交通事故にあった・けがをした動物を見つけたら</div>
-              <div className="text-[11.5px] text-ink2">安全な場所に停車して、路上レポートで知らせてください</div>
+// ───────── マナー ─────────
+
+const MANNERS: { icon: IconComponent; title: string; body: string }[] = [
+  {
+    icon: IconCarProfile,
+    title: '夜の林道はゆっくり走る',
+    body: '時速20〜30km程度で。アマミノクロウサギなどの交通事故が後を絶ちません。ハイビームで照らし続けないことも大切です。',
+  },
+  {
+    icon: IconPath,
+    title: '林道の夜間ルールを確認する',
+    body: '三太郎線周辺などでは、夜間の通行台数の予約制などのルールが試行されています。出かける前に最新の公式情報を確認しましょう。',
+  },
+  { icon: IconLeaf, title: '金作原は認定ガイドと', body: '世界自然遺産の金作原では利用ルールがあり、認定ガイドの同行が必要です。' },
+  {
+    icon: IconHandHeart,
+    title: '採らない、触らない、餌をあげない',
+    body: '多くの希少種は法律や条例で捕獲・採取が禁止されています。写真で記録して、そっと見守りましょう。',
+  },
+  {
+    icon: IconEyeSlash,
+    title: '希少種の場所を広めない',
+    body: '盗掘・密猟を防ぐため、SNSに場所がわかる投稿をしないでください。このアプリは希少種の位置を自動でぼかします。',
+  },
+  { icon: IconFlashlight, title: 'ハブに注意', body: '夜はライトで足元を照らし、草むらや石垣のすき間に手を入れない。長靴がおすすめです。' },
+  {
+    icon: IconPlant,
+    title: '外来種を持ち込まない、放さない',
+    body: 'ペットや植物を野外に放さない。ネコは室内で飼い、捨てないことが島の生き物を守ります。',
+  },
+  { icon: IconTreePalm, title: '海ではサンゴとウミガメにやさしく', body: 'サンゴに触れない、踏まない。産卵中のウミガメにライトを当てない。' },
+];
+
+function Manners() {
+  return (
+    <>
+      <div className="px-4 pt-4">
+        <h2 className="balance text-section text-fg">
+          <Phrase text="世界自然遺産の島で、生き物と人がともに暮らすために" />
+        </h2>
+        <p className="mt-1 text-body text-fg-2">奄美大島と徳之島は、2021年に世界自然遺産に登録されました。</p>
+      </div>
+      {/* 順序のある手順ではないので番号を付けない */}
+      <ul className="mt-4">
+        {MANNERS.map((m) => (
+          <li key={m.title} className="group/row flex pl-4">
+            <m.icon size={20} className="mt-[13px] shrink-0 text-fg-2" />
+            <div className="ml-3 min-w-0 flex-1 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
+              <h3 className="text-headline text-fg">
+                <Phrase text={m.title} />
+              </h3>
+              <p className="mt-1 text-body text-fg-2">{m.body}</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-ink3" />
-          </Link>
-        </div>
-      )}
-    </Page>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

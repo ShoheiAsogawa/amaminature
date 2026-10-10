@@ -1,5 +1,9 @@
 // 主要画面のスクリーンショットを撮って見た目を確認する（DEMO_BUILD の preview を対象）
 // 使い方: npm run build:demo && npx vite preview --outDir dist-demo --port 4173 & node scripts/screenshots.mjs
+//   THEME=dark で夜の森（prefers-color-scheme: dark）。OUT_DIR で保存先、BASE_URL で対象、PW_CHROMIUM でブラウザを指定。
+//
+// docs/DESIGN_SYSTEM.md §13.2 の「画面の検査」用。390×844 の全画面をライトとダークで撮り、目で確認する。
+// 横スクロールが出た画面は「OVERFLOW」と表示する（撮影は続ける）。
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -17,11 +21,20 @@ const ctx = await browser.newContext({
   timezoneId: 'Asia/Tokyo',
 });
 const page = await ctx.newPage();
-page.on('pageerror', (e) => console.error('PAGEERROR', e.message));
+let problems = 0;
+page.on('pageerror', (e) => {
+  problems++;
+  console.error('PAGEERROR', e.message);
+});
 page.on('console', (m) => m.type() === 'error' && console.error('CONSOLE', m.text()));
 
 const shot = async (name, full = false) => {
   await page.waitForTimeout(900);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  if (overflow > 0) {
+    problems++;
+    console.error(`OVERFLOW ${name}: ${overflow}px`);
+  }
   await page.screenshot({ path: `${OUT}/${theme}-${name}.png`, fullPage: full });
   console.log('shot', name);
 };
@@ -31,14 +44,20 @@ const go = async (hash) => {
   await page.waitForLoadState('networkidle');
 };
 
-// オンボーディング
+/** シートを閉じる（右上の閉じるボタン） */
+const closeSheet = async () => {
+  await page.getByRole('button', { name: '閉じる' }).last().click();
+  await page.waitForTimeout(500);
+};
+
+// オンボーディング（3 ページ → 3つの約束）
 await go('/onboarding');
 await shot('01-onboarding');
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'つぎへ' }).click();
+for (let i = 0; i < 2; i++) await page.getByRole('button', { name: '次へ' }).click();
+await page.waitForTimeout(500);
+await shot('01b-onboarding-last');
+await page.getByRole('button', { name: 'はじめる', exact: true }).click();
 await page.waitForTimeout(400);
-for (const t of ['採らない・触らない・餌をあげない', '希少な生き物の場所を広めない', '夜の林道はゆっくり走る']) {
-  await page.getByText(t).click();
-}
 await page.getByPlaceholder('例：しまのりす').fill('しまのりす');
 await shot('02-pledge');
 await page.getByRole('button', { name: '約束してはじめる' }).click();
@@ -85,29 +104,85 @@ await page.reload();
 await page.waitForLoadState('networkidle');
 await shot('03-home');
 await shot('03-home-full', true);
+
+// 図鑑（一覧 → 表示の条件のシート）
 await go('/zukan');
 await shot('04-zukan');
+await page.getByRole('button', { name: /^表示の条件/ }).click();
+await shot('04b-zukan-filter');
+await closeSheet();
+
+// 種詳細（記録済み・未発見）
 await go('/species/rurikakesu');
 await shot('05-species-found', true);
 await go('/species/ootoratsugumi');
 await shot('06-species-missing');
+
+// 記録詳細（ホームの「最近の記録」の先頭から）
+await go('/');
+await page.locator('a[href*="/sighting/"]').first().click();
+await page.waitForLoadState('networkidle');
+await shot('06b-sighting', true);
+
+// 記録（1 写真の舞台）と路上レポート
 await go('/capture');
 await shot('07-capture');
 await go('/capture?mode=road');
 await page.getByText('交通事故にあった生き物').click();
 await shot('08-road');
+
+// 体験（体験 / スタンプ / マナー）
 await go('/explore');
-await shot('09-explore');
+await shot('09-explore', true);
 await go('/explore?tab=stamps');
-await shot('10-stamps');
+await shot('10-stamps', true);
+await go('/explore?tab=manner');
+await shot('10b-manner', true);
+
+// マイページ（全体 → バッジのシート）
 await go('/me');
 await shot('11-me', true);
+await page.getByRole('button', { name: 'すべて見る' }).first().click();
+await shot('11b-me-badges');
+await closeSheet();
+
 await go('/plus');
-await shot('12-plus');
+await shot('12-plus', true);
 await go('/rewards');
-await shot('13-rewards');
+await shot('13-rewards', true);
 await go('/safe-drive');
 await shot('14-safedrive');
 await go('/partners');
 await shot('15-partners', true);
+
+// 記録の流れを通しで（写真 → 名前 → 記録 → 図鑑カードの演出）。最後に撮るのは記録が 1 件増えるため
+const photo = await page.evaluate(() => {
+  const c = document.createElement('canvas');
+  c.width = 800; c.height = 1000;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 800, 1000);
+  grad.addColorStop(0, 'hsl(210 50% 40%)');
+  grad.addColorStop(1, 'hsl(160 45% 22%)');
+  g.fillStyle = grad; g.fillRect(0, 0, 800, 1000);
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+});
+await go('/capture');
+await page.locator('input[type=file]:not([capture])').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo, 'base64') });
+await shot('16-capture-preview');
+await page.getByRole('button', { name: 'この写真で進む' }).click();
+await page.getByText('なにを見ましたか？').waitFor();
+await shot('17-capture-name');
+await page.getByLabel('生き物の名前で探す').fill('あかしょうびん');
+await page.getByRole('button', { name: /リュウキュウアカショウビン/ }).first().click();
+await page.getByText('ニックネーム', { exact: true }).waitFor();
+await shot('18-capture-details');
+await page.getByRole('button', { name: '図鑑に記録する' }).click();
+await page.getByText('図鑑に登録しました').waitFor();
+await page.waitForTimeout(1200);
+await shot('19-reveal');
+
 await browser.close();
+if (problems) {
+  console.error(`\n${problems} problem(s) found`);
+  process.exit(1);
+}

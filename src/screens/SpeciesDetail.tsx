@@ -1,201 +1,281 @@
-import { motion } from 'framer-motion';
-import { Camera, ChevronLeft, EyeOff, Landmark, Lightbulb, MapPin, Moon, ShieldAlert, Sparkles, TriangleAlert } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ExperienceCard } from '../components/ExperienceCard';
-import { PhotoImg } from '../components/PhotoImg';
-import { MonthBar } from '../components/SpeciesTile';
-import { CategoryIcon, EmptyState, formatDate, Kasuri, RarityGems, RARITY_COLOR } from '../components/ui';
+import { ExperienceMeta, ExperienceSheet } from '../components/ExperienceCard';
+import { IconEyeSlash } from '../components/icons';
+import { MonthBar, referencePhoto, SciName, silhouetteUrl, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
+import { SpeciesName } from '../components/SpeciesName';
+import {
+  button,
+  cn,
+  EmptyState,
+  formatDateJa,
+  Group,
+  InfoRow,
+  ListRow,
+  Notice,
+  RarityGems,
+  ScreenHeader,
+  SectionHeader,
+  Sheet,
+  useDocumentTitle,
+} from '../components/ui';
 import { AREA_BY_ID } from '../data/areas';
 import { experiencesForSpecies } from '../data/experiences';
-import { CATEGORY_META, RARITY_META, SPECIES_BY_ID } from '../data/species';
+import { CATEGORY_META, SPECIES_BY_ID } from '../data/species';
+import type { Experience, Species } from '../data/types';
+import type { Sighting } from '../lib/types';
 import { useCollection } from '../store/useCollection';
 
-function Block({ icon, title, children, tone = 'text-accent' }: { icon: ReactNode; title: string; children: ReactNode; tone?: string }) {
-  return (
-    <section className="border-t hairline px-5 py-5">
-      <h2 className={`mb-2 flex items-center gap-2 text-[13px] font-bold ${tone}`}>
-        {icon}
-        {title}
-      </h2>
-      <div className="text-[14.5px] leading-[1.9] text-ink">{children}</div>
-    </section>
-  );
+// 種詳細（docs/DESIGN_SYSTEM.md §8.3）
+
+/** 今年なら「10月10日」、それ以外は「2025年10月10日」 */
+function shortDate(iso: string): string {
+  return formatDateJa(iso, { year: new Date(iso).getFullYear() !== new Date().getFullYear() });
 }
 
-export default function SpeciesDetail() {
+/**
+ * 遷移ヘッダーのタイトルを、本文の和名（display）がヘッダーの下に隠れてから出す。
+ * 画面の先頭で和名が 2 回並ばないようにする。
+ */
+function useScrolledPast(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setPast(!e.isIntersecting && e.boundingClientRect.top < 44), {
+      rootMargin: '-44px 0px 0px 0px',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, enabled]);
+  return past;
+}
+
+/** 種ごとに状態（開いているシートなど）を作り直す */
+export default function SpeciesDetailRoute() {
   const { id = '' } = useParams();
+  return <SpeciesDetail key={id} id={id} />;
+}
+
+function SpeciesDetail({ id }: { id: string }) {
   const navigate = useNavigate();
-  const sp = SPECIES_BY_ID[id];
+  const sp: Species | undefined = SPECIES_BY_ID[id];
   const collection = useCollection();
+  useDocumentTitle(sp?.name);
+
+  const nameRef = useRef<HTMLHeadingElement>(null);
+  const entry = sp ? collection.get(sp.id) : undefined;
+  const ref = sp ? referencePhoto(sp) : null;
+  const userPhoto = entry?.photoId ?? null;
+  // 写真（利用者 → 参考）もシルエットもない時はヒーローを出さず、遷移ヘッダーから始める
+  const hasHero = !!sp && (!!userPhoto || !!ref || !!silhouetteUrl(sp.id));
+  const navTitleShown = useScrolledPast(nameRef, !!sp && !hasHero);
+
+  const [exp, setExp] = useState<Experience | null>(null);
+  const [recordsOpen, setRecordsOpen] = useState(false);
+
+  const back = () => (window.history.length > 1 ? navigate(-1) : navigate('/zukan'));
 
   if (!sp) {
-    return <EmptyState title="この生き物は図鑑にありません" action={<Link to="/zukan" className="btn-ghost">図鑑へ戻る</Link>} />;
+    return (
+      <main className="pb-[calc(40px+var(--safe-bottom))]">
+        <ScreenHeader variant="nav" title="図鑑" onBack={back} />
+        <EmptyState title="この生き物は図鑑にありません" actionLabel="図鑑へ戻る" to="/zukan" />
+      </main>
+    );
   }
 
-  const entry = collection.get(sp.id);
-  const color = CATEGORY_META[sp.category].color;
   const exps = experiencesForSpecies(sp.id);
   const month = new Date().getMonth() + 1;
-  const photos = entry?.sightings.filter((s) => s.photoId) ?? [];
+  const records = entry?.sightings ?? [];
+  const areas = [...new Set(records.map((s) => (s.areaId ? AREA_BY_ID[s.areaId]?.name : null)).filter((n): n is string => !!n))];
+  const credit = !userPhoto && ref?.credit ? ref.credit : null;
 
   return (
-    <main className="pb-[calc(120px+var(--safe-bottom))]">
-      {/* ───── ヒーロー ───── */}
-      <div className="relative h-[54vh] min-h-[340px] overflow-hidden text-white" style={{ background: color }}>
-        {entry?.photoId ? (
-          <PhotoImg photoId={entry.photoId} size="full" alt={sp.name} className="absolute inset-0 h-full w-full" />
-        ) : (
-          <>
-            <Kasuri className="text-white/[0.08]" size={34} />
-            <motion.div
-              className="absolute inset-0 grid place-items-center"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <CategoryIcon category={sp.category} className="h-28 w-28 text-white/30 animate-floaty" strokeWidth={1} />
-            </motion.div>
-          </>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/40" />
-        <button
-          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/zukan'))}
-          className="pt-safe absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/30 backdrop-blur"
-          aria-label="戻る"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-        <div className="absolute inset-x-5 bottom-5">
-          <div className="flex items-center gap-2 font-latin text-[15px] italic text-white/80">
-            No.{String(sp.no).padStart(3, '0')}
-            <span className="h-px w-6 bg-white/40" />
-            <span className="font-sans text-[11px] not-italic font-bold tracking-label">{CATEGORY_META[sp.category].label}</span>
-          </div>
-          <h1 className="mt-1 font-serif text-[32px] font-extrabold leading-tight">{sp.name}</h1>
-          <div className="sci text-[17px] text-white/80">{sp.sci}</div>
-          <div className="text-[12px] text-white/60">{sp.en}</div>
-        </div>
-        {!entry && (
-          <div className="absolute right-4 top-4 pt-safe">
-            <span className="rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold backdrop-blur">未発見</span>
-          </div>
-        )}
-      </div>
-
-      {/* ───── タグ ───── */}
-      <div className="flex flex-wrap gap-1.5 px-5 pt-4">
-        <span className="chip" style={{ color: RARITY_COLOR[sp.rarity] }}>
-          <RarityGems rarity={sp.rarity} size={6} /> {RARITY_META[sp.rarity].label}
-        </span>
-        {sp.endemic && (
-          <span className="chip text-kuri">
-            <Sparkles className="h-3 w-3" />
-            {sp.endemic === 'species' ? '固有種' : '固有亜種'}
-          </span>
-        )}
-        {sp.nocturnal && (
-          <span className="chip text-ruri">
-            <Moon className="h-3 w-3" /> 夜行性
-          </span>
-        )}
-        {sp.protection?.map((p) => (
-          <span key={p} className="chip text-accent">
-            <Landmark className="h-3 w-3" /> {p}
-          </span>
-        ))}
-        {sp.sensitive && (
-          <span className="chip">
-            <EyeOff className="h-3 w-3" /> 位置を自動でぼかします
-          </span>
-        )}
-      </div>
-
-      {sp.danger && (
-        <div className="mx-4 mt-4 flex gap-3 rounded-2xl bg-danger/10 p-4 text-danger">
-          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className="text-[13px] font-bold leading-relaxed">{sp.danger}</p>
-        </div>
+    <main className="pb-[calc(40px+var(--safe-bottom))]">
+      {hasHero ? (
+        <>
+          <ScreenHeader variant="photo" onBack={back} />
+          <SpeciesPlate
+            species={sp}
+            photoId={userPhoto}
+            showReference
+            photoSize="full"
+            numberSize="large"
+            alt={sp.name}
+            className="aspect-[4/3] w-full rounded-none"
+          />
+          {credit && <p className="px-4 pt-1 text-right text-caption text-fg-3">© {credit}</p>}
+        </>
+      ) : (
+        <ScreenHeader
+          variant="nav"
+          onBack={back}
+          title={
+            <span aria-hidden={!navTitleShown} className={cn('transition-opacity duration-150', navTitleShown ? 'opacity-100' : 'opacity-0')}>
+              {sp.name}
+            </span>
+          }
+        />
       )}
 
-      {/* ───── 記録状況 ───── */}
-      <div className="mx-4 mt-4 card flex items-center justify-between p-4">
-        <div>
-          <div className="label">MY RECORD</div>
-          {entry ? (
-            <div className="mt-1 text-[14px] font-bold">
-              {entry.count}回記録 <span className="text-[12px] font-normal text-ink3">· 初記録 {formatDate(entry.sightings[entry.sightings.length - 1].observedAt)}</span>
-            </div>
-          ) : (
-            <div className="mt-1 text-[14px] font-bold text-ink2">まだ出会っていません</div>
-          )}
+      {/* ───── 名前 ───── */}
+      <div className={cn('px-4', hasHero ? (credit ? 'pt-2' : 'pt-4') : 'pt-2')}>
+        <div className="flex items-center gap-3">
+          <span className="num text-caption text-fg-3">No.{speciesNo(sp)}</span>
+          <RarityGems rarity={sp.rarity} withLabel />
         </div>
-        <Link to={`/capture?species=${sp.id}`} className="btn-primary px-4 py-2.5 text-[13px]">
-          <Camera className="h-4 w-4" /> 記録する
+        <h1 ref={nameRef} className="mt-1 text-display text-fg">
+          <SpeciesName species={sp} />
+        </h1>
+        <p className="mt-0.5">
+          <SciName sci={sp.sci} className="text-callout" />
+        </p>
+        <Link to={`/capture?species=${sp.id}`} className={cn(button({ variant: 'primary', size: 'lg' }), 'mt-5')}>
+          この生き物を記録する
         </Link>
       </div>
 
-      {photos.length > 0 && (
-        <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto px-4">
-          {photos.map((s) => (
-            <Link key={s.id} to={`/sighting/${s.id}`} className="w-28 shrink-0">
-              <PhotoImg photoId={s.photoId} alt={s.nickname || sp.name} className="aspect-square rounded-2xl" />
-              <div className="mt-1 truncate text-[11px] font-bold">{s.nickname || formatDate(s.observedAt)}</div>
-            </Link>
-          ))}
+      {/* ───── あなたの記録 ───── */}
+      {records.length > 0 && (
+        <>
+          <SectionHeader
+            title={
+              <>
+                あなたの記録
+                <span className="ml-2">
+                  <span className="num">{records.length}</span>件
+                </span>
+              </>
+            }
+            note={areas.length > 0 ? `${areas.join('、')}で記録` : undefined}
+            onAction={records.length > 3 ? () => setRecordsOpen(true) : undefined}
+          />
+          <div className="no-scrollbar flex gap-2 overflow-x-auto px-4">
+            {records.map((s) => (
+              <RecordTile key={s.id} sighting={s} species={sp} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ───── 解説 ───── */}
+      <SectionHeader title="どんな生き物？" />
+      <p className="px-4 text-body text-fg">{sp.description}</p>
+
+      <Group className="mt-6">
+        <InfoRow label="分類">{CATEGORY_META[sp.category].label}</InfoRow>
+        {sp.endemic && <InfoRow label="固有性">{sp.endemic === 'species' ? '固有種' : '固有亜種'}</InfoRow>}
+        {sp.protection && sp.protection.length > 0 && (
+          <InfoRow label="保護">
+            {sp.protection.map((p) => (
+              <span key={p} className="block">
+                {p}
+              </span>
+            ))}
+          </InfoRow>
+        )}
+        {sp.category !== 'plant' && <InfoRow label="活動する時間">{sp.nocturnal ? '夜' : '昼'}</InfoRow>}
+        <InfoRow label="生息環境">
+          <span className="flex flex-wrap gap-x-3">
+            {sp.habitat.map((h) => (
+              <span key={h}>{h}</span>
+            ))}
+          </span>
+        </InfoRow>
+        <InfoRow label="分布">{sp.range}</InfoRow>
+        <InfoRow label="英名">{sp.en}</InfoRow>
+      </Group>
+
+      <SectionHeader title="見られる季節" />
+      <div className="px-4">
+        <MonthBar months={sp.months} highlight={month} />
+      </div>
+
+      <SectionHeader title="観察のコツ" />
+      <p className="px-4 text-body text-fg">{sp.tip}</p>
+
+      {sp.manner && (
+        <>
+          <SectionHeader title="観察マナー" />
+          <p className="px-4 text-body text-fg">{sp.manner}</p>
+        </>
+      )}
+
+      {sp.culture && (
+        <>
+          <SectionHeader title="シマの話" />
+          <p className="px-4 text-body text-fg">{sp.culture}</p>
+        </>
+      )}
+
+      {(sp.danger || sp.sensitive) && (
+        <div className="mt-8 space-y-4">
+          {sp.danger && <Notice kind="caution">{sp.danger}</Notice>}
+          {sp.sensitive && (
+            <Notice kind="info" icon={IconEyeSlash}>
+              希少種のため位置を自動でぼかします
+            </Notice>
+          )}
         </div>
       )}
 
-      <div className="mt-5">
-        <Block icon={<Sparkles className="h-4 w-4" />} title="どんな生き物？">
-          {sp.description}
-        </Block>
-        <Block icon={<MapPin className="h-4 w-4" />} title="分布と見られる季節">
-          <p>{sp.range}</p>
-          <p className="mt-1 text-[12.5px] text-ink2">生息環境：{sp.habitat.join('・')}</p>
-          <div className="mt-3">
-            <MonthBar months={sp.months} highlight={month} />
-          </div>
-        </Block>
-        <Block icon={<Lightbulb className="h-4 w-4" />} title="観察のコツ" tone="text-kin">
-          {sp.tip}
-        </Block>
-        {sp.manner && (
-          <Block icon={<ShieldAlert className="h-4 w-4" />} title="観察マナー" tone="text-sango">
-            {sp.manner}
-          </Block>
-        )}
-        {sp.culture && (
-          <Block icon={<Landmark className="h-4 w-4" />} title="シマの話" tone="text-kuri">
-            {sp.culture}
-          </Block>
-        )}
-      </div>
-
+      {/* ───── 体験 ───── */}
       {exps.length > 0 && (
-        <section className="mt-2 border-t hairline pt-6">
-          <div className="mb-3 px-5">
-            <div className="label">MEET THEM</div>
-            <h2 className="font-serif text-[18px] font-bold">この生き物に会えるかもしれない体験</h2>
-          </div>
-          <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-2">
+        <>
+          <SectionHeader title="この生き物に会える体験" />
+          <div>
             {exps.map((e) => (
-              <div key={e.id} className="w-[290px] shrink-0">
-                <ExperienceCard exp={e} compact />
-              </div>
+              <ListRow key={e.id} title={e.title} subtitle={<ExperienceMeta exp={e} />} chevron onClick={() => setExp(e)} />
             ))}
           </div>
-        </section>
+        </>
       )}
 
-      {entry && entry.sightings.some((s) => s.areaId) && (
-        <p className="mt-6 px-5 text-[11px] text-ink3">
-          記録した地域：
-          {[...new Set(entry.sightings.map((s) => (s.areaId ? AREA_BY_ID[s.areaId]?.name : null)).filter(Boolean))].join('・')}
-        </p>
-      )}
-      <p className="mt-2 px-5 text-[10px] leading-relaxed text-ink3">
-        解説は監修前のβ版データです。保護区分は公開前に最新の公式情報で確認します。
-      </p>
+      <p className="mt-8 px-4 text-sub text-fg-3">解説は監修前のβ版データです。保護区分は公開前に最新の公式情報で確認します。</p>
+
+      <ExperienceSheet exp={exp} onClose={() => setExp(null)} />
+
+      <Sheet open={recordsOpen} onClose={() => setRecordsOpen(false)} title="あなたの記録" snapPoints={[0.55, 1]}>
+        <div className="-mx-4">
+          {records.map((s) => (
+            <ListRow
+              key={s.id}
+              to={`/sighting/${s.id}`}
+              onClick={() => setRecordsOpen(false)}
+              leading={<SpeciesPlate species={sp} photoId={s.photoId} numberSize="tile" className="h-14 w-14 shrink-0 rounded-xs" />}
+              thumbSize={56}
+              title={s.nickname || sp.name}
+              phrase={false}
+              subtitle={
+                <span className="flex flex-wrap gap-x-3">
+                  <span>{formatDateJa(s.observedAt, { time: true })}</span>
+                  {s.areaId && AREA_BY_ID[s.areaId] && <span>{AREA_BY_ID[s.areaId].name}</span>}
+                </span>
+              }
+              chevron
+            />
+          ))}
+        </div>
+      </Sheet>
     </main>
+  );
+}
+
+/** あなたの記録の 1 枚（96、rounded-xs）。下にニックネーム（sub）と日付（caption） */
+function RecordTile({ sighting: s, species }: { sighting: Sighting; species: Species }) {
+  const date = shortDate(s.observedAt);
+  return (
+    <Link
+      to={`/sighting/${s.id}`}
+      aria-label={`${s.nickname || species.name}、${date}`}
+      className="block w-24 shrink-0 select-none active:opacity-[.72]"
+    >
+      <SpeciesPlate species={species} photoId={s.photoId} className="h-24 w-24 rounded-xs" />
+      <span aria-hidden className="mt-1.5 block">
+        {s.nickname && <span className="block truncate text-sub text-fg">{s.nickname}</span>}
+        <span className="block text-caption text-fg-2">{date}</span>
+      </span>
+    </Link>
   );
 }

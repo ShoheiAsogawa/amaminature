@@ -1,35 +1,61 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m, type Variants } from 'framer-motion';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Camera,
-  Car,
-  Check,
-  ChevronRight,
-  CircleDashed,
-  Dices,
-  EyeOff,
-  HandHeart,
-  ImagePlus,
-  LoaderCircle,
-  LocateFixed,
-  Mic,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  TriangleAlert,
-  X,
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CardReveal } from '../components/CardReveal';
-import { CategoryIcon, PageHeader, RarityGems, Sheet, toast } from '../components/ui';
+  IconCaretLeft,
+  IconCarProfile,
+  IconCheckCircleFill,
+  IconCircleNotch,
+  IconDiceFive,
+  IconEyeSlash,
+  IconFlashlight,
+  IconFrameCorners,
+  IconGpsFix,
+  IconHandHeart,
+  IconImageSquare,
+  IconInfo,
+  IconMapPin,
+  IconMicrophone,
+  IconScan,
+  IconWarning,
+  IconX,
+  type IconProps,
+} from '../components/icons';
+import { Phrase } from '../components/Phrase';
+import { SciName, SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
+import { SpeciesName } from '../components/SpeciesName';
+import {
+  Button,
+  ButtonNote,
+  CATEGORY_ICON,
+  CATEGORY_ICON_SELECTED,
+  Chip,
+  ChipRow,
+  cn,
+  CTA_PADDING,
+  CtaBar,
+  DateTimeRow,
+  EmptyState,
+  Field,
+  Group,
+  Input,
+  ListRow,
+  Notice,
+  RadioMark,
+  ScreenHeader,
+  SearchField,
+  SectionHeader,
+  Sheet,
+  toast,
+} from '../components/ui';
 import { AREA_BY_ID, AREAS, ISLAND_ORDER } from '../data/areas';
 import { QUESTS } from '../data/quests';
 import { CATEGORY_META, CATEGORY_ORDER, SPECIES_BY_ID, searchSpecies } from '../data/species';
 import type { Category, Quest, Species } from '../data/types';
 import { api, errorMessage } from '../lib/api';
 import { nearestArea, protectLocation } from '../lib/geo';
-import { getCurrentPosition } from '../lib/position';
 import { processPhoto, toAiPayload, type ProcessedPhoto } from '../lib/image';
+import { getCurrentPosition } from '../lib/position';
 import {
   allQuestProgress,
   BADGES,
@@ -43,12 +69,20 @@ import type { RoadReport, Sighting } from '../lib/types';
 import { useCollection } from '../store/useCollection';
 import { isPlusActive, newId, useStore } from '../store/useStore';
 
-type Step = 'photo' | 'identify' | 'details';
+// 記録（docs/DESIGN_SYSTEM.md §8.4）。1 写真（黒い舞台）→ 2 名前 → 3 記録 の 3 段階。
+// 路上レポート（?mode=road）は 1 段階目の前に「何を見つけましたか？」を出す。
 
-const ROAD_OPTIONS: { value: RoadReport; label: string; desc: string; icon: typeof Car; tone: string }[] = [
-  { value: 'roadkill', label: '交通事故にあった生き物', desc: '道路や路肩で死んでいた', icon: TriangleAlert, tone: 'text-danger bg-danger/10' },
-  { value: 'injured', label: 'けがをしている生き物', desc: '動けない・弱っている', icon: HandHeart, tone: 'text-sango bg-sango/10' },
-  { value: 'on-road', label: '路上にいた生き物', desc: '生きていて、道路上や路肩にいた', icon: Car, tone: 'text-ruri bg-ruri/10' },
+// 図鑑カードの演出（NumberFlow を含む）は保存した後にしか使わないので分けて読み込み、この画面を開いた時に先読みする
+const loadReveal = () => import('../components/CardReveal');
+const CardReveal = lazy(() => loadReveal().then((mod) => ({ default: mod.CardReveal })));
+
+type Step = 'road' | 'photo' | 'identify' | 'details';
+const STEP_ORDER: Record<Step, number> = { road: 0, photo: 1, identify: 2, details: 3 };
+
+const ROAD_OPTIONS: { value: RoadReport; label: string; desc: string; icon: typeof IconWarning }[] = [
+  { value: 'roadkill', label: '交通事故にあった生き物', desc: '道路や路肩で死んでいた', icon: IconWarning },
+  { value: 'injured', label: 'けがをしている生き物', desc: '動けない、弱っている', icon: IconHandHeart },
+  { value: 'on-road', label: '路上にいた生き物', desc: '生きていて、道路上や路肩にいた', icon: IconCarProfile },
 ];
 
 function toLocalInput(d: Date): string {
@@ -70,7 +104,34 @@ function nicknameIdeas(sp: Species | null, seed: number): string[] {
   });
 }
 
+/** 操作の待ち時間だけに使う回転（1 秒で 1 周） */
+function Spinner({ size = 20, className, ...p }: IconProps) {
+  return <IconCircleNotch size={size} className={cn('animate-spin', className)} {...p} />;
+}
+
+/** 段階の表示（右上の 2 / 3） */
+function StepCount({ n }: { n: number }) {
+  return (
+    <span className="num text-caption text-fg-2" aria-label={`${n}段階目（全3段階）`}>
+      {n} / 3
+    </span>
+  );
+}
+
+/** 記録の段階の切り替え（横 24px ＋フェード、220ms。§9 の 6）。戻る時は逆向き */
+const stepVariants: Variants = {
+  enter: (dir: number) => ({ opacity: 0, x: 24 * dir }),
+  center: { opacity: 1, x: 0, transition: { duration: 0.22, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.1 } },
+};
+
+/** ?species= / ?mode=road / ?inbox= が変わったら、最初の段階からやり直す */
 export default function Capture() {
+  const { search } = useLocation();
+  return <CaptureFlow key={search} />;
+}
+
+function CaptureFlow() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const roadMode = params.get('mode') === 'road';
@@ -83,7 +144,8 @@ export default function Capture() {
   const addSighting = useStore((s) => s.addSighting);
   const collection = useCollection();
 
-  const [step, setStep] = useState<Step>('photo');
+  const [step, setStep] = useState<Step>(roadMode ? 'road' : 'photo');
+  const [dir, setDir] = useState(1);
   const [roadType, setRoadType] = useState<RoadReport | null>(null);
   const [photo, setPhoto] = useState<ProcessedPhoto | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -103,6 +165,7 @@ export default function Capture() {
     candidates: null,
   });
   const [aiSheet, setAiSheet] = useState(false);
+  const [tipsSheet, setTipsSheet] = useState(false);
   const [seed, setSeed] = useState(0);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{
@@ -115,11 +178,26 @@ export default function Capture() {
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  /** 写真の EXIF から入れた値（撮り直した時に戻す） */
+  const fromPhoto = useRef({ time: false, place: false });
+  /** Plus の AI 判定を自動で走らせた写真 */
+  const aiTriedFor = useRef<ProcessedPhoto | null>(null);
   const month = new Date(observedAt).getMonth() + 1;
   const species = speciesId ? SPECIES_BY_ID[speciesId] : null;
   const rescue = roadType === 'roadkill' || roadType === 'injured';
+  const plus = isPlusActive(settings);
 
   useEffect(() => () => void (photoUrl && URL.revokeObjectURL(photoUrl)), [photoUrl]);
+
+  // 図鑑カードの演出を先読みしておく（保存した瞬間に待たないように）
+  useEffect(() => {
+    void loadReveal().catch(() => {});
+  }, []);
+
+  // 段階が変わったら先頭から見せる
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
 
   // LINEのトークに送った写真から記録する
   useEffect(() => {
@@ -133,24 +211,61 @@ export default function Capture() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inboxId, account.mode]);
 
+  function go(next: Step) {
+    setDir(STEP_ORDER[next] >= STEP_ORDER[step] ? 1 : -1);
+    setStep(next);
+  }
+
+  /** 写真の後の段階（図鑑から来た時は名前を飛ばす） */
+  function afterPhoto() {
+    go(speciesId !== undefined ? 'details' : 'identify');
+  }
+
+  function leave() {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/', { replace: true });
+  }
+
   async function acceptPhoto(file: Blob) {
     setProcessing(true);
     try {
       const p = await processPhoto(file);
       setPhoto(p);
       setPhotoUrl(URL.createObjectURL(p.full));
+      setAi({ loading: false, candidates: null });
+      fromPhoto.current = { time: !!p.takenAt, place: false };
       if (p.takenAt) setObservedAt(toLocalInput(p.takenAt));
       if (p.lat != null && p.lng != null) {
         setCoords({ lat: p.lat, lng: p.lng });
+        fromPhoto.current.place = true;
         const near = nearestArea(p.lat, p.lng);
         if (near) setAreaId(near.area.id);
       }
-      setStep(speciesId !== undefined ? 'details' : 'identify');
     } catch {
-      toast('写真を読み込めませんでした');
+      toast('写真を読み込めませんでした。別の写真を選んでください');
     } finally {
       setProcessing(false);
     }
+  }
+
+  /** 撮る・選ぶ（同じ写真を選び直しても届くように、読んだら入力を空にする） */
+  function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void acceptPhoto(file);
+  }
+
+  /** 撮り直す: 写真と、写真から入れた日時・位置を戻して、シャッターの状態に戻る */
+  function retake() {
+    setPhoto(null);
+    setPhotoUrl(null);
+    setAi({ loading: false, candidates: null });
+    if (fromPhoto.current.time) setObservedAt(toLocalInput(new Date()));
+    if (fromPhoto.current.place) {
+      setCoords(null);
+      setAreaId(null);
+    }
+    fromPhoto.current = { time: false, place: false };
   }
 
   async function locate() {
@@ -189,23 +304,26 @@ export default function Capture() {
     }
   }
 
-  const list = useMemo(() => {
-    const base = searchSpecies(query).filter((s) => !cat || s.category === cat);
-    if (query) return base;
-    return [...base].sort((a, b) => {
-      const ia = a.months.includes(month) ? 0 : 1;
-      const ib = b.months.includes(month) ? 0 : 1;
-      return ia - ib || a.no - b.no;
-    });
-  }, [query, cat, month]);
+  // Plus の時は、名前の段階に来たら AI の候補を自動で出す（写真 1 枚につき 1 回）
+  useEffect(() => {
+    if (step !== 'identify' || !photo || !plus || account.mode !== 'line') return;
+    if (aiTriedFor.current === photo) return;
+    aiTriedFor.current = photo;
+    void runAi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, photo, plus, account.mode]);
+
+  const list = useMemo(() => searchSpecies(query).filter((s) => !cat || s.category === cat), [query, cat]);
+  const inSeason = useMemo(() => list.filter((s) => s.months.includes(month)), [list, month]);
+  const offSeason = useMemo(() => list.filter((s) => !s.months.includes(month)), [list, month]);
 
   function choose(id: string | null) {
     setSpeciesId(id);
-    setStep('details');
+    go('details');
   }
 
   async function save() {
-    if (speciesId === undefined) return;
+    if (speciesId === undefined || saving) return;
     setSaving(true);
     try {
       const now = new Date();
@@ -263,373 +381,477 @@ export default function Capture() {
     setMemo('');
     setAi({ loading: false, candidates: null });
     setObservedAt(toLocalInput(new Date()));
+    fromPhoto.current = { time: false, place: false };
+    setDir(-1);
     setStep('photo');
   }
 
   if (result) {
     return (
-      <CardReveal
-        sighting={result.sighting}
-        species={result.sighting.speciesId ? SPECIES_BY_ID[result.sighting.speciesId] : null}
-        photoUrl={photoUrl}
-        isNew={result.isNew}
-        points={result.points}
-        newBadges={result.badges}
-        completedQuests={result.quests}
-        onAgain={reset}
-      />
+      <Suspense fallback={<div className="fixed inset-0 z-50" style={{ background: 'var(--stage)' }} />}>
+        <CardReveal
+          sighting={result.sighting}
+          species={result.sighting.speciesId ? SPECIES_BY_ID[result.sighting.speciesId] : null}
+          photoUrl={photoUrl}
+          isNew={result.isNew}
+          points={result.points}
+          newBadges={result.badges}
+          completedQuests={result.quests}
+          onAgain={reset}
+        />
+      </Suspense>
     );
   }
 
-  const stepIndex = { photo: 0, identify: 1, details: 2 }[step];
-  const plus = isPlusActive(settings);
+  const ideas = nicknameIdeas(species, seed);
+  const area = areaId ? AREA_BY_ID[areaId] : null;
 
-  return (
-    <div className="min-h-dvh pb-[calc(110px+var(--safe-bottom))]">
-      <PageHeader
-        label={roadMode ? 'ROAD REPORT' : 'NEW RECORD'}
-        title={roadMode ? '路上レポート' : 'いきものを記録'}
-        right={
-          <button onClick={() => navigate(-1)} className="grid h-10 w-10 place-items-center rounded-full active:bg-ink/5" aria-label="閉じる">
-            <X className="h-5 w-5" />
-          </button>
-        }
-      />
-      <div className="flex gap-1.5 px-5 pb-2">
-        {['写真', '名前', '記録'].map((l, i) => (
-          <div key={l} className="flex-1">
-            <div className={`h-1 rounded-full transition-colors ${i <= stepIndex ? 'bg-accent' : 'bg-ink/10'}`} />
-            <div className={`mt-1 text-[10px] font-bold ${i <= stepIndex ? 'text-accent' : 'text-ink3'}`}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && acceptPhoto(e.target.files[0])} />
-      <input ref={libraryRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && acceptPhoto(e.target.files[0])} />
-
-      <AnimatePresence mode="wait">
-        {/* ───────── 1. 写真 ───────── */}
-        {step === 'photo' && (
-          <motion.section key="photo" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="px-4 pt-3">
-            {roadMode && (
-              <div className="mb-5">
-                <div className="mb-3 flex gap-3 rounded-2xl bg-ruri/10 p-4 text-[12.5px] leading-relaxed text-ink">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-ruri" />
-                  <p>
-                    <b>運転中は操作しないでください。</b>安全な場所に停車してから、または同乗者が記録しましょう。正確な位置は行政・保護機関との共有にだけ使い、公開しません。
-                  </p>
-                </div>
-                <div className="label mb-2 px-1">何を見つけましたか？</div>
-                <div className="space-y-2">
-                  {ROAD_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      onClick={() => setRoadType(o.value)}
-                      className={`card flex w-full items-center gap-3 p-3.5 text-left transition ${roadType === o.value ? 'ring-2 ring-accent' : ''}`}
-                    >
-                      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${o.tone}`}>
-                        <o.icon className="h-5 w-5" />
-                      </span>
-                      <span className="flex-1">
-                        <span className="block text-[14px] font-bold">{o.label}</span>
-                        <span className="block text-[11.5px] text-ink3">{o.desc}</span>
-                      </span>
-                      {roadType === o.value && <Check className="h-5 w-5 text-accent" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(!roadMode || roadType) && (
+  /** 名前の段階の 1 行（行全体で選ぶ。右端の［これ］は見た目だけ） */
+  const speciesRow = (sp: Species, trailing?: ReactNode) => {
+    const entry = collection.get(sp.id);
+    return (
+      <ListRow
+        key={sp.id}
+        onClick={() => choose(sp.id)}
+        selected={speciesId === sp.id}
+        leading={<SpeciesThumb species={sp} photoId={entry?.photoId} discovered={!!entry} showReference size={56} />}
+        thumbSize={56}
+        title={
+          <>
+            <SpeciesName species={sp} clamp={false} />
+            {entry && (
               <>
-                {processing ? (
-                  <div className="card grid aspect-[4/3] place-items-center">
-                    <LoaderCircle className="h-8 w-8 animate-spin text-accent" />
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => cameraRef.current?.click()}
-                    className="relative grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-4xl bg-forest-900 text-washi shadow-lift active:scale-[0.99]"
-                  >
-                    <div className="absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_40%,rgba(43,103,80,.9),transparent_70%)]" />
-                    <div className="absolute inset-6 rounded-3xl border border-dashed border-white/20" />
-                    <div className="relative flex flex-col items-center">
-                      <span className="grid h-20 w-20 place-items-center rounded-full bg-washi text-forest-900 shadow-lift">
-                        <Camera className="h-9 w-9" strokeWidth={1.7} />
-                      </span>
-                      <span className="mt-4 font-serif text-[19px] font-bold">カメラで撮る</span>
-                      <span className="mt-1 text-[12px] text-washi/60">近づきすぎず、ズームで撮ろう</span>
-                    </div>
-                  </button>
-                )}
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button onClick={() => libraryRef.current?.click()} className="btn-ghost">
-                    <ImagePlus className="h-4 w-4" /> 写真を選ぶ
-                  </button>
-                  <button onClick={() => setStep(speciesId !== undefined ? 'details' : 'identify')} className="btn-ghost">
-                    <Mic className="h-4 w-4" /> 写真なしで
-                  </button>
-                </div>
-                <p className="mt-4 px-1 text-[11.5px] leading-relaxed text-ink3">
-                  「写真なしで」は鳴き声を聞いた・暗くて撮れなかったときに。夜行性の生き物にはフラッシュを向けすぎないでください。
-                </p>
+                <IconCheckCircleFill size={16} className="ml-1.5 inline-block align-[-2px] text-success" />
+                <span className="sr-only">記録済み</span>
               </>
             )}
-          </motion.section>
+          </>
+        }
+        subtitle={<SciName sci={sp.sci} className="text-sub leading-[18px]" />}
+        trailing={
+          <>
+            {trailing}
+            <span
+              aria-hidden
+              className="inline-flex h-8 shrink-0 items-center rounded-md bg-fill px-3 pt-[2px] text-sub font-semibold text-fg group-active/row:bg-fill-strong"
+            >
+              これ
+            </span>
+          </>
+        }
+      />
+    );
+  };
+
+  return (
+    <div className={cn('min-h-dvh', step === 'details' && CTA_PADDING)}>
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={onPick} />
+      <input ref={libraryRef} type="file" accept="image/*" hidden onChange={onPick} />
+
+      <AnimatePresence mode="wait" custom={dir} initial={false}>
+        {/* ───────── 路上レポート: 何を見つけましたか？ ───────── */}
+        {step === 'road' && (
+          <m.section key="road" custom={dir} variants={stepVariants} initial="enter" animate="center" exit="exit">
+            <ScreenHeader variant="nav" title="路上レポート" />
+            <Notice kind="danger" title="運転中は操作しないでください。" className="mt-2">
+              安全な場所に停車してから、または同乗者が記録しましょう。正確な位置は行政・保護機関との共有にだけ使い、公開しません。
+            </Notice>
+            <SectionHeader title="何を見つけましたか？" id="road-type" />
+            <Group>
+              <div role="radiogroup" aria-labelledby="road-type">
+                {ROAD_OPTIONS.map((o) => {
+                  const on = roadType === o.value;
+                  return (
+                    <ListRow
+                      key={o.value}
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setRoadType(o.value)}
+                      icon={o.icon}
+                      iconClassName={on ? 'text-danger' : undefined}
+                      title={o.label}
+                      subtitle={o.desc}
+                      trailing={<RadioMark checked={on} />}
+                    />
+                  );
+                })}
+              </div>
+            </Group>
+            <div className="px-4 pb-[calc(24px+var(--safe-bottom))] pt-6">
+              <Button disabled={!roadType} onClick={() => go('photo')}>
+                写真を撮る
+              </Button>
+              {!roadType && <ButtonNote>見つけたものを選ぶと進めます</ButtonNote>}
+            </div>
+          </m.section>
         )}
 
-        {/* ───────── 2. 名前（種の選択） ───────── */}
-        {step === 'identify' && (
-          <motion.section key="identify" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="pt-2">
-            <div className="flex items-center gap-3 px-4">
-              {photoUrl ? (
-                <img src={photoUrl} alt="撮影した写真" className="h-20 w-20 rounded-2xl object-cover shadow-card" />
+        {/* ───────── 1. 写真（全画面の黒い舞台。ライトでも黒） ───────── */}
+        {step === 'photo' && (
+          <m.div
+            key="photo"
+            custom={dir}
+            variants={stepVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            className="fixed inset-0 z-40 mx-auto flex w-full max-w-[480px] flex-col bg-black text-white"
+          >
+            <div className="pt-safe shrink-0">
+              <div className="flex h-11 items-center justify-between">
+                <button
+                  type="button"
+                  onClick={roadMode ? () => go('road') : leave}
+                  aria-label={roadMode ? '戻る' : '閉じる'}
+                  className="grid h-11 w-11 place-items-center text-white active:opacity-60"
+                >
+                  {roadMode ? <IconCaretLeft size={24} /> : <IconX size={24} />}
+                </button>
+                <div className="flex items-center">
+                  <span className="num text-caption text-white/70" aria-label="1段階目（全3段階）">
+                    1 / 3
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTipsSheet(true)}
+                    aria-label="撮影の注意"
+                    className="grid h-11 w-11 place-items-center text-white active:opacity-60"
+                  >
+                    <IconInfo size={24} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative min-h-0 flex-1">
+              {processing ? (
+                <div className="absolute inset-0 grid place-items-center" role="status" aria-label="写真を読み込んでいます">
+                  <Spinner size={32} className="text-white/70" />
+                </div>
+              ) : photoUrl ? (
+                <img src={photoUrl} alt="撮影した写真" className="photo absolute inset-0 h-full w-full object-contain" />
               ) : (
-                <div className="grid h-20 w-20 place-items-center rounded-2xl bg-ink/[0.06]">
-                  <Mic className="h-7 w-7 text-ink3" />
+                <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                  <p className="text-callout text-white/70">近づきすぎず、ズームで撮ろう</p>
+                  <p className="mt-2 text-sub text-white/[.55]">
+                    <span className="phrase">
+                      夜行性の生き物に<wbr />
+                      フラッシュを<wbr />
+                      向けすぎないでください
+                    </span>
+                  </p>
                 </div>
               )}
-              <div>
-                <div className="font-serif text-[19px] font-bold">この生き物は？</div>
-                <div className="text-[12px] text-ink3">図鑑から選ぶか、AIで調べよう</div>
-              </div>
             </div>
 
-            {photo && (
-              <div className="mt-4 px-4">
-                <button
-                  onClick={runAi}
-                  disabled={ai.loading}
-                  className="relative flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-r from-[#1B2F55] to-lapis p-4 text-left text-white shadow-lift"
-                >
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15">
-                    {ai.loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5 text-gold" />}
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-[15px] font-bold">{ai.loading ? 'AIが調べています…' : 'AIで名前を調べる'}</span>
-                    <span className="block text-[11px] text-white/65">
-                      {plus ? 'AMAMI NATURE+ ：1日30回まで' : '1日1回無料 · Plusなら1日30回'}
+            <div className="h-[calc(120px+var(--safe-bottom))] shrink-0 px-4 pb-[var(--safe-bottom)]">
+              {photoUrl && !processing ? (
+                <div className="flex h-full items-center gap-2">
+                  <Button variant="on-stage" className="flex-1" onClick={retake}>
+                    撮り直す
+                  </Button>
+                  <Button className="flex-1" onClick={afterPhoto}>
+                    この写真で進む
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid h-full grid-cols-3 items-center">
+                  <button
+                    type="button"
+                    onClick={() => libraryRef.current?.click()}
+                    disabled={processing}
+                    className="flex flex-col items-center gap-1.5 justify-self-start text-white active:opacity-60"
+                  >
+                    <span className="grid h-11 w-11 place-items-center rounded-xs bg-white/[.14]">
+                      <IconImageSquare size={24} />
                     </span>
-                  </span>
-                  <ChevronRight className="h-5 w-5 text-white/50" />
-                </button>
-
-                {ai.candidates && (
-                  <div className="mt-3 card divide-y divide-[var(--line)] overflow-hidden">
-                    {ai.candidates.map((c) => {
-                      const sp = SPECIES_BY_ID[c.speciesId];
-                      if (!sp)
-                        return (
-                          <div key="unknown" className="p-4 text-[13px] text-ink2">
-                            図鑑の中からは特定できませんでした。{c.reason}
-                          </div>
-                        );
-                      return (
-                        <button key={c.speciesId} onClick={() => choose(sp.id)} className="flex w-full items-center gap-3 p-3.5 text-left active:bg-ink/5">
-                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ background: CATEGORY_META[sp.category].color }}>
-                            <CategoryIcon category={sp.category} className="h-5 w-5" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-bold">{sp.name}</span>
-                            <span className="block truncate text-[11px] text-ink3">{c.reason}</span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block text-[15px] font-extrabold text-ruri">{Math.round(c.confidence * 100)}%</span>
-                            <span className="block text-[9px] text-ink3">確からしさ</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="sticky top-[calc(56px+var(--safe-top))] z-20 mt-4 bg-paper/90 px-4 pb-2 pt-1 backdrop-blur">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink3" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="名前で探す" className="input pl-10" aria-label="生き物の名前で探す" />
-              </div>
-              <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
-                {CATEGORY_ORDER.map((c) => (
-                  <button key={c} onClick={() => setCat(cat === c ? null : c)} className={`chip shrink-0 ${cat === c ? 'border-transparent bg-primary text-onprimary' : ''}`}>
-                    <CategoryIcon category={c} className="h-3.5 w-3.5" /> {CATEGORY_META[c].short}
+                    <span className="text-caption text-white/70">アルバム</span>
                   </button>
-                ))}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => cameraRef.current?.click()}
+                    disabled={processing}
+                    aria-label="カメラで撮る"
+                    className="grid h-[72px] w-[72px] place-items-center justify-self-center rounded-full border-4 border-white active:opacity-70"
+                  >
+                    <span className="block h-[58px] w-[58px] rounded-full bg-white" />
+                  </button>
+                  <Button variant="text" size="hit" className="justify-self-end text-white" disabled={processing} onClick={afterPhoto}>
+                    写真なしで記録
+                  </Button>
+                </div>
+              )}
             </div>
-
-            {!query && <div className="label px-5 pb-1 pt-2">{month}月に見られる生き物から順に表示</div>}
-            <ul className="px-2">
-              {list.map((sp) => (
-                <li key={sp.id}>
-                  <button onClick={() => choose(sp.id)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left active:bg-ink/5">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: CATEGORY_META[sp.category].color }}>
-                      <CategoryIcon category={sp.category} className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate font-bold">{sp.name}</span>
-                        {collection.has(sp.id) && <span className="shrink-0 rounded-full bg-accent/10 px-1.5 text-[9px] font-bold text-accent">記録済み</span>}
-                      </span>
-                      <span className="sci block truncate text-[12.5px] text-ink3">{sp.sci}</span>
-                    </span>
-                    <RarityGems rarity={sp.rarity} size={5} />
-                  </button>
-                </li>
-              ))}
-              <li>
-                <button onClick={() => choose(null)} className="mt-1 flex w-full items-center gap-3 rounded-2xl border border-dashed hairline px-3 py-3 text-left active:bg-ink/5">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ink/[0.06]">
-                    <CircleDashed className="h-5 w-5 text-ink3" />
-                  </span>
-                  <span>
-                    <span className="block font-bold">図鑑にない・わからない生き物</span>
-                    <span className="block text-[11.5px] text-ink3">フィールドノートに記録して、あとで調べよう</span>
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </motion.section>
+          </m.div>
         )}
 
-        {/* ───────── 3. 記録の詳細 ───────── */}
-        {step === 'details' && (
-          <motion.section key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5 px-4 pt-3">
-            <div className="card flex items-center gap-3 p-3">
-              {photoUrl ? (
-                <img src={photoUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+        {/* ───────── 2. 名前 ───────── */}
+        {step === 'identify' && (
+          <m.section
+            key="identify"
+            custom={dir}
+            variants={stepVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            className="pb-[calc(32px+var(--safe-bottom))]"
+          >
+            <ScreenHeader variant="nav" title="なにを見ましたか？" onBack={() => go('photo')} right={<StepCount n={2} />} />
+            {photoUrl && <img src={photoUrl} alt="撮影した写真" className="photo ml-4 mt-2 h-[72px] w-[72px] rounded-xs object-cover" />}
+            <div className="px-4 pt-3">
+              <SearchField value={query} onChange={setQuery} aria-label="生き物の名前で探す" />
+            </div>
+            <ChipRow className="mt-3">
+              {CATEGORY_ORDER.map((c) => (
+                <Chip
+                  key={c}
+                  selected={cat === c}
+                  icon={CATEGORY_ICON[c]}
+                  selectedIcon={CATEGORY_ICON_SELECTED[c]}
+                  onClick={() => setCat(cat === c ? null : c)}
+                >
+                  {CATEGORY_META[c].short}
+                </Chip>
+              ))}
+            </ChipRow>
+
+            {photo &&
+              (ai.loading || ai.candidates ? (
+                <>
+                  <SectionHeader title="AIの候補" />
+                  <div>
+                    {ai.loading ? (
+                      <ListRow icon={Spinner} title="AIが調べています" />
+                    ) : (
+                      ai.candidates!.map((c) => {
+                        const sp = SPECIES_BY_ID[c.speciesId];
+                        if (!sp)
+                          return (
+                            <Notice key={`unknown-${c.speciesId}`} className="py-3">
+                              {`図鑑の中からは特定できませんでした。${c.reason}`}
+                            </Notice>
+                          );
+                        return speciesRow(
+                          sp,
+                          <span className="shrink-0 whitespace-nowrap text-sub text-fg-2">
+                            確からしさ <span className="num">{Math.round(c.confidence * 100)}%</span>
+                          </span>,
+                        );
+                      })
+                    )}
+                  </div>
+                </>
               ) : (
-                <span className="grid h-16 w-16 place-items-center rounded-2xl text-white" style={{ background: species ? CATEGORY_META[species.category].color : '#808C86' }}>
-                  {species ? <CategoryIcon category={species.category} className="h-7 w-7" /> : <CircleDashed className="h-7 w-7" />}
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-serif text-[18px] font-bold">{species?.name ?? '図鑑にない生き物'}</div>
-                {species ? <div className="sci truncate text-[13px] text-ink3">{species.sci}</div> : null}
+                <div className="mt-4">
+                  <ListRow
+                    icon={IconScan}
+                    title="AIで名前を調べる"
+                    subtitle={plus ? '1日30回まで' : '1日1回無料。Plusなら1日30回'}
+                    chevron
+                    onClick={runAi}
+                  />
+                </div>
+              ))}
+
+            {query ? (
+              <div className="mt-2">
+                {list.length === 0 && <EmptyState title="該当する生き物はいません" body="図鑑にない生き物は、いちばん下から記録できます" />}
+                {list.map((sp) => speciesRow(sp))}
+                <ListRow title="わからない・あとで調べる" subtitle="図鑑にない生き物も記録できます" chevron onClick={() => choose(null)} />
               </div>
-              <button onClick={() => setStep('identify')} className="text-[12px] font-bold text-accent">
+            ) : (
+              <>
+                {inSeason.length > 0 && (
+                  <>
+                    <SectionHeader title="この季節に多い生き物" />
+                    <div>{inSeason.map((sp) => speciesRow(sp))}</div>
+                  </>
+                )}
+                <SectionHeader title={inSeason.length > 0 ? 'そのほかの生き物' : '生き物'} />
+                <div>
+                  {offSeason.map((sp) => speciesRow(sp))}
+                  <ListRow title="わからない・あとで調べる" subtitle="図鑑にない生き物も記録できます" chevron onClick={() => choose(null)} />
+                </div>
+              </>
+            )}
+          </m.section>
+        )}
+
+        {/* ───────── 3. 記録 ───────── */}
+        {step === 'details' && (
+          <m.section key="details" custom={dir} variants={stepVariants} initial="enter" animate="center" exit="exit">
+            <ScreenHeader
+              variant="nav"
+              title={roadMode ? '路上レポート' : '記録する'}
+              onBack={() => go('identify')}
+              right={<StepCount n={3} />}
+            />
+            <div className="flex items-center gap-3 px-4 pt-2">
+              {photoUrl ? (
+                <img src={photoUrl} alt="撮影した写真" className="photo h-[72px] w-[72px] shrink-0 rounded-xs object-cover" />
+              ) : species ? (
+                <SpeciesPlate species={species} discovered={collection.has(species.id)} showReference numberSize="tile" className="h-[72px] w-[72px] shrink-0 rounded-xs" />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <div className="text-headline text-fg">{species ? <SpeciesName species={species} /> : '図鑑にない生き物'}</div>
+                {species && <SciName sci={species.sci} className="mt-0.5 block text-sub leading-[18px]" />}
+              </div>
+              <Button variant="text" size="hit" className="-mr-1 shrink-0" onClick={() => go('identify')}>
                 変更
-              </button>
+              </Button>
             </div>
 
             {speciesId === null && (
-              <label className="block">
-                <span className="label mb-1.5 block px-1">わかる範囲の名前</span>
-                <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="例：青いトンボ、白い花" className="input" maxLength={40} />
-              </label>
+              <div className="px-4 pt-6">
+                <Field label="わかる範囲の名前">
+                  <Input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="例：青いトンボ、白い花" maxLength={40} />
+                </Field>
+              </div>
             )}
 
             {!rescue && (
-              <div>
-                <span className="label mb-1.5 block px-1">ニックネームをつけよう</span>
-                <input
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder={species ? `例：${nicknameIdeas(species, seed)[0]}` : '例：なぞのいきもの1号'}
-                  className="input font-bold"
-                  maxLength={24}
-                />
-                {species && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {nicknameIdeas(species, seed).map((n) => (
-                      <button key={n} onClick={() => setNickname(n)} className="chip">
+              <div className="pt-6">
+                <div className="px-4">
+                  <Field label="ニックネーム">
+                    <Input
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      placeholder={species ? `例：${ideas[0]}` : '例：なぞのいきもの1号'}
+                      maxLength={24}
+                      trailing={
+                        species ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = seed + 1;
+                              setSeed(next);
+                              setNickname(nicknameIdeas(species, next)[0]);
+                            }}
+                            aria-label="ニックネームの候補を変える"
+                            className="grid h-10 w-10 place-items-center rounded-sm text-fg-2 active:bg-fill-strong"
+                          >
+                            <IconDiceFive size={20} />
+                          </button>
+                        ) : undefined
+                      }
+                    />
+                  </Field>
+                </div>
+                {ideas.length > 0 && (
+                  <ChipRow className="mt-3">
+                    {ideas.map((n) => (
+                      <Chip key={n} selected={nickname === n} onClick={() => setNickname(n)}>
                         {n}
-                      </button>
+                      </Chip>
                     ))}
-                    <button onClick={() => setSeed((x) => x + 1)} className="chip" aria-label="ほかの候補">
-                      <Dices className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                  </ChipRow>
                 )}
               </div>
             )}
 
-            <label className="block">
-              <span className="label mb-1.5 block px-1">メモ</span>
-              <textarea
-                value={memo}
-                onChange={(e) => setMemo(e.target.value)}
-                rows={3}
-                placeholder={rescue ? '状況（車線・時間帯・個体の様子など）' : 'どんな様子だった？（行動、鳴き声、天気など）'}
-                className="input resize-none leading-relaxed"
-                maxLength={500}
-              />
-            </label>
-
-            <div className="grid grid-cols-1 gap-3">
-              <label className="block">
-                <span className="label mb-1.5 block px-1">観察した日時</span>
-                <input type="datetime-local" value={observedAt} onChange={(e) => setObservedAt(e.target.value)} className="input" />
-              </label>
-              <div>
-                <span className="label mb-1.5 block px-1">地域</span>
-                <div className="flex gap-2">
-                  <select value={areaId ?? ''} onChange={(e) => setAreaId(e.target.value || null)} className="input flex-1 appearance-none" aria-label="地域">
-                    <option value="">選択しない</option>
-                    {ISLAND_ORDER.map((island) => (
-                      <optgroup key={island} label={island}>
-                        {AREAS.filter((a) => a.island.startsWith(island)).map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <button onClick={locate} disabled={locating} className="btn-ghost shrink-0 px-4" aria-label="現在地から設定">
-                    {locating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+            <Group className="mt-6">
+              <DateTimeRow value={observedAt} onChange={setObservedAt} />
+              {/* 地域: select を行に重ねる（行には市町村名だけを出す）。右端は現在地から設定 */}
+              <div className="group/row relative flex pl-4">
+                <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 border-b border-sep pr-1 group-last/row:border-b-0">
+                  <div className="relative flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-sm py-2.5 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
+                    <span className="w-24 shrink-0 text-callout text-fg-2">地域</span>
+                    <span className={cn('min-w-0 flex-1 text-callout', area ? 'text-fg' : 'text-fg-3')}>{area?.name ?? '未設定'}</span>
+                    <select
+                      value={areaId ?? ''}
+                      onChange={(e) => setAreaId(e.target.value || null)}
+                      aria-label="地域"
+                      className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+                    >
+                      <option value="">選択しない</option>
+                      {ISLAND_ORDER.map((island) => (
+                        <optgroup key={island} label={island}>
+                          {AREAS.filter((a) => a.island.startsWith(island)).map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={locate}
+                    disabled={locating}
+                    aria-label="現在地から設定"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-brand active:bg-fill-strong"
+                  >
+                    {locating ? <Spinner size={20} /> : <IconGpsFix size={20} />}
                   </button>
                 </div>
-                {areaId && <div className="mt-1.5 px-1 text-[11px] text-ink3">{AREA_BY_ID[areaId].island}</div>}
               </div>
-            </div>
+              <label className="group/row flex rounded-b-md pl-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
+                <span className="flex min-w-0 flex-1 items-start gap-3 py-3 pr-4">
+                  <span className="w-24 shrink-0 text-callout text-fg-2">メモ</span>
+                  <textarea
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    rows={3}
+                    cols={1}
+                    placeholder={rescue ? '状況（車線、時間帯、個体の様子など）' : 'どんな様子だった？'}
+                    maxLength={500}
+                    className="block min-h-[66px] min-w-0 flex-1 resize-none bg-transparent text-input leading-[22px] text-fg outline-none placeholder:text-fg-3 focus-visible:outline-none"
+                  />
+                </span>
+              </label>
+            </Group>
 
-            {roadType ? (
-              <div className="flex gap-3 rounded-2xl bg-ruri/10 p-4 text-[12px] leading-relaxed text-ink2">
-                <LocateFixed className="mt-0.5 h-4 w-4 shrink-0 text-ruri" />
-                <p>
-                  {coords ? '正確な位置を記録しました。' : '現在地ボタンで正確な位置を記録すると、対策に役立ちます。'}
-                  正確な位置は行政・保護機関との共有用で、アプリ内や共有画像には表示しません。
-                </p>
-              </div>
-            ) : species?.sensitive ? (
-              <div className="flex gap-3 rounded-2xl bg-kuri/10 p-4 text-[12px] leading-relaxed text-ink2">
-                <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-kuri" />
-                <p>
-                  <b className="text-ink">{species.name}</b>は保護が必要な生き物のため、位置は市町村までしか保存しません。共有画像にも地域名は入りません。
-                </p>
-              </div>
-            ) : (
-              <p className="px-1 text-[11px] leading-relaxed text-ink3">位置は約100m単位にぼかして保存し、共有画像には市町村名だけを表示します。</p>
-            )}
-          </motion.section>
+            <div className="pb-4 pt-4">
+              {roadType ? (
+                <Notice icon={IconMapPin}>
+                  {`${coords ? '正確な位置を記録しました。' : '地域の行の現在地ボタンで正確な位置を記録すると、対策に役立ちます。'}正確な位置は行政・保護機関との共有用で、アプリ内や共有画像には表示しません。`}
+                </Notice>
+              ) : species?.sensitive ? (
+                <Notice icon={IconEyeSlash}>
+                  {`${species.name}は保護が必要な生き物のため、位置は市町村までしか保存しません。共有画像にも地域名は入りません。`}
+                </Notice>
+              ) : (
+                <Notice>位置は約100mぼかして保存します。共有画像には市町村名だけを表示します</Notice>
+              )}
+            </div>
+          </m.section>
         )}
       </AnimatePresence>
 
       {step === 'details' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper to-transparent px-4 pb-[calc(16px+var(--safe-bottom))] pt-6">
-          <button onClick={save} disabled={saving} className="btn-primary w-full py-4 text-[16px]">
-            {saving ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-            {roadType ? 'レポートを送る' : '図鑑に記録する'}
-          </button>
-        </div>
+        <CtaBar>
+          <Button variant={roadType ? 'danger' : 'primary'} onClick={save} aria-busy={saving}>
+            {saving && <Spinner size={20} />}
+            {roadType ? '送信する' : '図鑑に記録する'}
+          </Button>
+        </CtaBar>
       )}
 
+      {/* 撮影の注意（1 段階目の右上の info） */}
+      <Sheet open={tipsSheet} onClose={() => setTipsSheet(false)} title="撮影するときの注意">
+        <div className="-mx-4">
+          <ListRow
+            icon={IconFlashlight}
+            title="フラッシュを向けすぎない"
+            subtitle={<Phrase text="夜行性の生き物は強い光に驚きます。ライトも当て続けないでください。" />}
+          />
+          <ListRow icon={IconFrameCorners} title="近づきすぎず、ズームで撮る" subtitle={<Phrase text="生き物を驚かせない距離から撮りましょう。" />} />
+          <ListRow icon={IconMicrophone} title="写真なしでも記録できます" subtitle={<Phrase text="鳴き声を聞いた、暗くて撮れなかったときに。" />} />
+        </div>
+      </Sheet>
+
       <Sheet open={aiSheet} onClose={() => setAiSheet(false)} title="AI判定は AMAMI NATURE+ の機能です">
-        <p className="text-[13.5px] leading-relaxed text-ink2">
+        <p className="text-body text-fg-2">
           {account.mode === 'line'
             ? '今日の無料回数を使い切りました。AMAMI NATURE+ なら1日30回まで、旅のあいだ何度でも名前を調べられます。'
             : 'AI判定は、LINE公式アカウントから開いたときに使えます（1日1回無料）。AMAMI NATURE+ なら1日30回まで調べられます。'}
         </p>
         <div className="mt-5 grid gap-2">
-          <button className="btn-primary" onClick={() => navigate('/plus')}>
-            <Sparkles className="h-4 w-4" /> AMAMI NATURE+ を見る
-          </button>
-          <button className="btn-ghost" onClick={() => setAiSheet(false)}>
+          <Button onClick={() => navigate('/plus')}>AMAMI NATURE+ を見る</Button>
+          <Button variant="text" size="hit" onClick={() => setAiSheet(false)}>
             図鑑から自分で選ぶ
-          </button>
+          </Button>
         </div>
       </Sheet>
     </div>

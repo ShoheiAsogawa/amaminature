@@ -3,6 +3,9 @@ import { api } from '../lib/api';
 import { getPhoto } from '../lib/db';
 import { REMOTE_PREFIX } from '../store/sync';
 
+// 記録の写真の読み込み（端末内の IndexedDB → なければサーバーの R2）。
+// 写真の表示は SpeciesPlate / SpeciesThumb / CollectibleCard が受け持つ（.photo クラスで夜の森では暗くする）。
+
 const cache = new Map<string, Promise<string | null>>();
 
 /** 写真の object URL を取得（端末内 → なければサーバーのR2から） */
@@ -40,32 +43,4 @@ export function usePhotoUrl(photoId: string | null | undefined, size: 'thumb' | 
     };
   }, [photoId, size]);
   return url;
-}
-
-export function PhotoImg({
-  photoId,
-  size = 'thumb',
-  alt,
-  className = '',
-}: {
-  photoId: string | null | undefined;
-  size?: 'thumb' | 'full';
-  alt: string;
-  className?: string;
-}) {
-  const url = usePhotoUrl(photoId, size);
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <div className={`relative overflow-hidden bg-ink/[0.06] ${className}`}>
-      {url && (
-        <img
-          src={url}
-          alt={alt}
-          onLoad={() => setLoaded(true)}
-          className={`h-full w-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-          draggable={false}
-        />
-      )}
-    </div>
-  );
 }

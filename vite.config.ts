@@ -1,10 +1,27 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import path from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // DEMO_BUILD=1: LINE外で動くスタンドアロンのデモ（相対パス＋ハッシュルーター）
 const demo = process.env.DEMO_BUILD === '1';
+
+/**
+ * BudouX（<Phrase> の文節改行）のブラウザ版の DOM 実装を使わせる。
+ * Vite は budoux の package.json の "browser" フィールド（./module/dom.js → ./module/dom-browser.js）を
+ * 解決しないので、そのままだと Node 用の linkedom がメインのチャンクに入り、約 60KB（gzip）重くなる。
+ */
+const budouxBrowserDom: Plugin = {
+  name: 'budoux-browser-dom',
+  enforce: 'pre',
+  resolveId(source, importer) {
+    if (source === './dom.js' && importer && /[\\/]node_modules[\\/]budoux[\\/]module[\\/]/.test(importer)) {
+      return path.join(path.dirname(importer), 'dom-browser.js');
+    }
+    return null;
+  },
+};
 
 export default defineConfig({
   base: demo ? './' : '/',
@@ -17,13 +34,14 @@ export default defineConfig({
     proxy: { '/api': 'http://127.0.0.1:8787', '^/s/.*': 'http://127.0.0.1:8787' },
   },
   plugins: [
+    budouxBrowserDom,
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'AMAMI NATURE — 奄美いきものコレクション',
+        name: 'AMAMI NATURE 奄美いきものコレクション',
         short_name: 'AMAMI NATURE',
         description: '奄美群島で出会った生き物を撮って、名前をつけて、集める図鑑アプリ',
         lang: 'ja',
@@ -31,8 +49,8 @@ export default defineConfig({
         scope: demo ? '.' : '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#F6F1E7',
-        theme_color: '#0E2A20',
+        background_color: '#FFFFFF',
+        theme_color: '#FFFFFF',
         categories: ['education', 'travel', 'lifestyle'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -50,7 +68,7 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts',
-              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

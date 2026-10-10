@@ -1,66 +1,194 @@
-import { BadgeCheck, Bird, Building2, Clock, ExternalLink, Kayak, MapPin, Moon, Sailboat, Trees } from 'lucide-react';
-import { KIND_LABEL } from '../data/experiences';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Experience } from '../data/types';
-import { Kasuri, toast, yen } from './ui';
+import { cn } from '../lib/cn';
+import { IconArrowSquareOut, IconHeart, IconHeartFill } from './icons';
+import { Phrase } from './Phrase';
+import { button, Button, ButtonNote, Group, InfoRow, ListRow, PhotoButton, Sheet, toast } from './ui';
 
-const KIND_STYLE: Record<Experience['kind'], { icon: typeof Moon; bg: string }> = {
-  night: { icon: Moon, bg: 'linear-gradient(135deg,#0B1A2E 0%,#1B2F55 60%,#2A4FA3 100%)' },
-  forest: { icon: Trees, bg: 'linear-gradient(135deg,#0E2A20 0%,#1E4D3A 60%,#2B6750 100%)' },
-  mangrove: { icon: Kayak, bg: 'linear-gradient(135deg,#123B33 0%,#1E6B5C 55%,#5E8F5A 100%)' },
-  sea: { icon: Sailboat, bg: 'linear-gradient(135deg,#0B3442 0%,#1E7A8C 60%,#4FB0BE 100%)' },
-  bird: { icon: Bird, bg: 'linear-gradient(135deg,#2A2140 0%,#2A4FA3 55%,#8A4B2A 100%)' },
-  facility: { icon: Building2, bg: 'linear-gradient(135deg,#3A2B22 0%,#8A4B2A 60%,#B5762A 100%)' },
-};
+// 体験の一覧と詳細シート（docs/DESIGN_SYSTEM.md §8.7）。
+// 写真がある体験は 16:9 の写真＋タイトル＋メタ、ない体験はプレーンリストの行にする。
+// 一覧には説明文と予約ボタンを置かない。行を押すと詳細シート（説明、所要時間、料金、事業者）を開く。
 
-export function ExperienceCard({ exp, compact = false }: { exp: Experience; compact?: boolean }) {
-  const style = KIND_STYLE[exp.kind];
-  const Icon = style.icon;
-  const open = () => {
-    if (exp.url) window.open(exp.url, '_blank', 'noopener');
-    else toast('提携事業者の予約ページは準備中です（掲載イメージ）');
+// ───────── 保存（写真の右上のハート）。この端末の中だけで覚える ─────────
+
+const SAVED_KEY = 'amami-nature:saved-experiences';
+
+function readSaved(): string[] {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+let saved: string[] = typeof window === 'undefined' ? [] : readSaved();
+const listeners = new Set<() => void>();
+
+function subscribeSaved(l: () => void) {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
   };
+}
+
+function toggleSaved(id: string): boolean {
+  const on = !saved.includes(id);
+  saved = on ? [...saved, id] : saved.filter((x) => x !== id);
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+  } catch {
+    // 保存できない環境（プライベートモードなど）では、この画面を開いている間だけ覚える
+  }
+  listeners.forEach((l) => l());
+  return on;
+}
+
+/** 保存した体験の ID（この端末だけ） */
+export function useSavedExperiences(): string[] {
+  return useSyncExternalStore(
+    subscribeSaved,
+    () => saved,
+    () => saved,
+  );
+}
+
+// ───────── 一覧 ─────────
+
+/** 体験の写真（事業者から提供。ない体験は null） */
+export function experienceImage(exp: Experience): { src: string; credit?: string } | null {
+  return exp.image ?? null;
+}
+
+/** 体験のメタ 1 行（所要時間、場所、料金を 12px あけて並べる。中黒でつながない） */
+export function ExperienceMeta({ exp, className }: { exp: Experience; className?: string }) {
   return (
-    <article className="card overflow-hidden">
-      <div className={`relative ${compact ? 'h-24' : 'h-32'} text-white`} style={{ background: style.bg }}>
-        <Kasuri className="text-white/[0.07]" />
-        <Icon className="absolute right-4 top-4 h-10 w-10 text-white/25" strokeWidth={1.3} />
-        <div className="absolute left-4 top-3 flex gap-1.5">
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold backdrop-blur">{KIND_LABEL[exp.kind]}</span>
-          {exp.certifiedGuide && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gold/90 px-2 py-0.5 text-[10px] font-bold text-forest-950">
-              <BadgeCheck className="h-3 w-3" /> 認定ガイド
-            </span>
-          )}
-        </div>
-        <h3 className="absolute bottom-3 left-4 right-4 font-serif text-[18px] font-bold leading-snug">{exp.title}</h3>
-      </div>
-      <div className="p-4">
-        {!compact && <p className="text-[13px] leading-relaxed text-ink2">{exp.summary}</p>}
-        <div className={`${compact ? '' : 'mt-3'} flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink2`}>
-          <span className="inline-flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" /> {exp.duration}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5" /> {exp.area}
-          </span>
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div>
-            {exp.priceFrom ? (
-              <div className="font-bold">
-                <span className="text-[18px]">{yen(exp.priceFrom)}</span>
-                <span className="text-[11px] text-ink3"> 〜 / 人（目安）</span>
-              </div>
+    <span className={cn('flex flex-wrap gap-x-3', className)}>
+      <span>{exp.duration}</span>
+      <span>{exp.area}</span>
+      {exp.priceFrom != null && (
+        <span>
+          <span className="num">{exp.priceFrom.toLocaleString('ja-JP')}</span>円から
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** 中立のタグ「認定ガイド」（caption、fill、高さ 24、rounded-full、左右 8） */
+function CertifiedTag() {
+  return <span className="mt-2 inline-flex h-6 items-center rounded-full bg-fill px-2 pt-[2px] text-caption text-fg-2">認定ガイド</span>;
+}
+
+/**
+ * 体験の一覧の 1 件。写真があれば 16:9 の写真（右上に保存ボタン）、写真の下にタイトルとメタ。
+ * 写真がなければプレーンリストの行（タイトル、メタ、caret-right）。押すと onOpen（詳細シート）。
+ * 行は兄弟要素として並べること（最後の行の区切り線を消すため）。
+ */
+export function ExperienceItem({ exp, onOpen }: { exp: Experience; onOpen: () => void }) {
+  const savedIds = useSavedExperiences();
+  const image = experienceImage(exp);
+
+  if (!image) {
+    return (
+      <ListRow
+        title={exp.title}
+        subtitle={
+          <>
+            <ExperienceMeta exp={exp} />
+            {exp.certifiedGuide && <CertifiedTag />}
+          </>
+        }
+        chevron
+        onClick={onOpen}
+      />
+    );
+  }
+
+  const isSaved = savedIds.includes(exp.id);
+  return (
+    <div className="relative px-4 py-3">
+      <button type="button" onClick={onOpen} className="block w-full text-left active:opacity-[.72]">
+        <img src={image.src} alt="" draggable={false} loading="lazy" className="photo aspect-video w-full rounded-md bg-fill object-cover" />
+        {image.credit && <span className="mt-1 block text-right text-caption text-fg-3">© {image.credit}</span>}
+        <span className="mt-2 block text-headline text-fg">
+          <Phrase text={exp.title} />
+        </span>
+        <span className="mt-0.5 block text-sub text-fg-2">
+          <ExperienceMeta exp={exp} />
+        </span>
+        {exp.certifiedGuide && <CertifiedTag />}
+      </button>
+      <PhotoButton
+        icon={isSaved ? IconHeartFill : IconHeart}
+        label={isSaved ? `「${exp.title}」の保存を解除する` : `「${exp.title}」を保存する`}
+        pressed={isSaved}
+        onClick={() => toast(toggleSaved(exp.id) ? '保存しました' : '保存を解除しました')}
+        className="absolute right-5 top-4"
+      />
+    </div>
+  );
+}
+
+// ───────── 詳細シート ─────────
+
+/** 体験の詳細シートの中身（説明、所要時間、料金、事業者、予約ボタン） */
+export function ExperienceDetail({ exp }: { exp: Experience }) {
+  return (
+    <div>
+      <p className="text-body text-fg">{exp.summary}</p>
+      <div className="-mx-4 mt-4">
+        <Group>
+          <InfoRow label="所要時間">{exp.duration}</InfoRow>
+          <InfoRow label="場所">{exp.area}</InfoRow>
+          <InfoRow label="料金">
+            {exp.priceFrom != null ? (
+              <>
+                <span className="num">{exp.priceFrom.toLocaleString('ja-JP')}</span>円から（1人あたりの目安）
+              </>
             ) : (
-              <div className="text-[11px] text-ink3">{exp.priceNote}</div>
+              exp.priceNote
             )}
-            <div className="mt-0.5 text-[10px] text-ink3">{exp.provider}</div>
-          </div>
-          <button onClick={open} className="btn-primary shrink-0 px-4 py-2.5 text-[13px]">
-            予約へ <ExternalLink className="h-3.5 w-3.5" />
-          </button>
-        </div>
+          </InfoRow>
+          {exp.certifiedGuide && <InfoRow label="ガイド">認定ガイドが同行します</InfoRow>}
+          <InfoRow label="事業者">{exp.provider}</InfoRow>
+        </Group>
       </div>
-    </article>
+      <div className="mt-6">
+        {exp.url ? (
+          <>
+            <a href={exp.url} target="_blank" rel="noopener noreferrer" className={button({ variant: 'primary', size: 'lg' })}>
+              事業者のサイトで予約する
+            </a>
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-sub text-fg-2">
+              <IconArrowSquareOut size={16} className="shrink-0" />
+              外部サイトが開きます
+            </p>
+          </>
+        ) : (
+          <>
+            <Button disabled>事業者のサイトで予約する</Button>
+            <ButtonNote>予約ページは準備中です（掲載イメージ）</ButtonNote>
+          </>
+        )}
+      </div>
+      <p className="mt-6 text-sub text-fg-2">
+        掲載内容は提携前の掲載イメージです。料金は公開されている相場を参考にした目安です。実際の料金や予約条件は、各事業者の情報をご確認ください。
+      </p>
+    </div>
+  );
+}
+
+/** 体験の詳細シート。exp を null にすると閉じる（閉じるアニメーションの間も中身を残す） */
+export function ExperienceSheet({ exp, onClose }: { exp: Experience | null; onClose: () => void }) {
+  const [shown, setShown] = useState(exp);
+  useEffect(() => {
+    if (exp) setShown(exp);
+  }, [exp]);
+  const e = exp ?? shown;
+  return (
+    <Sheet open={!!exp} onClose={onClose} title={e?.title}>
+      {e && <ExperienceDetail exp={e} />}
+    </Sheet>
   );
 }

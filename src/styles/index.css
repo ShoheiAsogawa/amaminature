@@ -2,70 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ───────── デザイントークン ─────────
-   和紙（paper）× 奄美の森（forest）× ルリカケスの瑠璃（ruri）× 泥染の栗（kuri） */
+/* ───────── デザイントークン「瑠璃の野帳」（docs/DESIGN_SYSTEM.md §2.3） ─────────
+   白いページ × 墨の文字 × 瑠璃 1 色。色の値は RGB チャンネルで持ち、Tailwind から
+   rgb(var(--c-x) / <alpha-value>) で参照する。値を変えたら src/styles/palette.ts も直し、
+   `npm run contrast` で確かめる。 */
 :root {
-  --c-paper: 246 241 231;
-  --c-paper2: 236 228 212;
-  --c-card: 255 252 246;
-  --c-ink: 20 33 28;
-  --c-ink2: 72 86 79;
-  --c-ink3: 128 139 133;
-  --c-accent: 30 77 58;
-  --c-primary: 22 60 45;
-  --c-onprimary: 246 241 231;
-  --c-ruri: 42 79 163;
-  --c-kuri: 138 75 42;
-  --c-umi: 30 122 140;
-  --c-sango: 214 88 60;
-  --c-kin: 168 126 30;
-  --c-danger: 190 52 40;
-  /* グラフ専用（CVD検証済み：瑠璃=記録 / 珊瑚=ロードキル） */
-  --chart-1: #3a62c4;
-  --chart-2: #d6583c;
-  --chart-grid: rgb(20 33 28 / 0.08);
-  --line: rgb(20 33 28 / 0.1);
+  --c-page: 255 255 255;      /* #FFFFFF */
+  --c-surface: 255 255 255;   /* #FFFFFF */
+  --c-fill: 241 243 242;      /* #F1F3F2 */
+  --c-fill-strong: 228 232 230; /* #E4E8E6 */
+  --c-sep: 225 228 226;       /* #E1E4E2 */
+  --c-fg: 22 26 24;           /* #161A18 */
+  --c-fg-2: 74 82 78;         /* #4A524E */
+  --c-fg-3: 101 108 104;      /* #656C68 */
+  --c-brand: 30 80 162;       /* #1E50A2 */
+  --c-brand-fill: 30 80 162;  /* #1E50A2 */
+  --c-brand-pressed: 23 63 130; /* #173F82 */
+  --c-brand-soft: 232 238 247; /* #E8EEF7 */
+  --c-on-brand: 255 255 255;  /* #FFFFFF */
+  --c-on-danger: 255 255 255; /* #FFFFFF */
+  --c-success: 27 122 71;     /* #1B7A47 */
+  --c-warning: 143 92 0;      /* #8F5C00 */
+  --c-danger: 192 50 43;      /* #C0322B */
+  --c-legend: 138 106 30;     /* #8A6A1E */
+  --c-silhouette: 211 216 213; /* #D3D8D5 */
+  --c-line-green: 6 199 85;   /* #06C755 */
+  --c-thumb: 255 255 255;     /* #FFFFFF */
+  --c-toast: 31 36 34;        /* #1F2422 */
+  --c-toast-fg: 242 244 243;  /* #F2F4F3 */
+  --scrim: rgb(0 0 0 / 0.4);
+  --stage: rgb(0 0 0 / 0.92);
+  --mat-dorozome: #4b3a2e;
+  --mat-yakougai: conic-gradient(from 200deg, #c9dce6, #e3d3e6, #d2e8dc, #ede1c8, #c9dce6);
+  --mat-kinpaku: linear-gradient(135deg, #8a6a22, #e2c77a 40%, #f3e4b2 50%, #be9845 62%, #8a6a22);
+  --chart-1: rgb(var(--c-brand));
+  --chart-2: rgb(var(--c-danger));
+  --chart-grid: rgb(var(--c-sep));
+  /* 夜間の帯。グラフはグループ（fill）の上に描くので、1 段濃い fill-strong にする（fill のままでは見えない） */
+  --chart-band: rgb(var(--c-fill-strong));
+  --font-ui: "IBM Plex Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  --font-num: "IBM Plex Sans", "IBM Plex Sans JP", -apple-system, "Hiragino Sans", Roboto, system-ui, sans-serif;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
   color-scheme: light;
 }
 
-/* 夜の森モード：ナイトツアーでも目にやさしい暗色 */
+/* 夜の森：ページは純黒（OLED で消灯）、面と文字は泥染系の暖色（§2.9） */
 :root[data-theme='dark'] {
-  --c-paper: 9 19 15;
-  --c-paper2: 17 30 25;
-  --c-card: 21 35 29;
-  --c-ink: 232 228 216;
-  --c-ink2: 170 180 172;
-  --c-ink3: 116 128 121;
-  --c-accent: 143 203 168;
-  --c-primary: 143 203 168;
-  --c-onprimary: 9 19 15;
-  --c-ruri: 140 170 240;
-  --c-kuri: 214 150 110;
-  --c-umi: 110 196 210;
-  --c-sango: 240 132 104;
-  --c-kin: 222 186 96;
-  --c-danger: 240 120 104;
-  --chart-1: #6f8fe0;
-  --chart-2: #e0694a;
-  --chart-grid: rgb(232 228 216 / 0.08);
-  --line: rgb(232 228 216 / 0.1);
+  --c-page: 0 0 0;            /* #000000 */
+  --c-surface: 26 23 20;      /* #1A1714 */
+  --c-fill: 36 32 28;         /* #24201C */
+  --c-fill-strong: 47 42 37;  /* #2F2A25 */
+  --c-sep: 54 48 42;          /* #36302A */
+  --c-fg: 212 205 194;        /* #D4CDC2 */
+  --c-fg-2: 173 164 152;      /* #ADA498 */
+  --c-fg-3: 144 135 123;      /* #90877B */
+  --c-brand: 157 169 216;     /* #9DA9D8 */
+  --c-brand-fill: 64 87 163;  /* #4057A3 */
+  --c-brand-pressed: 51 71 144; /* #334790 */
+  --c-brand-soft: 26 32 56;   /* #1A2038 */
+  --c-on-brand: 236 234 242;  /* #ECEAF2 */
+  --c-on-danger: 26 23 20;    /* #1A1714 */
+  --c-success: 125 184 148;   /* #7DB894 */
+  --c-warning: 214 163 90;    /* #D6A35A */
+  --c-danger: 226 120 108;    /* #E2786C */
+  --c-legend: 201 166 90;     /* #C9A65A */
+  --c-silhouette: 51 45 39;   /* #332D27 */
+  --c-thumb: 58 51 44;        /* #3A332C */
+  --c-toast: 46 41 36;        /* #2E2924 */
+  --c-toast-fg: 212 205 194;  /* #D4CDC2 */
+  --scrim: rgb(0 0 0 / 0.6);
+  --mat-dorozome: #5a4738;
+  --mat-yakougai: conic-gradient(from 200deg, #3b4852, #4a3e4d, #3a4a41, #52473a, #3b4852);
+  --mat-kinpaku: linear-gradient(135deg, #6e5520, #c9ae68 45%, #dfca8e 52%, #a3843f 65%, #6e5520);
   color-scheme: dark;
 }
 
+/* ───────── 書体と基本（§3.2・§4.2・§7.16） ───────── */
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
     text-size-adjust: 100%;
   }
   body {
-    @apply bg-paper font-sans text-ink antialiased;
-    font-feature-settings: 'palt' 1;
+    @apply bg-page font-sans text-fg antialiased;
+    font-weight: 400;
+    font-synthesis: none;
+    font-feature-settings: 'palt';
+    text-size-adjust: 100%;
     overscroll-behavior-y: none;
+    /* Base UI Drawer の背面（position: absolute）の基準 */
+    position: relative;
+  }
+  /* 複数行の本文は詰めない */
+  p,
+  .prose {
+    font-feature-settings: normal;
+  }
+  #root {
+    isolation: isolate;
   }
   :focus-visible {
-    outline: 2px solid rgb(var(--c-ruri));
+    outline: 2px solid rgb(var(--c-brand));
     outline-offset: 2px;
   }
   button {
@@ -74,61 +112,99 @@
 }
 
 @layer components {
-  .hairline {
-    border-color: var(--line);
+  /* 単独で立つ数字（pt、種数、KPI、図鑑番号）。num-* の文字サイズと組み合わせる */
+  .num {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums lining-nums;
   }
-  .label {
-    @apply text-[10px] font-bold uppercase tracking-label text-ink3;
-  }
+  /* 学名: <i lang="la" className="sci"> */
   .sci {
-    @apply font-latin italic;
-    letter-spacing: 0.01em;
+    font-family: var(--font-num);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: rgb(var(--c-fg-2));
   }
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[15px] font-bold transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+  /* 文節で改行する（<Phrase> / <SpeciesName> が付ける） */
+  .phrase {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
-  .btn-primary {
-    @apply btn bg-primary text-onprimary shadow-card;
+  .balance {
+    text-wrap: balance;
   }
-  .btn-ghost {
-    @apply btn border hairline bg-card text-ink;
+  @supports (word-break: auto-phrase) {
+    .phrase {
+      word-break: auto-phrase;
+    }
   }
-  .chip {
-    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border hairline bg-card px-2.5 py-1 text-[11px] font-bold text-ink2;
+
+  /* §7.16 ボトムシート（@base-ui/react/drawer） */
+  .sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--scrim);
+    transition: opacity 0.45s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .card {
-    @apply rounded-3xl border hairline bg-card shadow-card;
+  .sheet-backdrop[data-starting-style],
+  .sheet-backdrop[data-ending-style] {
+    opacity: 0;
   }
-  .input {
-    @apply w-full rounded-2xl border hairline bg-card px-4 py-3 text-[15px] text-ink placeholder:text-ink3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ruri/50;
+  .sheet-popup {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    margin-inline: auto;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: rgb(var(--c-surface));
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.14);
+    padding: 8px 16px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
+    transform: translateY(calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px)));
+    transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  .sheet-popup[data-swiping] {
+    transition-duration: 0s;
+  }
+  .sheet-popup[data-starting-style],
+  .sheet-popup[data-ending-style] {
+    transform: translateY(100%);
+  }
+  [data-theme='dark'] .sheet-popup {
+    box-shadow: none;
+    border-top: 1px solid rgb(var(--c-sep));
+  }
+  .sheet-grabber {
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgb(var(--c-sep));
+    margin: 0 auto 12px;
+  }
+
+  /* 横スクロールの行 */
   .no-scrollbar {
     scrollbar-width: none;
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+  /* §4.5 タブ画面の下余白（タブバー 56px ＋ 安全領域 ＋ 24px） */
   .pb-tabbar {
-    padding-bottom: calc(96px + var(--safe-bottom));
+    padding-bottom: calc(56px + var(--safe-bottom) + 24px);
   }
   .pt-safe {
     padding-top: var(--safe-top);
   }
 }
 
-/* 「幻」レア度のカードに走る光 */
-.foil {
-  position: relative;
-  overflow: hidden;
-}
-.foil::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 40%;
-  background: linear-gradient(90deg, transparent, rgb(255 236 180 / 0.45), transparent);
-  animation: shimmer 3.2s ease-in-out infinite;
-  pointer-events: none;
+/* §2.9 夜の森では写真を少し暗くする（ナイトツアー中のまぶしさ対策） */
+[data-theme='dark'] .photo {
+  filter: brightness(0.85);
 }
 
 @media (prefers-reduced-motion: reduce) {

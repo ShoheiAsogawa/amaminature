@@ -1,25 +1,56 @@
-import { motion } from 'framer-motion';
-import { BookOpen, Camera, HandHeart, House, Share2, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import NumberFlow from '@number-flow/react';
+import { m, useReducedMotion } from 'framer-motion';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CATEGORY_META, RARITY_META } from '../data/species';
-import type { Species } from '../data/types';
+import { AREA_BY_ID } from '../data/areas';
+import type { Quest, Species } from '../data/types';
 import type { Badge } from '../lib/progress';
-import type { Quest } from '../data/types';
 import { renderShareCard, shareCard } from '../lib/share';
 import type { Sighting } from '../lib/types';
 import { useStore } from '../store/useStore';
+import { CollectibleCard, CollectibleCardBack } from './CollectibleCard';
+import { IconArrowSquareOut, IconX } from './icons';
+import { Phrase } from './Phrase';
 import { loadPhotoUrl } from './PhotoImg';
-import { BADGE_ICON, CategoryIcon, Kasuri, RarityGems, RARITY_COLOR, toast } from './ui';
+import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, SectionHeader, toast } from './ui';
 
-const GLOW: Record<number, string> = {
-  1: 'rgba(156,200,176,.35)',
-  2: 'rgba(46,139,110,.55)',
-  3: 'rgba(58,98,196,.65)',
-  4: 'rgba(199,154,46,.75)',
+// 図鑑カードの演出とバッジ獲得（docs/DESIGN_SYSTEM.md §8.5・§9 の 1）。
+// アプリでただ 1 つの「演出」。黒い舞台（var(--stage)）の上で、裏面のカードが上がってきて 1 回だけ裏返る。
+
+/** 演出の時刻（ms）。全体で 1.6 秒以内（§9） */
+const T = {
+  rise: 240, // 裏面が 24px 上がりながらフェードイン
+  flipAt: 300, // 裏返し始め
+  flip: 600, // 裏返し（cubic-bezier(.2,.8,.2,1)）
+  textAt: 900, // 文字のフェードイン（200ms）と、ポイントを数え始める（600ms）
+  gemStep: 60, // ジェムを 60ms ずつずらす
+  buttonsAt: 1300, // ボタンは文字の 400ms 後
+} as const;
+const EASE_FLIP = [0.2, 0.8, 0.2, 1] as const;
+
+/** 縁に光が 1 回だけ走る（レア度 3 は夜光貝 900ms、4 は金箔 1200ms）。どちらも 1.6 秒までに終える */
+const EDGE_LIGHT: Partial<Record<number, { delay: number; duration: number }>> = {
+  3: { delay: 0.7, duration: 0.9 },
+  4: { delay: 0.4, duration: 1.2 },
 };
 
-export function CardReveal({
+export function CardReveal(props: {
+  sighting: Sighting;
+  species: Species | null;
+  photoUrl: string | null;
+  isNew: boolean;
+  points: number;
+  newBadges: Badge[];
+  completedQuests: Quest[];
+  onAgain: () => void;
+}) {
+  const rescue = props.sighting.roadReport === 'roadkill' || props.sighting.roadReport === 'injured';
+  return rescue ? <RescueThanks sighting={props.sighting} points={props.points} /> : <Reveal {...props} />;
+}
+
+// ───────── 図鑑カードの演出 ─────────
+
+function Reveal({
   sighting,
   species,
   photoUrl,
@@ -40,12 +71,59 @@ export function CardReveal({
 }) {
   const navigate = useNavigate();
   const lineMode = useStore((s) => s.account.mode === 'line');
+  // 動きを減らす設定: 150ms のクロスフェードだけ（裏返し・光・数え上げは止める）
+  const reduce = useReducedMotion() ?? false;
+  const [side, setSide] = useState<'back' | 'front'>(reduce ? 'front' : 'back');
+  const [shownPoints, setShownPoints] = useState(reduce ? points : 0);
   const [sharing, setSharing] = useState(false);
-  const rescue = sighting.roadReport === 'roadkill' || sighting.roadReport === 'injured';
+  /** 閉じる操作の後に見せている新しいバッジ（null はカードの画面） */
+  const [badgeIndex, setBadgeIndex] = useState<number | null>(null);
+  const [pending, setPending] = useState<(() => void) | null>(null);
+  const frontRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const rarity = species?.rarity ?? 1;
-  const color = species ? CATEGORY_META[species.category].color : '#1E4D3A';
+  const light = reduce ? undefined : EDGE_LIGHT[rarity];
+
+  useEffect(() => {
+    if (reduce) return;
+    const a = window.setTimeout(() => setSide('front'), T.flipAt);
+    const b = window.setTimeout(() => setShownPoints(points), T.textAt);
+    return () => {
+      window.clearTimeout(a);
+      window.clearTimeout(b);
+    };
+  }, [reduce, points]);
+
+  // カードの大きさ（和名が 2 行になると高さが伸びる）。縁の光の線をこの大きさで描く
+  useLayoutEffect(() => {
+    const el = frontRef.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.offsetWidth, h: el.offsetHeight });
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // ジェムを 60ms ずつずらして出す（CollectibleCard の中の RarityGems の 4 つの菱形）
+  useLayoutEffect(() => {
+    const el = frontRef.current;
+    if (reduce || !el || typeof Element.prototype.animate !== 'function') return;
+    const gems = el.querySelectorAll<HTMLElement>('[data-gem]');
+    const anims = Array.from(gems).map((g, i) =>
+      g.animate([{ opacity: 0, scale: '0.4' }, { opacity: 1, scale: '1' }], {
+        duration: 180,
+        delay: T.textAt + i * T.gemStep,
+        easing: 'cubic-bezier(.2,.8,.2,1)',
+        fill: 'backwards',
+      }),
+    );
+    return () => anims.forEach((a) => a.cancel());
+  }, [reduce]);
 
   const share = async () => {
+    if (sharing) return;
     setSharing(true);
     try {
       const url = photoUrl ?? (sighting.photoId ? await loadPhotoUrl(sighting.photoId, 'full') : null);
@@ -59,160 +137,234 @@ export function CardReveal({
     }
   };
 
-  if (rescue) {
-    return (
-      <div className="fixed inset-0 z-50 mx-auto flex max-w-[480px] flex-col bg-forest-950 px-6 pt-[calc(48px+var(--safe-top))] text-washi">
-        <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-white/10">
-          <HandHeart className="h-9 w-9 text-gold" />
-        </motion.div>
-        <h1 className="mt-6 text-center font-serif text-[24px] font-bold">報告ありがとうございます</h1>
-        <p className="mt-3 text-center text-[14px] leading-relaxed text-washi/75">
-          この報告は、提携する行政・保護機関と共有し、
-          <br />
-          ロードキル対策（注意喚起・標識・速度対策）に役立てます。
-        </p>
-        <div className="mt-6 rounded-3xl bg-white/[0.06] p-5 text-[13px] leading-relaxed text-washi/85">
-          <p className="font-bold text-gold">けがをした動物を見つけたら</p>
-          <p className="mt-1">
-            安全な場所に停車し、無理に触らずに、奄美野生生物保護センター（環境省）や地元の市町村へ連絡してください。
-          </p>
-        </div>
-        <div className="mt-6 text-center font-serif text-[28px] font-extrabold text-gold">+{points}pt</div>
-        <div className="text-center text-[11px] text-washi/50">保全ポイント</div>
-        <div className="mt-auto grid gap-2 pb-[calc(24px+var(--safe-bottom))]">
-          <button className="btn bg-washi text-forest-900" onClick={() => navigate('/', { replace: true })}>
-            <House className="h-4 w-4" /> ホームへ
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const leave = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/', { replace: true });
+  };
+  const openZukan = () => navigate(species ? `/species/${species.id}` : `/sighting/${encodeURIComponent(sighting.id)}`, { replace: true });
+
+  /** 閉じる操作。新しいバッジがあれば 1 つずつ見せ終えてから、元の操作をする（「LINEで送る」では閉じない） */
+  const close = (action: () => void) => {
+    if (newBadges.length === 0) {
+      action();
+      return;
+    }
+    setPending(() => action);
+    setBadgeIndex(0);
+  };
+  const nextBadge = () => {
+    if (badgeIndex == null) return;
+    if (badgeIndex + 1 < newBadges.length) setBadgeIndex(badgeIndex + 1);
+    else pending?.();
+  };
+
+  const badge = badgeIndex == null ? null : newBadges[badgeIndex];
+  const fade = (delayMs: number) =>
+    reduce
+      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.15 } }
+      : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2, delay: delayMs / 1000 } };
 
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-[480px] flex-col overflow-y-auto bg-forest-950 text-washi">
-      <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(70% 45% at 50% 34%, ${GLOW[rarity]}, transparent 70%)` }} />
-      {rarity >= 3 &&
-        Array.from({ length: 14 }).map((_, i) => (
-          <motion.span
-            key={i}
-            className="pointer-events-none absolute h-1.5 w-1.5 rotate-45 rounded-[1px]"
-            style={{ background: RARITY_COLOR[rarity], left: `${8 + ((i * 53) % 84)}%`, top: '34%' }}
-            initial={{ opacity: 0, y: 0, scale: 0 }}
-            animate={{ opacity: [0, 1, 0], y: -120 - (i % 5) * 40, x: ((i % 7) - 3) * 18, scale: [0, 1.4, 0.6] }}
-            transition={{ delay: 0.7 + i * 0.04, duration: 1.6 }}
-          />
-        ))}
-
-      <div className="relative px-6 pt-[calc(28px+var(--safe-top))] text-center">
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-[11px] font-bold tracking-[0.3em] text-washi/60">
-          {isNew ? 'NEW DISCOVERY' : 'RECORDED'}
-        </motion.div>
-        <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="mt-1 font-serif text-[22px] font-bold">
-          {isNew ? '図鑑に新しいページが増えました' : 'フィールドノートに記録しました'}
-        </motion.h1>
-      </div>
-
-      {/* カード */}
-      <motion.div
-        className="relative mx-auto mt-6 w-[76%] max-w-[320px]"
-        initial={{ rotateY: 100, scale: 0.7, opacity: 0 }}
-        animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 16, stiffness: 110, delay: 0.35 }}
-        style={{ perspective: 1000 }}
-      >
-        <div
-          className={`relative aspect-[3/4] overflow-hidden rounded-[22px] bg-washi p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)] ${rarity === 4 ? 'foil' : ''}`}
-          style={{ boxShadow: rarity === 4 ? '0 0 0 2px #C79A2E, 0 30px 80px -20px rgba(199,154,46,.6)' : undefined }}
-        >
-          <div className="relative h-full w-full overflow-hidden rounded-[16px]" style={{ background: color }}>
-            {photoUrl ? (
-              <img src={photoUrl} alt={species?.name ?? ''} className="h-full w-full object-cover" />
-            ) : (
-              <>
-                <Kasuri className="text-white/10" />
-                <div className="absolute inset-0 grid place-items-center">
-                  {species && <CategoryIcon category={species.category} className="h-20 w-20 text-white/60" strokeWidth={1.2} />}
-                </div>
-              </>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
-            {isNew && (
-              <motion.div
-                initial={{ scale: 0, rotate: -20 }}
-                animate={{ scale: 1, rotate: -8 }}
-                transition={{ delay: 0.9, type: 'spring', stiffness: 260 }}
-                className="absolute right-3 top-3 rounded-md bg-sango px-2 py-1 text-[11px] font-extrabold tracking-wider text-white shadow"
-              >
-                NEW!
-              </motion.div>
-            )}
-            {species && (
-              <div className="absolute left-3 top-3 font-latin text-[14px] italic text-white/85">No.{String(species.no).padStart(3, '0')}</div>
-            )}
-            <div className="absolute inset-x-3 bottom-3 text-left">
-              {species && <RarityGems rarity={species.rarity} light size={7} />}
-              <div className="mt-1.5 font-serif text-[22px] font-extrabold leading-tight text-white">{species?.name ?? sighting.customName ?? 'なぞの生き物'}</div>
-              {sighting.nickname && <div className="mt-0.5 text-[13px] font-bold text-[#F2D58A]">「{sighting.nickname}」</div>}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="relative mt-6 text-center">
-        <div className="font-serif text-[34px] font-extrabold text-gold">+{points}pt</div>
-        {species && (
-          <div className="text-[12px] text-washi/60">
-            {RARITY_META[species.rarity].en} · {RARITY_META[species.rarity].label}
-          </div>
-        )}
-      </motion.div>
-
-      {(newBadges.length > 0 || completedQuests.length > 0) && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }} className="relative mx-6 mt-5 space-y-2">
-          {newBadges.map((b) => {
-            const Icon = BADGE_ICON[b.icon];
-            return (
-              <div key={b.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.07] p-3">
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-gold text-forest-950">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div className="text-left">
-                  <div className="text-[10px] font-bold tracking-label text-gold">NEW BADGE</div>
-                  <div className="text-[14px] font-bold">{b.title}</div>
-                </div>
-              </div>
-            );
-          })}
-          {completedQuests.map((q) => (
-            <div key={q.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.07] p-3">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-white/15">
-                <Sparkles className="h-5 w-5 text-gold" />
-              </span>
-              <div className="text-left">
-                <div className="text-[10px] font-bold tracking-label text-gold">QUEST CLEAR · +{q.reward}pt</div>
-                <div className="text-[14px] font-bold">{q.title}</div>
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      )}
-
-      <div className="relative mt-auto grid gap-2 px-6 pb-[calc(24px+var(--safe-bottom))] pt-8">
-        <button className="btn bg-gold text-forest-950" onClick={share} disabled={sharing}>
-          <Share2 className="h-4 w-4" /> {lineMode ? 'LINEで友だちに見せる' : 'カードをシェア'}
-        </button>
-        <div className="grid grid-cols-2 gap-2">
-          <button className="btn border border-white/15 bg-white/5 text-washi" onClick={onAgain}>
-            <Camera className="h-4 w-4" /> 続けて記録
-          </button>
-          <button
-            className="btn border border-white/15 bg-white/5 text-washi"
-            onClick={() => navigate(species ? `/species/${species.id}` : `/sighting/${sighting.id}`, { replace: true })}
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain text-white" style={{ background: 'var(--stage)' }}>
+      <div className="pt-safe mx-auto flex min-h-full w-full max-w-[480px] flex-col">
+        {badge ? (
+          // ───── バッジ獲得（同じ舞台で 1 つずつ） ─────
+          <m.div
+            key={badge.id}
+            className="flex flex-1 flex-col"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: reduce ? 0.15 : 0.2 }}
           >
-            <BookOpen className="h-4 w-4" /> {species ? '図鑑で見る' : '記録を見る'}
-          </button>
-        </div>
+            <div className="flex flex-1 flex-col items-center justify-center px-8 py-12 text-center">
+              <BadgeEmblem badge={badge} earned size={120} />
+              <h1 className="balance mt-6 text-title text-white">
+                <BadgeName badge={badge} />
+              </h1>
+              <p className="mt-2 text-body text-white/70">
+                <Phrase text={badge.description} />
+              </p>
+              <p className="mt-3 text-caption text-white/[.55]">{formatDateJa(sighting.createdAt)}に獲得</p>
+            </div>
+            <div className="px-4 pb-[calc(16px+var(--safe-bottom))]">
+              <Button onClick={nextBadge}>OK</Button>
+            </div>
+          </m.div>
+        ) : (
+          <>
+            <div className="flex h-11 shrink-0 items-center justify-end px-1">
+              <button
+                type="button"
+                onClick={() => close(leave)}
+                aria-label="閉じる"
+                className="grid h-11 w-11 place-items-center text-white active:opacity-60"
+              >
+                <IconX size={24} />
+              </button>
+            </div>
+
+            <div className="flex flex-1 flex-col items-center justify-center px-4 pb-6 pt-2">
+              {/* 裏面が 24px 上がりながら現れ、Y 軸で 1 回だけ裏返る */}
+              <m.div
+                initial={{ opacity: 0, y: reduce ? 0 : 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduce ? 0.15 : T.rise / 1000, ease: 'easeOut' }}
+                style={{ perspective: 1200 }}
+              >
+                <m.div
+                  className="relative [transform-style:preserve-3d]"
+                  initial={false}
+                  animate={{ rotateY: side === 'back' ? 180 : 0 }}
+                  transition={{ duration: T.flip / 1000, ease: EASE_FLIP }}
+                >
+                  <div ref={frontRef} className="relative [backface-visibility:hidden]" aria-hidden={side === 'back'}>
+                    <CollectibleCard
+                      species={species}
+                      nickname={sighting.nickname}
+                      name={sighting.customName}
+                      photoUrl={photoUrl}
+                      photoId={sighting.photoId}
+                      onStage
+                    />
+                    {light && size && <EdgeLight w={size.w} h={size.h} {...light} />}
+                  </div>
+                  <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                    <CollectibleCardBack onStage className="h-full" />
+                  </div>
+                </m.div>
+              </m.div>
+
+              <m.div className="mt-6 w-full text-center" {...fade(T.textAt)}>
+                <h1 className="text-headline text-white">{isNew ? '図鑑に登録しました' : '記録しました'}</h1>
+                {points > 0 && (
+                  <p className="mt-1 text-num-l text-white/70">
+                    {/* 数え上げの数字は読み上げない（下の sr-only で読む） */}
+                    <span aria-hidden className="num">
+                      <NumberFlow
+                        value={shownPoints}
+                        prefix="+"
+                        animated={!reduce}
+                        transformTiming={{ duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' }}
+                        spinTiming={{ duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' }}
+                      />
+                      <span className="ml-[0.15em]">pt</span>
+                    </span>
+                    <span className="sr-only">+{points}pt</span>
+                  </p>
+                )}
+                {completedQuests.map((q) => (
+                  <p key={q.id} className="mx-auto mt-2 max-w-[358px] text-sub text-white/70">
+                    <Phrase text={`クエスト「${q.title}」を達成`} />
+                    <span className="whitespace-nowrap">
+                      {'　'}
+                      <span className="num">+{q.reward}</span>
+                      <span className="ml-[0.15em]">pt</span>
+                    </span>
+                  </p>
+                ))}
+              </m.div>
+            </div>
+
+            <m.div className="grid gap-2 px-4 pb-[calc(8px+var(--safe-bottom))]" {...fade(T.buttonsAt)}>
+              {/* LINE の中では LINE で送る。LINE の外（デモ）では LINE グリーンを使わない（§1 の 5） */}
+              <Button variant={lineMode ? 'line' : 'primary'} onClick={share} aria-busy={sharing}>
+                {lineMode ? 'LINEで送る' : '画像を共有'}
+              </Button>
+              <Button variant="on-stage" onClick={() => close(onAgain)}>
+                続けて記録
+              </Button>
+              <Button variant="text" size="hit" className="text-white/80" onClick={() => close(openZukan)}>
+                {species ? '図鑑で見る' : '記録を見る'}
+              </Button>
+            </m.div>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * 素材の縁を 1 回だけ走る光（§9 の 1-4）。縁（パディング 4px）の中心に 4px の線を引き、短い区間だけを 1 周させる。
+ * マスク合成は使わない（縁と同じ太さの線なので、写真や帯には掛からない）。
+ */
+function EdgeLight({ w, h, delay, duration }: { w: number; h: number; delay: number; duration: number }) {
+  const r = 14; // 外側 16 と内側 12 の中間
+  const iw = w - 4;
+  const ih = h - 4;
+  const perimeter = 2 * (iw + ih) - 8 * r + 2 * Math.PI * r;
+  const seg = 56;
+  return (
+    <svg aria-hidden className="pointer-events-none absolute inset-0" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <m.rect
+        x={2}
+        y={2}
+        width={iw}
+        height={ih}
+        rx={r}
+        fill="none"
+        stroke="white"
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeDasharray={`${seg} ${perimeter - seg}`}
+        initial={{ strokeDashoffset: 0, opacity: 0 }}
+        animate={{ strokeDashoffset: -perimeter, opacity: [0, 0.9, 0.9, 0] }}
+        transition={{ duration, delay, ease: 'linear', opacity: { duration, delay, times: [0, 0.12, 0.8, 1] } }}
+      />
+    </svg>
+  );
+}
+
+// ───────── 路上レポート（交通事故・けが）のお礼 ─────────
+
+/** 奄美野生生物保護センター（環境省）の案内ページ */
+const WILDLIFE_CENTER_URL = 'https://www.env.go.jp/nature/kisho/wildlifecenter/amami.html';
+
+/** お礼の画面。紙吹雪なし。けがをした動物の連絡先をリストで出す（§8.4） */
+function RescueThanks({ sighting, points }: { sighting: Sighting; points: number }) {
+  const navigate = useNavigate();
+  const area = sighting.areaId ? AREA_BY_ID[sighting.areaId] : null;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  return (
+    <main className="pt-safe min-h-dvh bg-page pb-[calc(32px+var(--safe-bottom))]">
+      <div className="px-4 pt-12">
+        <h1 className="balance text-title text-fg">
+          <Phrase text="報告ありがとうございます" />
+        </h1>
+        <p className="mt-2 text-body text-fg-2">
+          <Phrase text="この報告は、提携する行政・保護機関と共有し、ロードキル対策（注意喚起・標識・速度対策）に役立てます。" />
+        </p>
+        {points > 0 && (
+          <p className="mt-4 flex items-baseline gap-3 text-callout text-fg">
+            <span>保全ポイント</span>
+            <span className="font-semibold">
+              <span className="num">+{points}</span>
+              <span className="ml-[0.15em]">pt</span>
+            </span>
+          </p>
+        )}
+      </div>
+
+      <SectionHeader title="けがをした動物を見つけたら" />
+      <p className="px-4 pb-2 text-body text-fg-2">
+        <Phrase text="安全な場所に停車し、無理に触らずに、次の窓口へ連絡してください。" />
+      </p>
+      <div>
+        <ListRow
+          href={WILDLIFE_CENTER_URL}
+          title="奄美野生生物保護センター（環境省）"
+          subtitle="大和村"
+          trailing={<IconArrowSquareOut size={16} className="shrink-0 text-fg-3" />}
+        />
+        <ListRow title={area ? `${area.name}の役場` : '見つけた場所の市町村役場'} />
+      </div>
+
+      <div className="px-4 pt-8">
+        <Button onClick={() => navigate('/', { replace: true })}>ホームへ</Button>
+      </div>
+    </main>
   );
 }

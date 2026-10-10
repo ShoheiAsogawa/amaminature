@@ -15,6 +15,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-kurousagi',
     name: 'アマミノクロウサギ',
+    nameBreak: 'アマミノ|クロウサギ',
     en: 'Amami rabbit',
     sci: 'Pentalagus furnessi',
     category: 'mammal',
@@ -35,6 +36,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'kenaganezumi',
     name: 'ケナガネズミ',
+    nameBreak: 'ケナガ|ネズミ',
     en: 'Ryukyu long-haired rat',
     sci: 'Diplothrix legata',
     category: 'mammal',
@@ -54,6 +56,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-togenezumi',
     name: 'アマミトゲネズミ',
+    nameBreak: 'アマミ|トゲネズミ',
     en: 'Amami spiny rat',
     sci: 'Tokudaia osimensis',
     category: 'mammal',
@@ -72,6 +75,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-inoshishi',
     name: 'リュウキュウイノシシ',
+    nameBreak: 'リュウキュウ|イノシシ',
     en: 'Ryukyu wild boar',
     sci: 'Sus scrofa riukiuanus',
     category: 'mammal',
@@ -107,6 +111,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ooston-ooakagera',
     name: 'オーストンオオアカゲラ',
+    nameBreak: 'オーストン|オオアカゲラ',
     en: "Owston's woodpecker",
     sci: 'Dendrocopos leucotos owstoni',
     category: 'bird',
@@ -124,6 +129,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ootoratsugumi',
     name: 'オオトラツグミ',
+    nameBreak: 'オオ|トラツグミ',
     en: 'Amami thrush',
     sci: 'Zoothera major',
     category: 'bird',
@@ -142,6 +148,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-yamashigi',
     name: 'アマミヤマシギ',
+    nameBreak: 'アマミ|ヤマシギ',
     en: 'Amami woodcock',
     sci: 'Scolopax mira',
     category: 'bird',
@@ -176,6 +183,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-akashobin',
     name: 'リュウキュウアカショウビン',
+    nameBreak: 'リュウキュウ|アカショウビン',
     en: 'Ruddy kingfisher',
     sci: 'Halcyon coromanda bangsi',
     category: 'bird',
@@ -190,6 +198,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-konohazuku',
     name: 'リュウキュウコノハズク',
+    nameBreak: 'リュウキュウ|コノハズク',
     en: 'Ryukyu scops owl',
     sci: 'Otus elegans',
     category: 'bird',
@@ -206,6 +215,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'zuakaaobato',
     name: 'ズアカアオバト',
+    nameBreak: 'ズアカ|アオバト',
     en: 'Whistling green pigeon',
     sci: 'Treron formosae',
     category: 'bird',
@@ -235,6 +245,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-kogera',
     name: 'アマミコゲラ',
+    nameBreak: 'アマミ|コゲラ',
     en: 'Japanese pygmy woodpecker (Amami)',
     sci: 'Yungipicus kizuki amamii',
     category: 'bird',
@@ -250,6 +261,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'shirohara-kuina',
     name: 'シロハラクイナ',
+    nameBreak: 'シロハラ|クイナ',
     en: 'White-breasted waterhen',
     sci: 'Amaurornis phoenicurus',
     category: 'bird',
@@ -292,6 +304,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'isohiyodori',
     name: 'イソヒヨドリ',
+    nameBreak: 'イソ|ヒヨドリ',
     en: 'Blue rock thrush',
     sci: 'Monticola solitarius',
     category: 'bird',
@@ -306,6 +319,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-tsubame',
     name: 'リュウキュウツバメ',
+    nameBreak: 'リュウキュウ|ツバメ',
     en: 'Pacific swallow',
     sci: 'Hirundo tahitica',
     category: 'bird',
@@ -320,6 +334,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-hiyodori',
     name: 'アマミヒヨドリ',
+    nameBreak: 'アマミ|ヒヨドリ',
     en: 'Brown-eared bulbul (Amami)',
     sci: 'Hypsipetes amaurotis ogawae',
     category: 'bird',
@@ -349,6 +364,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-yamagara',
     name: 'アマミヤマガラ',
+    nameBreak: 'アマミ|ヤマガラ',
     en: 'Varied tit (Amami)',
     sci: 'Sittiparus varius amamii',
     category: 'bird',
@@ -380,6 +396,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-ishikawagaeru',
     name: 'アマミイシカワガエル',
+    nameBreak: 'アマミ|イシカワ|ガエル',
     en: "Amami Ishikawa's frog",
     sci: 'Odorrana splendida',
     category: 'herp',
@@ -399,6 +416,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'otton-gaeru',
     name: 'オットンガエル',
+    nameBreak: 'オットン|ガエル',
     en: 'Otton frog',
     sci: 'Babina subaspera',
     category: 'herp',
@@ -418,6 +436,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-hanasakigaeru',
     name: 'アマミハナサキガエル',
+    nameBreak: 'アマミ|ハナサキ|ガエル',
     en: 'Amami tip-nosed frog',
     sci: 'Odorrana amamiensis',
     category: 'herp',
@@ -453,6 +472,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'shiriken-imori',
     name: 'シリケンイモリ',
+    nameBreak: 'シリケン|イモリ',
     en: 'Sword-tailed newt',
     sci: 'Cynops ensicauda',
     category: 'herp',
@@ -467,6 +487,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-kajikagaeru',
     name: 'リュウキュウカジカガエル',
+    nameBreak: 'リュウキュウ|カジカ|ガエル',
     en: 'Ryukyu Kajika frog',
     sci: 'Buergeria japonica',
     category: 'herp',
@@ -481,6 +502,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'harouel-amagaeru',
     name: 'ハロウエルアマガエル',
+    nameBreak: 'ハロウエル|アマガエル',
     en: "Hallowell's tree frog",
     sci: 'Hyla hallowellii',
     category: 'herp',
@@ -495,6 +517,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-aogaeru',
     name: 'アマミアオガエル',
+    nameBreak: 'アマミ|アオガエル',
     en: 'Amami green tree frog',
     sci: 'Zhangixalus amamiensis',
     category: 'herp',
@@ -577,6 +600,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'okinawa-kinoboritokage',
     name: 'オキナワキノボリトカゲ',
+    nameBreak: 'オキナワ|キノボリ|トカゲ',
     en: 'Okinawa tree lizard',
     sci: 'Diploderma polygonatum',
     category: 'herp',
@@ -591,6 +615,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ooshima-tokage',
     name: 'オオシマトカゲ',
+    nameBreak: 'オオシマ|トカゲ',
     en: 'Oshima skink',
     sci: 'Plestiodon marginatus oshimensis',
     category: 'herp',
@@ -608,6 +633,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-marubane',
     name: 'アマミマルバネクワガタ',
+    nameBreak: 'アマミ|マルバネ|クワガタ',
     en: 'Amami round-winged stag beetle',
     sci: 'Neolucanus protogenetivus',
     category: 'insect',
@@ -626,6 +652,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ferie-beniboshi',
     name: 'フェリエベニボシカミキリ',
+    nameBreak: 'フェリエ|ベニボシ|カミキリ',
     en: "Ferrie's rosalia longhorn",
     sci: 'Rosalia ferriei',
     category: 'insect',
@@ -641,6 +668,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'asagimadara',
     name: 'アサギマダラ',
+    nameBreak: 'アサギ|マダラ',
     en: 'Chestnut tiger butterfly',
     sci: 'Parantica sita',
     category: 'insect',
@@ -655,6 +683,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'oogomadara',
     name: 'オオゴマダラ',
+    nameBreak: 'オオ|ゴマダラ',
     en: 'Paper kite',
     sci: 'Idea leuconoe',
     category: 'insect',
@@ -669,6 +698,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'tsumabenichou',
     name: 'ツマベニチョウ',
+    nameBreak: 'ツマベニ|チョウ',
     en: 'Great orange tip',
     sci: 'Hebomoia glaucippe',
     category: 'insect',
@@ -683,6 +713,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ooshimazemi',
     name: 'オオシマゼミ',
+    nameBreak: 'オオシマ|ゼミ',
     en: 'Oshima cicada',
     sci: 'Meimuna oshimensis',
     category: 'insect',
@@ -699,6 +730,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'zatoukujira',
     name: 'ザトウクジラ',
+    nameBreak: 'ザトウ|クジラ',
     en: 'Humpback whale',
     sci: 'Megaptera novaeangliae',
     category: 'aqua',
@@ -714,6 +746,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'minami-bandouiruka',
     name: 'ミナミバンドウイルカ',
+    nameBreak: 'ミナミ|バンドウ|イルカ',
     en: 'Indo-Pacific bottlenose dolphin',
     sci: 'Tursiops aduncus',
     category: 'aqua',
@@ -729,6 +762,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'aoumigame',
     name: 'アオウミガメ',
+    nameBreak: 'アオ|ウミガメ',
     en: 'Green sea turtle',
     sci: 'Chelonia mydas',
     category: 'aqua',
@@ -744,6 +778,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'akaumigame',
     name: 'アカウミガメ',
+    nameBreak: 'アカ|ウミガメ',
     en: 'Loggerhead turtle',
     sci: 'Caretta caretta',
     category: 'aqua',
@@ -761,6 +796,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'okayadokari',
     name: 'オカヤドカリの仲間',
+    nameBreak: 'オカヤドカリの|仲間',
     en: 'Land hermit crabs',
     sci: 'Coenobita spp.',
     category: 'aqua',
@@ -778,6 +814,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'minami-tobihaze',
     name: 'ミナミトビハゼ',
+    nameBreak: 'ミナミ|トビハゼ',
     en: 'Barred mudskipper',
     sci: 'Periophthalmus argentilineatus',
     category: 'aqua',
@@ -792,6 +829,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'shiomaneki',
     name: 'シオマネキの仲間',
+    nameBreak: 'シオマネキの|仲間',
     en: 'Fiddler crabs',
     sci: 'Uca spp.',
     category: 'aqua',
@@ -806,6 +844,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'ryukyu-ayu',
     name: 'リュウキュウアユ',
+    nameBreak: 'リュウキュウ|アユ',
     en: 'Ryukyu ayu',
     sci: 'Plecoglossus altivelis ryukyuensis',
     category: 'aqua',
@@ -942,6 +981,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'teppouyuri',
     name: 'テッポウユリ',
+    nameBreak: 'テッポウ|ユリ',
     en: 'Easter lily',
     sci: 'Lilium longiflorum',
     category: 'plant',
@@ -957,6 +997,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-seishika',
     name: 'アマミセイシカ',
+    nameBreak: 'アマミ|セイシカ',
     en: 'Amami rhododendron',
     sci: 'Rhododendron latoucheae var. amamiense',
     category: 'plant',
@@ -973,6 +1014,7 @@ const RAW: Omit<Species, 'no'>[] = [
   {
     id: 'amami-ebine',
     name: 'アマミエビネ',
+    nameBreak: 'アマミ|エビネ',
     en: 'Amami calanthe',
     sci: 'Calanthe amamiana',
     category: 'plant',
@@ -995,22 +1037,24 @@ export const SPECIES_BY_ID: Record<string, Species> = Object.fromEntries(
   SPECIES.map((s) => [s.id, s]),
 );
 
-export const CATEGORY_META: Record<Category, { label: string; short: string; color: string }> = {
-  mammal: { label: '哺乳類', short: '哺乳類', color: '#8A4B2A' },
-  bird: { label: '鳥類', short: '鳥類', color: '#2A4FA3' },
-  herp: { label: '爬虫類・両生類', short: '爬虫・両生', color: '#4F7A2E' },
-  insect: { label: '昆虫', short: '昆虫', color: '#B5762A' },
-  aqua: { label: '海・水辺', short: '海・水辺', color: '#1E7A8C' },
-  plant: { label: '植物', short: '植物', color: '#2B6750' },
+/** カテゴリは色を持たない。区別はアイコン（ui.tsx の CATEGORY_ICON）とラベルで行う（§2.7） */
+export const CATEGORY_META: Record<Category, { label: string; short: string }> = {
+  mammal: { label: '哺乳類', short: '哺乳類' },
+  bird: { label: '鳥類', short: '鳥類' },
+  herp: { label: '爬虫類・両生類', short: '爬虫・両生' },
+  insect: { label: '昆虫', short: '昆虫' },
+  aqua: { label: '海・水辺', short: '海・水辺' },
+  plant: { label: '植物', short: '植物' },
 };
 
 export const CATEGORY_ORDER: Category[] = ['mammal', 'bird', 'herp', 'insect', 'aqua', 'plant'];
 
-export const RARITY_META: Record<Rarity, { label: string; en: string; points: number }> = {
-  1: { label: 'よく見る', en: 'COMMON', points: 10 },
-  2: { label: 'ときどき', en: 'UNCOMMON', points: 30 },
-  3: { label: 'めずらしい', en: 'RARE', points: 80 },
-  4: { label: '幻', en: 'LEGENDARY', points: 200 },
+/** レア度は日本語の言葉だけで呼ぶ（§2.6） */
+export const RARITY_META: Record<Rarity, { label: string; points: number }> = {
+  1: { label: 'よく見る', points: 10 },
+  2: { label: 'ときどき', points: 30 },
+  3: { label: 'めずらしい', points: 80 },
+  4: { label: '幻', points: 200 },
 };
 
 export function speciesInSeason(month: number): Species[] {

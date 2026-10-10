@@ -5,6 +5,7 @@
  * - 未設定、または LINE 外のブラウザで未ログインのときは「デモモード」（端末内保存のみ）で動く。
  */
 import type { Liff } from '@line/liff';
+import { LIGHT } from '../styles/palette';
 
 export const LIFF_ID = (import.meta.env.VITE_LIFF_ID as string | undefined) ?? '';
 
@@ -90,7 +91,8 @@ export async function shareToLine(imageUrl: string, altText: string, linkPath: s
             {
               type: 'button',
               style: 'primary',
-              color: '#1E4D3A',
+              // LINE のメッセージの中のボタン（CSS 変数を使えないので palette.ts の瑠璃の値を使う）
+              color: LIGHT.brandFill,
               action: { type: 'uri', label: 'わたしも奄美の生き物を集める', uri: liffUrl(linkPath) },
             },
           ],
