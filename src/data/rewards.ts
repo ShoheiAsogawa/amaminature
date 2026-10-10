@@ -29,7 +29,7 @@ export const REWARDS: Reward[] = [
     description: 'ナイトツアーや森のガイドウォークで使える割引クーポン。',
     points: 300,
     kind: 'coupon',
-    sponsor: '提携ガイド事業者',
+    sponsor: '掲載ガイド事業者（募集中）',
   },
   {
     id: 'local-shop',
@@ -62,7 +62,7 @@ export const REWARDS: Reward[] = [
     description: '奄美群島12市町村すべてで記録した人へ、各市町村からの記念品。',
     points: 0,
     kind: 'goods',
-    sponsor: '奄美群島の市町村（連携予定）',
+    sponsor: '奄美群島の市町村（調整前）',
     requiresBadge: 'all-areas',
   },
 ];

@@ -26,7 +26,7 @@ export const EXPERIENCES: Experience[] = [
       'iboimori',
       'habu',
     ],
-    provider: '奄美群島認定エコツアーガイド（提携予定）',
+    provider: '奄美群島認定エコツアーガイド（掲載事業者を募集中）',
   },
   {
     id: 'kinsakubaru',
@@ -40,7 +40,7 @@ export const EXPERIENCES: Experience[] = [
     area: '奄美市',
     certifiedGuide: true,
     speciesIds: ['hikagehego', 'rurikakesu', 'akahige', 'ooston-ooakagera', 'zuakaaobato'],
-    provider: '奄美群島認定エコツアーガイド（提携予定）',
+    provider: '奄美群島認定エコツアーガイド（掲載事業者を募集中）',
   },
   {
     id: 'mangrove-canoe',
@@ -54,7 +54,7 @@ export const EXPERIENCES: Experience[] = [
     area: '奄美市住用',
     certifiedGuide: false,
     speciesIds: ['ohirugi', 'mehirugi', 'minami-tobihaze', 'shiomaneki', 'kurosagi'],
-    provider: 'カヌー事業者（提携予定）',
+    provider: 'カヌー事業者（掲載事業者を募集中）',
   },
   {
     id: 'whale-watching',
@@ -68,7 +68,7 @@ export const EXPERIENCES: Experience[] = [
     area: '奄美大島',
     certifiedGuide: false,
     speciesIds: ['zatoukujira', 'minami-bandouiruka', 'misago'],
-    provider: '奄美クジラ・イルカ協会 加盟事業者（提携予定）',
+    provider: '自主ルールを守る事業者（掲載事業者を募集中）',
   },
   {
     id: 'morning-birding',
@@ -89,7 +89,7 @@ export const EXPERIENCES: Experience[] = [
       'karasubato',
       'amami-kogera',
     ],
-    provider: '奄美群島認定エコツアーガイド（提携予定）',
+    provider: '奄美群島認定エコツアーガイド（掲載事業者を募集中）',
   },
   {
     id: 'wildlife-center',
@@ -103,7 +103,7 @@ export const EXPERIENCES: Experience[] = [
     area: '大和村',
     certifiedGuide: false,
     speciesIds: ['amami-kurousagi', 'ootoratsugumi', 'amami-togenezumi'],
-    provider: '環境省 奄美野生生物保護センター',
+    provider: '施設紹介（大和村）',
   },
 ];
 
