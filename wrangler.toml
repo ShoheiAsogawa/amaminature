@@ -14,7 +14,7 @@ run_worker_first = ["/api/*", "/s/*"]
 binding = "DB"
 database_name = "amami-nature"
 # `npx wrangler d1 create amami-nature` で表示された ID に置き換える
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "bbae81d2-c459-454d-b73c-d01cb634605d"
 migrations_dir = "worker/migrations"
 
 [[r2_buckets]]
@@ -28,7 +28,7 @@ LIFF_ID = ""
 # LIFF を置いた LINE ログインチャネルのチャネルID
 LINE_LOGIN_CHANNEL_ID = ""
 # 公開URL（共有カード画像のURLに使う）例: https://amami-nature.<account>.workers.dev
-PUBLIC_BASE_URL = ""
+PUBLIC_BASE_URL = "https://amami-nature.uken-shohei.workers.dev"
 # 決済連携前の Plus 体験API（本番の課金開始時は "false" に）
 DEMO_PLUS = "true"
 

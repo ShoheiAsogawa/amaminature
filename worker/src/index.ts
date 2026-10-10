@@ -105,7 +105,7 @@ async function buildMe(env: Env, userId: string) {
 const auth = createMiddleware<AppEnv>(async (c, next) => {
   const header = c.req.header('Authorization') ?? '';
   let userId: string | null = null;
-  if (header.startsWith('Bearer ')) {
+  if (header.startsWith('Bearer ') && c.env.SESSION_SECRET) {
     userId = await verifySession(header.slice(7), c.env.SESSION_SECRET);
   } else if (c.env.DEV_AUTH === 'true' && header.startsWith('Dev ')) {
     userId = header.slice(4).trim() || null;
@@ -121,6 +121,7 @@ const auth = createMiddleware<AppEnv>(async (c, next) => {
 app.get('/api/health', (c) => c.json({ ok: true, time: nowIso() }));
 
 app.post('/api/auth/line', async (c) => {
+  if (!c.env.LINE_LOGIN_CHANNEL_ID || !c.env.SESSION_SECRET) return c.json({ error: 'line_not_configured' }, 503);
   const { idToken } = await c.req.json<{ idToken?: string }>().catch(() => ({ idToken: undefined }));
   if (!idToken) return c.json({ error: 'id_token_required' }, 400);
   const payload = await line.verifyIdToken(idToken, c.env.LINE_LOGIN_CHANNEL_ID);
@@ -429,6 +430,7 @@ app.get('/api/partner/summary', async (c) => {
 // ───────── LINE Messaging API Webhook ─────────
 
 app.post('/api/line/webhook', async (c) => {
+  if (!c.env.LINE_CHANNEL_SECRET || !c.env.LINE_CHANNEL_ACCESS_TOKEN) return c.json({ error: 'line_not_configured' }, 503);
   const raw = await c.req.text();
   if (!(await verifyLineSignature(c.env.LINE_CHANNEL_SECRET, raw, c.req.header('x-line-signature') ?? null))) {
     return c.json({ error: 'invalid_signature' }, 401);
