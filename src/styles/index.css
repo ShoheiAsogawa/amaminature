@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────── デザイントークン ─────────
+   和紙（paper）× 奄美の森（forest）× ルリカケスの瑠璃（ruri）× 泥染の栗（kuri） */
+:root {
+  --c-paper: 246 241 231;
+  --c-paper2: 236 228 212;
+  --c-card: 255 252 246;
+  --c-ink: 20 33 28;
+  --c-ink2: 72 86 79;
+  --c-ink3: 128 139 133;
+  --c-accent: 30 77 58;
+  --c-primary: 22 60 45;
+  --c-onprimary: 246 241 231;
+  --c-ruri: 42 79 163;
+  --c-kuri: 138 75 42;
+  --c-umi: 30 122 140;
+  --c-sango: 214 88 60;
+  --c-kin: 168 126 30;
+  --c-danger: 190 52 40;
+  /* グラフ専用（CVD検証済み：瑠璃=記録 / 珊瑚=ロードキル） */
+  --chart-1: #3a62c4;
+  --chart-2: #d6583c;
+  --chart-grid: rgb(20 33 28 / 0.08);
+  --line: rgb(20 33 28 / 0.1);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  color-scheme: light;
+}
+
+/* 夜の森モード：ナイトツアーでも目にやさしい暗色 */
+:root[data-theme='dark'] {
+  --c-paper: 9 19 15;
+  --c-paper2: 17 30 25;
+  --c-card: 21 35 29;
+  --c-ink: 232 228 216;
+  --c-ink2: 170 180 172;
+  --c-ink3: 116 128 121;
+  --c-accent: 143 203 168;
+  --c-primary: 143 203 168;
+  --c-onprimary: 9 19 15;
+  --c-ruri: 140 170 240;
+  --c-kuri: 214 150 110;
+  --c-umi: 110 196 210;
+  --c-sango: 240 132 104;
+  --c-kin: 222 186 96;
+  --c-danger: 240 120 104;
+  --chart-1: #6f8fe0;
+  --chart-2: #e0694a;
+  --chart-grid: rgb(232 228 216 / 0.08);
+  --line: rgb(232 228 216 / 0.1);
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-feature-settings: 'palt' 1;
+    overscroll-behavior-y: none;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-ruri));
+    outline-offset: 2px;
+  }
+  button {
+    @apply select-none;
+  }
+}
+
+@layer components {
+  .hairline {
+    border-color: var(--line);
+  }
+  .label {
+    @apply text-[10px] font-bold uppercase tracking-label text-ink3;
+  }
+  .sci {
+    @apply font-latin italic;
+    letter-spacing: 0.01em;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[15px] font-bold transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-onprimary shadow-card;
+  }
+  .btn-ghost {
+    @apply btn border hairline bg-card text-ink;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border hairline bg-card px-2.5 py-1 text-[11px] font-bold text-ink2;
+  }
+  .card {
+    @apply rounded-3xl border hairline bg-card shadow-card;
+  }
+  .input {
+    @apply w-full rounded-2xl border hairline bg-card px-4 py-3 text-[15px] text-ink placeholder:text-ink3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ruri/50;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .pb-tabbar {
+    padding-bottom: calc(96px + var(--safe-bottom));
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+}
+
+/* 「幻」レア度のカードに走る光 */
+.foil {
+  position: relative;
+  overflow: hidden;
+}
+.foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 236 180 / 0.45), transparent);
+  animation: shimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

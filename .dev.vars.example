@@ -1,0 +1,6 @@
+# `cp .dev.vars.example .dev.vars` してローカル開発（wrangler dev）で使う
+LINE_CHANNEL_SECRET=dev-channel-secret
+LINE_CHANNEL_ACCESS_TOKEN=dev-access-token
+SESSION_SECRET=dev-session-secret-change-me-0123456789
+ANTHROPIC_API_KEY=
+DEV_AUTH=true

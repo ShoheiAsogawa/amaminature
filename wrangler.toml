@@ -1,0 +1,39 @@
+# AMAMI NATURE — Cloudflare Workers（API + LIFFアプリの静的配信を1つのWorkerで）
+name = "amami-nature"
+main = "worker/src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/s/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "amami-nature"
+# `npx wrangler d1 create amami-nature` で表示された ID に置き換える
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "worker/migrations"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+# `npx wrangler r2 bucket create amami-nature-photos`
+bucket_name = "amami-nature-photos"
+
+[vars]
+# LINE Developers で作成した LIFF アプリの ID
+LIFF_ID = ""
+# LIFF を置いた LINE ログインチャネルのチャネルID
+LINE_LOGIN_CHANNEL_ID = ""
+# 公開URL（共有カード画像のURLに使う）例: https://amami-nature.<account>.workers.dev
+PUBLIC_BASE_URL = ""
+# 決済連携前の Plus 体験API（本番の課金開始時は "false" に）
+DEMO_PLUS = "true"
+
+# secrets（`npx wrangler secret put <NAME>`）:
+#   LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN / SESSION_SECRET / ANTHROPIC_API_KEY
+
+[observability]
+enabled = true

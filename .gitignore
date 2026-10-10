@@ -1,0 +1,16 @@
+*.local
+.DS_Store
+.dev.vars
+.env
+.env.*
+.vercel
+.wrangler
+dev-dist
+dist
+dist-demo
+node_modules
+playwright-report
+screenshots
+screenshots/*.tmp.png
+test-results
+!.env.example
