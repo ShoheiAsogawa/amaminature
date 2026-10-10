@@ -23,7 +23,7 @@ moon-stars road-horizon car-profile gauge flashlight device-mobile map-pin gps-f
 image-square microphone scan dice-five hand-heart ticket gift coins lock-simple eye-slash cloud-slash
 wifi-slash cloud-check file-arrow-down file-arrow-up buildings key bank table chart-bar speaker-high
 chat-circle users user seal-check lightbulb path diamond frame-corners flag-banner sun moon tree
-tree-palm leaf plant user-plus
+tree-palm leaf plant user-plus camera
 amami:kurousagi amami:kurousagi-fill amami:frog amami:frog-fill amami:fern amami:fern-fill
 amami:kayak amami:kayak-fill
 `

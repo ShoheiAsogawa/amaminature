@@ -1057,6 +1057,9 @@ export const RARITY_META: Record<Rarity, { label: string; points: number }> = {
   4: { label: '幻', points: 200 },
 };
 
+/** 図鑑の解説についての断り書き（種詳細の末尾とマイページのフッターで同じ文を使う） */
+export const SPECIES_DISCLAIMER = '解説は専門家による監修の前の内容です。保護区分は環境省などの最新情報をご確認ください。';
+
 export function speciesInSeason(month: number): Species[] {
   return SPECIES.filter((s) => s.months.includes(month) && s.months.length < 12);
 }

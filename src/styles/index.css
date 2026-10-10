@@ -31,7 +31,10 @@
   --c-toast: 31 36 34;        /* #1F2422 */
   --c-toast-fg: 242 244 243;  /* #F2F4F3 */
   --scrim: rgb(0 0 0 / 0.4);
-  --stage: rgb(0 0 0 / 0.92);
+  /* 図鑑カードの演出とバッジ獲得の舞台。不透明の瑠璃の夜（両モード共通）。
+     仕様（§2.1）は黒 92% だが、白いページの上では #141414 の「モーダルの幕」に見えるため、
+     ブランドの瑠璃を夜まで落とした不透明の色にしている */
+  --stage: #0b1830;
   --mat-dorozome: #4b3a2e;
   --mat-yakougai: conic-gradient(from 200deg, #c9dce6, #e3d3e6, #d2e8dc, #ede1c8, #c9dce6);
   --mat-kinpaku: linear-gradient(135deg, #8a6a22, #e2c77a 40%, #f3e4b2 50%, #be9845 62%, #8a6a22);
@@ -89,15 +92,18 @@
     font-weight: 400;
     font-synthesis: none;
     font-feature-settings: 'palt';
+    /* 禁則処理：小さいかな（ょ・ゃ・っ）や句読点を行頭に置かない */
+    line-break: strict;
     text-size-adjust: 100%;
     overscroll-behavior-y: none;
     /* Base UI Drawer の背面（position: absolute）の基準 */
     position: relative;
   }
-  /* 複数行の本文は詰めない */
+  /* 複数行の本文は詰めない。最終行に 1〜2 文字だけ残る改行を避ける（Chromium 117+ / Safari 26） */
   p,
   .prose {
     font-feature-settings: normal;
+    text-wrap: pretty;
   }
   #root {
     isolation: isolate;
@@ -200,11 +206,53 @@
   .pt-safe {
     padding-top: var(--safe-top);
   }
+
+  /* 図鑑カードの縁（§7.21）。素材の上に静止した粒子（泥染の染めむら）を重ね、
+     内側に 1px の明るい線を引いて、黒い舞台の上でも縁が「素材」として見えるようにする */
+  .card-rim {
+    position: relative;
+    isolation: isolate;
+  }
+  .card-rim::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--rim);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  }
+  .card-rim[data-material='dorozome']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .92 0 0 0 0 .82 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+    mix-blend-mode: overlay;
+    opacity: 0.9;
+  }
+
+  /* 伏せた図鑑カード（未発見の種のプレート）。§6 の龍郷柄を、カードの裏面として低いコントラストで敷く。
+     仕様では龍郷柄はカードの裏面だけ。未発見のタイルは「まだ裏返していないカード」なので、裏面と同じ柄にする */
+  .face-down {
+    -webkit-mask-image: var(--face-down-mask);
+    mask-image: var(--face-down-mask);
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
 }
 
-/* §2.9 夜の森では写真を少し暗くする（ナイトツアー中のまぶしさ対策） */
+/* §2.9 夜の森では写真を少し暗くする（ナイトツアー中のまぶしさ対策）。
+   演出の舞台（.stage）はもともと暗いので、カードの写真は暗くしない */
 [data-theme='dark'] .photo {
   filter: brightness(0.85);
+}
+[data-theme='dark'] .stage .photo {
+  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

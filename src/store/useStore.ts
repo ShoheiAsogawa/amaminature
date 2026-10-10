@@ -36,7 +36,6 @@ export function applyTheme(pref: Settings['theme']) {
   const dark =
     pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#08190F' : '#0E2A20');
 }
 
 export function localDateKey(d = new Date()): string {

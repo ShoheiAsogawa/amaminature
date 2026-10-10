@@ -2,6 +2,7 @@ import type { Quest } from './types';
 
 /**
  * 季節クエスト。sponsor 枠は企業協賛（ネイチャーポジティブ／CSR）の販売単位。
+ * sponsor は協賛が決まったクエストにだけ入れる（「募集中」などの社内の状況は画面に出さない）。
  */
 export const QUESTS: Quest[] = [
   {
@@ -12,7 +13,6 @@ export const QUESTS: Quest[] = [
     mode: 'any',
     months: [10, 11],
     reward: 50,
-    sponsor: '協賛枠（募集中）',
   },
   {
     id: 'whale-season',
@@ -22,7 +22,6 @@ export const QUESTS: Quest[] = [
     mode: 'any',
     months: [12, 1, 2, 3, 4],
     reward: 60,
-    sponsor: '協賛枠（募集中）',
   },
   {
     id: 'summer-messenger',

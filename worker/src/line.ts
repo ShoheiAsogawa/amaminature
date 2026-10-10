@@ -59,15 +59,18 @@ export interface WebhookEvent {
 
 // ───────── メッセージ（Flex Message） ─────────
 
-const GREEN = '#1E4D3A';
-const GOLD = '#C79A2E';
+// 色はアプリの「瑠璃の野帳」（docs/DESIGN_SYSTEM.md §2.1 のライト）に合わせる。白い地、墨の文字、瑠璃のボタン
+const BRAND = '#1E50A2';
+const FG = '#161A18';
+const FG2 = '#4A524E';
+const FG3 = '#656C68';
 
 export function liffUrl(liffId: string, path = '/'): string {
   return `https://liff.line.me/${liffId}${path}`;
 }
 
 function uriButton(label: string, uri: string, style: 'primary' | 'secondary' | 'link' = 'primary') {
-  return { type: 'button', style, height: 'sm', ...(style === 'primary' ? { color: GREEN } : {}), action: { type: 'uri', label, uri } };
+  return { type: 'button', style, height: 'sm', ...(style === 'primary' ? { color: BRAND } : style === 'link' ? { color: BRAND } : {}), action: { type: 'uri', label, uri } };
 }
 
 export function welcomeMessage(liffId: string) {
@@ -80,15 +83,15 @@ export function welcomeMessage(liffId: string) {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        backgroundColor: '#0E2A20',
+        backgroundColor: '#FFFFFF',
         paddingAll: '20px',
         contents: [
-          { type: 'text', text: 'AMAMI NATURE', color: GOLD, size: 'xs', weight: 'bold' },
-          { type: 'text', text: '奄美の生き物を、\nあなたの図鑑に。', color: '#F6F1E7', size: 'xl', weight: 'bold', wrap: true },
+          { type: 'text', text: 'AMAMI NATURE', color: BRAND, size: 'xs', weight: 'bold' },
+          { type: 'text', text: '奄美の生き物を、\nあなたの図鑑に。', color: FG, size: 'xl', weight: 'bold', wrap: true },
           {
             type: 'text',
             text: '写真をこのトークに送ると、AIが名前の候補を調べます（1日1回無料）。下のメニューから図鑑・路上レポート・ポイント交換も使えます。',
-            color: '#F6F1E7B3',
+            color: FG2,
             size: 'sm',
             wrap: true,
           },
@@ -121,25 +124,25 @@ export function identifyResultMessage(liffId: string, messageId: string, candida
         spacing: 'sm',
         contents: sp
           ? [
-              { type: 'text', text: 'AIの判定', size: 'xs', color: '#808C86', weight: 'bold' },
-              { type: 'text', text: sp.name, size: 'xxl', weight: 'bold', color: '#14211C', wrap: true },
-              { type: 'text', text: sp.sci, size: 'sm', color: '#808C86', style: 'italic' },
+              { type: 'text', text: 'AIの判定', size: 'xs', color: FG3, weight: 'bold' },
+              { type: 'text', text: sp.name, size: 'xxl', weight: 'bold', color: FG, wrap: true },
+              { type: 'text', text: sp.sci, size: 'sm', color: FG3, style: 'italic' },
               {
                 type: 'text',
                 text: `確からしさ ${Math.round((top!.confidence ?? 0) * 100)}%・${RARITY_META[sp.rarity].label}`,
                 size: 'sm',
-                color: GREEN,
+                color: BRAND,
                 weight: 'bold',
                 margin: 'md',
               },
-              { type: 'text', text: top!.reason || ' ', size: 'sm', color: '#485650', wrap: true },
-              ...(others.length ? [{ type: 'text', text: `ほかの候補：${others.join('、')}`, size: 'xs', color: '#808C86', wrap: true, margin: 'md' }] : []),
-              { type: 'text', text: `今日のAI判定 残り${remaining}回`, size: 'xxs', color: '#808C86', margin: 'lg' },
+              { type: 'text', text: top!.reason || ' ', size: 'sm', color: FG2, wrap: true },
+              ...(others.length ? [{ type: 'text', text: `ほかの候補：${others.join('、')}`, size: 'xs', color: FG3, wrap: true, margin: 'md' }] : []),
+              { type: 'text', text: `今日のAI判定 残り${remaining}回`, size: 'xxs', color: FG3, margin: 'lg' },
             ]
           : [
-              { type: 'text', text: 'AIの判定', size: 'xs', color: '#808C86', weight: 'bold' },
+              { type: 'text', text: 'AIの判定', size: 'xs', color: FG3, weight: 'bold' },
               { type: 'text', text: '図鑑の中からは特定できませんでした', size: 'md', weight: 'bold', wrap: true },
-              { type: 'text', text: candidates[0]?.reason || 'もう少し近く・明るい場所で撮るとわかりやすくなります。', size: 'sm', color: '#485650', wrap: true },
+              { type: 'text', text: candidates[0]?.reason || 'もう少し近く・明るい場所で撮るとわかりやすくなります。', size: 'sm', color: FG2, wrap: true },
             ],
       },
       footer: {

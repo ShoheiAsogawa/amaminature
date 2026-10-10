@@ -1,28 +1,105 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wordmark } from '../components/Brand';
-import { IconCarProfile, IconEyeSlash, IconHandHeart } from '../components/icons';
+import { LogoMark, Wordmark } from '../components/Brand';
+import { TATSUGO_STYLE } from '../components/CollectibleCard';
+import { IconCarProfile, IconEyeSlash, IconHandHeart, IconTicket } from '../components/icons';
 import { Phrase } from '../components/Phrase';
-import { Button, cn, CTA_PADDING, CtaBar, Field, Input } from '../components/ui';
+import { BadgeEmblem, BadgeName, Button, cn, CTA_PADDING, CtaBar, Field, Input, Num, StampSeal } from '../components/ui';
 import { api } from '../lib/api';
+import { BADGES } from '../lib/progress';
 import { useStore } from '../store/useStore';
 
+// ───────── 紹介のページの絵（写真がない間は、アプリの中の物そのものを見せる） ─────────
+
+/** 1 ページ目: 伏せた図鑑カード（裏面の龍郷柄）を 3 枚、扇に広げる */
+function CardFan() {
+  const card = (rot: number, x: number, y: number, z: number) => (
+    <div
+      className="absolute left-1/2 top-1/2 grid h-[235px] w-[168px] place-items-center rounded-lg shadow-toast"
+      style={{ ...TATSUGO_STYLE, transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`, zIndex: z }}
+    >
+      <LogoMark size={36} className="text-white/70" />
+    </div>
+  );
+  return (
+    <div className="relative h-[280px] w-[300px]">
+      {card(-11, -58, 14, 1)}
+      {card(11, 58, 14, 2)}
+      {card(0, 0, 0, 3)}
+    </div>
+  );
+}
+
+/** 2 ページ目: 道路と生き物を守るバッジ（森との約束・セーフドライバー・夜道の見守り隊） */
+function GuardBadges() {
+  const ids = ['pledge', 'safe-driver', 'road-guardian'];
+  return (
+    <div className="grid w-full max-w-[340px] grid-cols-3 gap-2">
+      {ids.map((id) => {
+        const b = BADGES.find((x) => x.id === id)!;
+        return (
+          <div key={id} className="flex flex-col items-center gap-3">
+            <BadgeEmblem badge={b} earned size={88} />
+            <span className="text-center text-sub text-fg">
+              <BadgeName badge={b} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 3 ページ目: 市町村のスタンプと、交換できるものの 1 行 */
+function StampsAndReward() {
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 864e5);
+  return (
+    <div className="w-full max-w-[358px] px-4">
+      <div className="grid grid-cols-4 justify-items-center">
+        <StampSeal name="奄美市" visited date={yesterday} />
+        <StampSeal name="龍郷町" visited date={today} />
+        <StampSeal name="徳之島町" visited={false} />
+        <StampSeal name="与論町" visited={false} />
+      </div>
+      <div className="mt-8 overflow-hidden rounded-md bg-fill">
+        {[
+          { icon: IconTicket, title: '提携ツアー 1,000円引き', points: 300 },
+          { icon: IconHandHeart, title: '奄美の自然保護に寄付する', points: 100 },
+        ].map((r) => (
+          <div key={r.title} className="group/row flex items-center pl-4">
+            <r.icon size={20} className="shrink-0 text-fg-2" />
+            <span className="ml-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b border-sep py-2.5 pr-4 group-last/row:border-b-0">
+              <span className="min-w-0 flex-1 text-callout text-fg">{r.title}</span>
+              <Num value={r.points} unit="pt" className="shrink-0 text-callout font-semibold text-brand" />
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
- * 3 ページの紹介（§8.13）。各ページの上 60% に全幅の写真を置く設計だが、写真がまだないので
- * 写真の領域を省き、見出しを上に詰めている（写真を用意したら photo に { src, credit } を入れる）。
+ * 3 ページの紹介（§8.13）。各ページの上に全幅の写真を置く設計だが、写真がまだない間は
+ * 写真の領域を省かず、アプリの中の物（図鑑カードの裏面、バッジ、スタンプ）を同じ場所に置く。
+ * 写真を用意したら photo に { src, credit } を入れる（絵の代わりに写真が入る）。
  */
-const SLIDES: { title: string; body: string; photo?: { src: string; credit: string } }[] = [
+const SLIDES: { title: string; body: string; visual: ReactNode; photo?: { src: string; credit: string } }[] = [
   {
     title: '奄美の生き物を記録して、自分だけの図鑑をつくろう',
     body: '森と海で出会った生き物を撮って、名前をつけて集めましょう。世界自然遺産の島には、ここにしかいない生き物がたくさんいます。',
+    visual: <CardFan />,
   },
   {
     title: '夜の道は、生き物たちの道でもある',
     body: 'セーフドライブ宣言や路上レポートで、アマミノクロウサギなどの交通事故を減らす取り組みに参加できます。',
+    visual: <GuardBadges />,
   },
   {
     title: '貯めたポイントで、島の体験と交換しよう',
-    body: '記録やレポートでポイントが貯まり、ツアーの割引や島の協賛店のクーポン、保全活動への寄付と交換できます。',
+    body: '記録やレポートでポイントが貯まります。ツアーの割引や島のお店のクーポンと交換したり、自然保護に寄付したりできます。',
+    visual: <StampsAndReward />,
   },
 ];
 
@@ -30,7 +107,7 @@ const SLIDES: { title: string; body: string; photo?: { src: string; credit: stri
 const PLEDGES = [
   { icon: IconHandHeart, title: '近づきすぎず、そっと見守ります', body: '採らない、触らない、餌をあげない。生き物との距離を保ちます。' },
   { icon: IconCarProfile, title: '夜の林道はゆっくり走ります', body: '夜の道路には、アマミノクロウサギなどの生き物が出てきます。' },
-  { icon: IconEyeSlash, title: '希少な生き物の場所は広めません', body: '見つけた場所は、SNSなどに書かずにおきます。' },
+  { icon: IconEyeSlash, title: '希少な生き物の場所は広めません', body: '場所がわかる写真や投稿を、SNSに載せません。' },
 ];
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -72,13 +149,16 @@ function Intro({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="relative">
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-20 mx-auto w-full max-w-[480px] pt-safe">
-        <div className="flex h-[60px] items-center justify-end px-3">
-          <Button variant="text" size="hit" className="pointer-events-auto" onClick={onDone}>
-            スキップ
-          </Button>
+      {/* 最後のページでは［はじめる］と同じ動作になるので出さない */}
+      {!last && (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-20 mx-auto w-full max-w-[480px] pt-safe">
+          <div className="flex h-[60px] items-center justify-end px-3">
+            <Button variant="text" size="hit" className="pointer-events-auto" onClick={onDone}>
+              スキップ
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         ref={scroller}
@@ -92,18 +172,23 @@ function Intro({ onDone }: { onDone: () => void }) {
             aria-roledescription="スライド"
             aria-label={`${i + 1} / ${SLIDES.length}`}
             aria-hidden={i !== index}
-            className={cn('h-full w-full shrink-0 snap-start snap-always overflow-y-auto pt-safe', INTRO_CTA_PADDING)}
+            className={cn('flex h-full w-full shrink-0 snap-start snap-always flex-col overflow-y-auto pt-safe', INTRO_CTA_PADDING)}
           >
             {s.photo ? (
-              <figure className="h-[60%]">
+              <figure className="h-[60%] shrink-0">
                 <img src={s.photo.src} alt="" className="photo h-full w-full object-cover" draggable={false} />
                 <figcaption className="px-4 pt-1 text-right text-caption text-fg-3">© {s.photo.credit}</figcaption>
               </figure>
             ) : (
-              // ワードマークは 1 ページ目だけ。ほかのページも同じ高さを空け、見出しの位置をそろえる
-              <div className="flex h-[60px] items-center px-4">{i === 0 && <Wordmark />}</div>
+              <>
+                {/* ワードマークは 1 ページ目だけ。ほかのページも同じ高さを空け、絵と見出しの位置をそろえる */}
+                <div className="flex h-[60px] shrink-0 items-center px-4">{i === 0 && <Wordmark />}</div>
+                <div aria-hidden className="flex min-h-[300px] flex-1 items-center justify-center overflow-hidden py-4">
+                  {s.visual}
+                </div>
+              </>
             )}
-            <div className="px-4 pt-8">
+            <div className="shrink-0 px-4 pt-4">
               <h2 className="balance text-display text-fg">
                 <Phrase text={s.title} />
               </h2>
@@ -139,7 +224,7 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
       <section className="px-4 pt-10">
         <h1 className="text-title text-fg">3つの約束</h1>
         <p className="mt-2 text-body text-fg-2">
-          <Phrase text="はじめる前に、島の生き物を守るための約束をしましょう。" />
+          <Phrase text="島の生き物を守るための約束です。" />
         </p>
       </section>
 

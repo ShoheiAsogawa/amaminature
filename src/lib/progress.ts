@@ -231,23 +231,30 @@ export function rankFor(points: number) {
 
 // ───────── バッジ ─────────
 
+/**
+ * バッジの紋章の図柄（docs/DESIGN_SYSTEM.md §5.5）。Phosphor の fill 版と奄美の独自グリフの名前。
+ * 「幻」と「12」は文字の図柄（text:）。どの名前もコンポーネントへの対応は src/components/BadgeEmblem.tsx にある。
+ */
 export type BadgeIcon =
-  | 'footprints'
-  | 'heart'
-  | 'feather'
-  | 'binoculars'
-  | 'moon'
-  | 'gem'
-  | 'crown'
-  | 'waves'
-  | 'kayak'
-  | 'sailboat'
-  | 'stamp'
-  | 'sun'
-  | 'book'
-  | 'trophy'
-  | 'car'
-  | 'shield';
+  | 'footprints-fill'
+  | 'book-open-text-fill'
+  | 'trophy-fill'
+  | 'feather-fill'
+  | 'binoculars-fill'
+  | 'moon-stars-fill'
+  | 'island-fill'
+  | 'text:幻'
+  | 'waves-fill'
+  | 'amami:kayak-fill'
+  | 'sailboat-fill'
+  | 'text:12'
+  | 'sun-horizon-fill'
+  | 'hand-heart-fill'
+  | 'car-profile-fill'
+  | 'road-horizon-fill';
+
+/** バッジの系統（§5.5 の表の「形」の列。記録の節目 / 生き物 / 島と季節 / 守る） */
+export type BadgeFamily = 'milestone' | 'creature' | 'place' | 'protect';
 
 export interface BadgeContext {
   pledged: boolean;
@@ -257,28 +264,31 @@ export interface BadgeContext {
 export interface Badge {
   id: string;
   title: string;
+  /** 改行してよい位置を | で区切った名前（§3.5。例: バード|ウォッチャー）。ない名前は文節で改行する */
+  titleBreak?: string;
   description: string;
   icon: BadgeIcon;
+  family: BadgeFamily;
   check: (stats: Stats, ctx: BadgeContext) => boolean;
 }
 
 export const BADGES: Badge[] = [
-  { id: 'first-step', title: 'はじめの一歩', description: '最初の記録をした', icon: 'footprints', check: (s) => s.total >= 1 },
-  { id: 'pledge', title: '森との約束', description: '観察マナーの約束をした', icon: 'heart', check: (_s, c) => c.pledged },
-  { id: 'ruri', title: '瑠璃の使者', description: 'ルリカケスを記録した', icon: 'feather', check: (s) => s.speciesIds.has('rurikakesu') },
-  { id: 'bird-watcher', title: 'バードウォッチャー', description: '鳥類を10種記録した', icon: 'binoculars', check: (s) => s.bird >= 10 },
-  { id: 'night-walker', title: '夜の森の住人', description: '夜行性の生き物を5種記録した', icon: 'moon', check: (s) => s.nocturnal >= 5 },
-  { id: 'endemic-hunter', title: '固有種ハンター', description: '固有種・固有亜種を5種記録した', icon: 'gem', check: (s) => s.endemic >= 5 },
-  { id: 'legend', title: '幻との遭遇', description: '「幻」の生き物を記録した', icon: 'crown', check: (s) => s.legendary >= 1 },
-  { id: 'shore', title: '潮だまりの友', description: '海・水辺の生き物を5種記録した', icon: 'waves', check: (s) => s.aqua >= 5 },
-  { id: 'mangrove', title: 'マングローブ探検家', description: 'マングローブの生き物を2種記録した', icon: 'kayak', check: (s) => s.mangrove >= 2 },
-  { id: 'island-hopper', title: '島めぐり', description: '2つ以上の島で記録した', icon: 'sailboat', check: (s) => s.islands.size >= 2 },
-  { id: 'all-areas', title: '12市町村制覇', description: '奄美群島12市町村すべてで記録した', icon: 'stamp', check: (s) => s.areas.size >= 12 },
-  { id: 'four-seasons', title: '四季の記録者', description: '春夏秋冬すべての季節に記録した', icon: 'sun', check: (s) => s.seasons.size >= 4 },
-  { id: 'half', title: '図鑑の半分', description: `図鑑の半分（${Math.ceil(SPECIES.length / 2)}種）を記録した`, icon: 'book', check: (s) => s.discovered >= Math.ceil(SPECIES.length / 2) },
-  { id: 'safe-driver', title: 'セーフドライバー', description: 'セーフドライブ宣言を5回した', icon: 'car', check: (_s, c) => c.safeDriveDays >= 5 },
-  { id: 'road-guardian', title: '夜道の見守り隊', description: '路上レポートを3件送った', icon: 'shield', check: (s) => s.roadReports >= 3 },
-  { id: 'complete', title: '奄美マスター', description: '図鑑をコンプリートした', icon: 'trophy', check: (s) => s.discovered >= SPECIES.length },
+  { id: 'first-step', title: 'はじめの一歩', description: '最初の記録をした', icon: 'footprints-fill', family: 'milestone', check: (s) => s.total >= 1 },
+  { id: 'pledge', title: '森との約束', description: '観察マナーの約束をした', icon: 'hand-heart-fill', family: 'protect', check: (_s, c) => c.pledged },
+  { id: 'ruri', title: '瑠璃の使者', description: 'ルリカケスを記録した', icon: 'feather-fill', family: 'creature', check: (s) => s.speciesIds.has('rurikakesu') },
+  { id: 'bird-watcher', title: 'バードウォッチャー', titleBreak: 'バード|ウォッチャー', description: '鳥類を10種記録した', icon: 'binoculars-fill', family: 'creature', check: (s) => s.bird >= 10 },
+  { id: 'night-walker', title: '夜の森の住人', description: '夜行性の生き物を5種記録した', icon: 'moon-stars-fill', family: 'creature', check: (s) => s.nocturnal >= 5 },
+  { id: 'endemic-hunter', title: '固有種ハンター', titleBreak: '固有種|ハンター', description: '固有種・固有亜種を5種記録した', icon: 'island-fill', family: 'creature', check: (s) => s.endemic >= 5 },
+  { id: 'legend', title: '幻との遭遇', description: '「幻」の生き物を記録した', icon: 'text:幻', family: 'creature', check: (s) => s.legendary >= 1 },
+  { id: 'shore', title: '潮だまりの友', description: '海・水辺の生き物を5種記録した', icon: 'waves-fill', family: 'creature', check: (s) => s.aqua >= 5 },
+  { id: 'mangrove', title: 'マングローブ探検家', titleBreak: 'マングローブ|探検家', description: 'マングローブの生き物を2種記録した', icon: 'amami:kayak-fill', family: 'creature', check: (s) => s.mangrove >= 2 },
+  { id: 'island-hopper', title: '島めぐり', description: '2つ以上の島で記録した', icon: 'sailboat-fill', family: 'place', check: (s) => s.islands.size >= 2 },
+  { id: 'all-areas', title: '12市町村制覇', description: '奄美群島12市町村すべてで記録した', icon: 'text:12', family: 'place', check: (s) => s.areas.size >= 12 },
+  { id: 'four-seasons', title: '四季の記録者', description: '春夏秋冬すべての季節に記録した', icon: 'sun-horizon-fill', family: 'place', check: (s) => s.seasons.size >= 4 },
+  { id: 'half', title: '図鑑の半分', description: `図鑑の半分（${Math.ceil(SPECIES.length / 2)}種）を記録した`, icon: 'book-open-text-fill', family: 'milestone', check: (s) => s.discovered >= Math.ceil(SPECIES.length / 2) },
+  { id: 'safe-driver', title: 'セーフドライバー', titleBreak: 'セーフ|ドライバー', description: 'セーフドライブ宣言を5回した', icon: 'car-profile-fill', family: 'protect', check: (_s, c) => c.safeDriveDays >= 5 },
+  { id: 'road-guardian', title: '夜道の見守り隊', titleBreak: '夜道の|見守り隊', description: '路上レポートを3件送った', icon: 'road-horizon-fill', family: 'protect', check: (s) => s.roadReports >= 3 },
+  { id: 'complete', title: '奄美マスター', description: '図鑑をコンプリートした', icon: 'trophy-fill', family: 'milestone', check: (s) => s.discovered >= SPECIES.length },
 ];
 
 export function earnedBadges(stats: Stats, ctx: BadgeContext): Set<string> {

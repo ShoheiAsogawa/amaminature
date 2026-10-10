@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Experience } from '../data/types';
 import { cn } from '../lib/cn';
-import { IconArrowSquareOut, IconHeart, IconHeartFill } from './icons';
+import { IconArrowSquareOut, IconHeart, IconHeartFill, IconSealCheck } from './icons';
 import { Phrase } from './Phrase';
+import { Prose } from './Prose';
 import { button, Button, ButtonNote, Group, InfoRow, ListRow, PhotoButton, Sheet, toast } from './ui';
 
 // 体験の一覧と詳細シート（docs/DESIGN_SYSTEM.md §8.7）。
@@ -60,10 +61,23 @@ export function experienceImage(exp: Experience): { src: string; credit?: string
   return exp.image ?? null;
 }
 
-/** 体験のメタ 1 行（所要時間、場所、料金を 12px あけて並べる。中黒でつながない） */
-export function ExperienceMeta({ exp, className }: { exp: Experience; className?: string }) {
+/** 体験の一覧と詳細シートの末尾に置く注記 */
+export const EXPERIENCE_NOTE = '料金と所要時間は目安です。予約の前に各事業者のサイトでご確認ください。';
+
+/**
+ * 体験のメタ 1 行（所要時間、場所、料金を 12px あけて並べる。中黒でつながない）。
+ * 認定ガイドの体験は、先頭に seal-check と「認定ガイド」を同じ行の文字として添える
+ * （チップの形にすると、図鑑の絞り込みのチップと同じ「押せる物」に見えるため）。
+ */
+export function ExperienceMeta({ exp, certified = false, className }: { exp: Experience; certified?: boolean; className?: string }) {
   return (
     <span className={cn('flex flex-wrap gap-x-3', className)}>
+      {certified && exp.certifiedGuide && (
+        <span className="inline-flex items-center gap-1">
+          <IconSealCheck size={16} className="shrink-0 text-fg-2" />
+          認定ガイド
+        </span>
+      )}
       <span>{exp.duration}</span>
       <span>{exp.area}</span>
       {exp.priceFrom != null && (
@@ -73,11 +87,6 @@ export function ExperienceMeta({ exp, className }: { exp: Experience; className?
       )}
     </span>
   );
-}
-
-/** 中立のタグ「認定ガイド」（caption、fill、高さ 24、rounded-full、左右 8） */
-function CertifiedTag() {
-  return <span className="mt-2 inline-flex h-6 items-center rounded-full bg-fill px-2 pt-[2px] text-caption text-fg-2">認定ガイド</span>;
 }
 
 /**
@@ -91,17 +100,7 @@ export function ExperienceItem({ exp, onOpen }: { exp: Experience; onOpen: () =>
 
   if (!image) {
     return (
-      <ListRow
-        title={exp.title}
-        subtitle={
-          <>
-            <ExperienceMeta exp={exp} />
-            {exp.certifiedGuide && <CertifiedTag />}
-          </>
-        }
-        chevron
-        onClick={onOpen}
-      />
+      <ListRow title={exp.title} subtitle={<ExperienceMeta exp={exp} certified />} chevron onClick={onOpen} />
     );
   }
 
@@ -115,9 +114,8 @@ export function ExperienceItem({ exp, onOpen }: { exp: Experience; onOpen: () =>
           <Phrase text={exp.title} />
         </span>
         <span className="mt-0.5 block text-sub text-fg-2">
-          <ExperienceMeta exp={exp} />
+          <ExperienceMeta exp={exp} certified />
         </span>
-        {exp.certifiedGuide && <CertifiedTag />}
       </button>
       <PhotoButton
         icon={isSaved ? IconHeartFill : IconHeart}
@@ -136,7 +134,9 @@ export function ExperienceItem({ exp, onOpen }: { exp: Experience; onOpen: () =>
 export function ExperienceDetail({ exp }: { exp: Experience }) {
   return (
     <div>
-      <p className="text-body text-fg">{exp.summary}</p>
+      <p className="text-body text-fg">
+        <Prose text={exp.summary} />
+      </p>
       <div className="-mx-4 mt-4">
         <Group>
           <InfoRow label="所要時間">{exp.duration}</InfoRow>
@@ -168,13 +168,11 @@ export function ExperienceDetail({ exp }: { exp: Experience }) {
         ) : (
           <>
             <Button disabled>事業者のサイトで予約する</Button>
-            <ButtonNote>予約ページは準備中です（掲載イメージ）</ButtonNote>
+            <ButtonNote>予約ページは準備中です</ButtonNote>
           </>
         )}
       </div>
-      <p className="mt-6 text-sub text-fg-2">
-        掲載内容は提携前の掲載イメージです。料金は公開されている相場を参考にした目安です。実際の料金や予約条件は、各事業者の情報をご確認ください。
-      </p>
+      <p className="mt-6 text-sub text-fg-2">{EXPERIENCE_NOTE}</p>
     </div>
   );
 }

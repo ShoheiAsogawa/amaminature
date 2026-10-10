@@ -63,7 +63,7 @@ await page.waitForLoadState('networkidle');
 await page.locator('input[type=file]:not([capture])').setInputFiles(photoPath);
 // 1 写真: 選んだ写真を舞台に出し、［この写真で進む］で 2 名前へ
 await page.getByRole('button', { name: 'この写真で進む' }).click();
-await page.getByText('なにを見ましたか？').waitFor();
+await page.getByText('名前を選ぶ').waitFor();
 check('photo accepted → identify step', true);
 
 await page.getByLabel('生き物の名前で探す').fill('るりかけす');

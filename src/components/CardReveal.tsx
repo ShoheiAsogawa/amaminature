@@ -3,6 +3,7 @@ import { m, useReducedMotion } from 'framer-motion';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AREA_BY_ID } from '../data/areas';
+import { SPECIES } from '../data/species';
 import type { Quest, Species } from '../data/types';
 import type { Badge } from '../lib/progress';
 import { renderShareCard, shareCard } from '../lib/share';
@@ -12,7 +13,7 @@ import { CollectibleCard, CollectibleCardBack } from './CollectibleCard';
 import { IconArrowSquareOut, IconX } from './icons';
 import { Phrase } from './Phrase';
 import { loadPhotoUrl } from './PhotoImg';
-import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, SectionHeader, toast } from './ui';
+import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, Num, SectionHeader, toast } from './ui';
 
 // 図鑑カードの演出とバッジ獲得（docs/DESIGN_SYSTEM.md §8.5・§9 の 1）。
 // アプリでただ 1 つの「演出」。黒い舞台（var(--stage)）の上で、裏面のカードが上がってきて 1 回だけ裏返る。
@@ -42,6 +43,8 @@ export function CardReveal(props: {
   points: number;
   newBadges: Badge[];
   completedQuests: Quest[];
+  /** 記録した後の図鑑の種数（新しい種の時に「図鑑 5 → 6/62種」を数える） */
+  discovered: number;
   onAgain: () => void;
 }) {
   const rescue = props.sighting.roadReport === 'roadkill' || props.sighting.roadReport === 'injured';
@@ -58,6 +61,7 @@ function Reveal({
   points,
   newBadges,
   completedQuests,
+  discovered,
   onAgain,
 }: {
   sighting: Sighting;
@@ -67,6 +71,7 @@ function Reveal({
   points: number;
   newBadges: Badge[];
   completedQuests: Quest[];
+  discovered: number;
   onAgain: () => void;
 }) {
   const navigate = useNavigate();
@@ -75,6 +80,9 @@ function Reveal({
   const reduce = useReducedMotion() ?? false;
   const [side, setSide] = useState<'back' | 'front'>(reduce ? 'front' : 'back');
   const [shownPoints, setShownPoints] = useState(reduce ? points : 0);
+  // 図鑑の種数（新しい種の時だけ 1 つ前の数から数える）
+  const before = isNew ? Math.max(0, discovered - 1) : discovered;
+  const [shownCount, setShownCount] = useState(reduce ? discovered : before);
   const [sharing, setSharing] = useState(false);
   /** 閉じる操作の後に見せている新しいバッジ（null はカードの画面） */
   const [badgeIndex, setBadgeIndex] = useState<number | null>(null);
@@ -87,12 +95,15 @@ function Reveal({
   useEffect(() => {
     if (reduce) return;
     const a = window.setTimeout(() => setSide('front'), T.flipAt);
-    const b = window.setTimeout(() => setShownPoints(points), T.textAt);
+    const b = window.setTimeout(() => {
+      setShownPoints(points);
+      setShownCount(discovered);
+    }, T.textAt);
     return () => {
       window.clearTimeout(a);
       window.clearTimeout(b);
     };
-  }, [reduce, points]);
+  }, [reduce, points, discovered]);
 
   // カードの大きさ（和名が 2 行になると高さが伸びる）。縁の光の線をこの大きさで描く
   useLayoutEffect(() => {
@@ -165,7 +176,7 @@ function Reveal({
       : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2, delay: delayMs / 1000 } };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain text-white" style={{ background: 'var(--stage)' }}>
+    <div className="stage fixed inset-0 z-50 overflow-y-auto overscroll-contain text-white" style={{ background: 'var(--stage)' }}>
       <div className="pt-safe mx-auto flex min-h-full w-full max-w-[480px] flex-col">
         {badge ? (
           // ───── バッジ獲得（同じ舞台で 1 つずつ） ─────
@@ -224,6 +235,8 @@ function Reveal({
                       name={sighting.customName}
                       photoUrl={photoUrl}
                       photoId={sighting.photoId}
+                      observedAt={sighting.observedAt}
+                      areaName={sighting.areaId ? AREA_BY_ID[sighting.areaId]?.name : null}
                       onStage
                     />
                     {light && size && <EdgeLight w={size.w} h={size.h} {...light} />}
@@ -237,7 +250,7 @@ function Reveal({
               <m.div className="mt-6 w-full text-center" {...fade(T.textAt)}>
                 <h1 className="text-headline text-white">{isNew ? '図鑑に登録しました' : '記録しました'}</h1>
                 {points > 0 && (
-                  <p className="mt-1 text-num-l text-white/70">
+                  <p className="mt-1 text-num-l text-white">
                     {/* 数え上げの数字は読み上げない（下の sr-only で読む） */}
                     <span aria-hidden className="num">
                       <NumberFlow
@@ -252,8 +265,36 @@ function Reveal({
                     <span className="sr-only">+{points}pt</span>
                   </p>
                 )}
+                {/* 新しい種の時は、図鑑が 1 種増えたことを見せる（数字を 1 つ数え、バーを 1 回だけ伸ばす） */}
+                {isNew && species && (
+                  <div className="mx-auto mt-4 w-full max-w-[240px]">
+                    <p className="flex items-baseline justify-center gap-2 text-sub text-white/80">
+                      <span>図鑑</span>
+                      <span className="text-callout font-semibold text-white">
+                        <span aria-hidden className="num">
+                          <NumberFlow
+                            value={shownCount}
+                            animated={!reduce}
+                            spinTiming={{ duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' }}
+                          />
+                          /{SPECIES.length}
+                        </span>
+                        <span aria-hidden>種</span>
+                        <span className="sr-only">
+                          {discovered}/{SPECIES.length}種
+                        </span>
+                      </span>
+                    </p>
+                    <div aria-hidden className="mt-2 h-1 overflow-hidden rounded-bar bg-white/[.16]">
+                      <div
+                        className="h-full rounded-bar bg-white transition-[width] duration-[600ms] ease-out"
+                        style={{ width: `${(shownCount / SPECIES.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {completedQuests.map((q) => (
-                  <p key={q.id} className="mx-auto mt-2 max-w-[358px] text-sub text-white/70">
+                  <p key={q.id} className="mx-auto mt-3 max-w-[358px] text-sub text-white/80">
                     <Phrase text={`クエスト「${q.title}」を達成`} />
                     <span className="whitespace-nowrap">
                       {'　'}
@@ -265,17 +306,20 @@ function Reveal({
               </m.div>
             </div>
 
-            <m.div className="grid gap-2 px-4 pb-[calc(8px+var(--safe-bottom))]" {...fade(T.buttonsAt)}>
+            {/* 主な操作は共有の 1 つだけ。続けて記録・図鑑で見るは文字のボタンにして、カードを埋もれさせない */}
+            <m.div className="px-4 pb-[calc(8px+var(--safe-bottom))]" {...fade(T.buttonsAt)}>
               {/* LINE の中では LINE で送る。LINE の外（デモ）では LINE グリーンを使わない（§1 の 5） */}
               <Button variant={lineMode ? 'line' : 'primary'} onClick={share} aria-busy={sharing}>
                 {lineMode ? 'LINEで送る' : '画像を共有'}
               </Button>
-              <Button variant="on-stage" onClick={() => close(onAgain)}>
-                続けて記録
-              </Button>
-              <Button variant="text" size="hit" className="text-white/80" onClick={() => close(openZukan)}>
-                {species ? '図鑑で見る' : '記録を見る'}
-              </Button>
+              <div className="mt-1 grid grid-cols-2">
+                <Button variant="text" size="hit" className="text-white/80" onClick={() => close(onAgain)}>
+                  続けて記録
+                </Button>
+                <Button variant="text" size="hit" className="text-white/80" onClick={() => close(openZukan)}>
+                  {species ? '図鑑で見る' : '記録を見る'}
+                </Button>
+              </div>
             </m.div>
           </>
         )}
@@ -340,10 +384,7 @@ function RescueThanks({ sighting, points }: { sighting: Sighting; points: number
         {points > 0 && (
           <p className="mt-4 flex items-baseline gap-3 text-callout text-fg">
             <span>保全ポイント</span>
-            <span className="font-semibold">
-              <span className="num">+{points}</span>
-              <span className="ml-[0.15em]">pt</span>
-            </span>
+            <Num value={`+${points}`} unit="pt" className="font-semibold" />
           </p>
         )}
       </div>

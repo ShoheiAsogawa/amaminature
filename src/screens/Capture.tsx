@@ -4,7 +4,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   IconCaretLeft,
   IconCarProfile,
-  IconCheckCircleFill,
   IconCircleNotch,
   IconDiceFive,
   IconEyeSlash,
@@ -70,7 +69,7 @@ import { useCollection } from '../store/useCollection';
 import { isPlusActive, newId, useStore } from '../store/useStore';
 
 // 記録（docs/DESIGN_SYSTEM.md §8.4）。1 写真（黒い舞台）→ 2 名前 → 3 記録 の 3 段階。
-// 路上レポート（?mode=road）は 1 段階目の前に「何を見つけましたか？」を出す。
+// 路上レポート（?mode=road）は 1 段階目の前に「見つけた生き物の状態」を出す。
 
 // 図鑑カードの演出（NumberFlow を含む）は保存した後にしか使わないので分けて読み込み、この画面を開いた時に先読みする
 const loadReveal = () => import('../components/CardReveal');
@@ -173,6 +172,8 @@ function CaptureFlow() {
     isNew: boolean;
     points: number;
     badges: Badge[];
+    /** 記録した後の図鑑の種数 */
+    discovered: number;
     quests: Quest[];
   } | null>(null);
 
@@ -314,8 +315,11 @@ function CaptureFlow() {
   }, [step, photo, plus, account.mode]);
 
   const list = useMemo(() => searchSpecies(query).filter((s) => !cat || s.category === cat), [query, cat]);
-  const inSeason = useMemo(() => list.filter((s) => s.months.includes(month)), [list, month]);
-  const offSeason = useMemo(() => list.filter((s) => !s.months.includes(month)), [list, month]);
+  // 「この季節に多い生き物」は今月が見頃の種だけ（一年中見られる種は含めない。ホームの speciesInSeason と同じ考え方）
+  const [inSeason, offSeason] = useMemo(() => {
+    const seasonal = (s: Species) => s.months.length < 12 && s.months.includes(month);
+    return [list.filter(seasonal), list.filter((s) => !seasonal(s))];
+  }, [list, month]);
 
   function choose(id: string | null) {
     setSpeciesId(id);
@@ -358,12 +362,13 @@ function CaptureFlow() {
       );
 
       const after = [s, ...sightings];
-      const afterBadges = earnedBadges(computeStats(after), ctx);
+      const afterStats = computeStats(after);
+      const afterBadges = earnedBadges(afterStats, ctx);
       const badges = BADGES.filter((b) => afterBadges.has(b.id) && !before.has(b.id));
       const quests = allQuestProgress(after, nowMonth)
         .filter((q) => q.done && !questsBefore.has(q.quest.id))
         .map((q) => QUESTS.find((x) => x.id === q.quest.id)!);
-      setResult({ sighting: s, isNew, points, badges, quests });
+      setResult({ sighting: s, isNew, points, badges, quests, discovered: afterStats.discovered });
     } catch {
       toast('保存できませんでした。もう一度お試しください');
     } finally {
@@ -397,6 +402,7 @@ function CaptureFlow() {
           points={result.points}
           newBadges={result.badges}
           completedQuests={result.quests}
+          discovered={result.discovered}
           onAgain={reset}
         />
       </Suspense>
@@ -406,7 +412,7 @@ function CaptureFlow() {
   const ideas = nicknameIdeas(species, seed);
   const area = areaId ? AREA_BY_ID[areaId] : null;
 
-  /** 名前の段階の 1 行（行全体で選ぶ。右端の［これ］は見た目だけ） */
+  /** 名前の段階の 1 行（行全体で選ぶ。選んだ行は brand-soft）。記録済みの種は学名の下に「記録済み」 */
   const speciesRow = (sp: Species, trailing?: ReactNode) => {
     const entry = collection.get(sp.id);
     return (
@@ -416,29 +422,15 @@ function CaptureFlow() {
         selected={speciesId === sp.id}
         leading={<SpeciesThumb species={sp} photoId={entry?.photoId} discovered={!!entry} showReference size={56} />}
         thumbSize={56}
-        title={
+        title={<SpeciesName species={sp} clamp={false} />}
+        subtitle={
           <>
-            <SpeciesName species={sp} clamp={false} />
-            {entry && (
-              <>
-                <IconCheckCircleFill size={16} className="ml-1.5 inline-block align-[-2px] text-success" />
-                <span className="sr-only">記録済み</span>
-              </>
-            )}
+            <SciName sci={sp.sci} className="block text-sub leading-[18px]" />
+            {entry && <span className="mt-0.5 block text-caption text-fg-3">記録済み</span>}
           </>
         }
-        subtitle={<SciName sci={sp.sci} className="text-sub leading-[18px]" />}
-        trailing={
-          <>
-            {trailing}
-            <span
-              aria-hidden
-              className="inline-flex h-8 shrink-0 items-center rounded-md bg-fill px-3 pt-[2px] text-sub font-semibold text-fg group-active/row:bg-fill-strong"
-            >
-              これ
-            </span>
-          </>
-        }
+        trailing={trailing}
+        chevron
       />
     );
   };
@@ -449,14 +441,14 @@ function CaptureFlow() {
       <input ref={libraryRef} type="file" accept="image/*" hidden onChange={onPick} />
 
       <AnimatePresence mode="wait" custom={dir} initial={false}>
-        {/* ───────── 路上レポート: 何を見つけましたか？ ───────── */}
+        {/* ───────── 路上レポート: 見つけた生き物の状態 ───────── */}
         {step === 'road' && (
           <m.section key="road" custom={dir} variants={stepVariants} initial="enter" animate="center" exit="exit">
             <ScreenHeader variant="nav" title="路上レポート" />
             <Notice kind="danger" title="運転中は操作しないでください。" className="mt-2">
               安全な場所に停車してから、または同乗者が記録しましょう。正確な位置は行政・保護機関との共有にだけ使い、公開しません。
             </Notice>
-            <SectionHeader title="何を見つけましたか？" id="road-type" />
+            <SectionHeader title="見つけた生き物の状態" id="road-type" />
             <Group>
               <div role="radiogroup" aria-labelledby="road-type">
                 {ROAD_OPTIONS.map((o) => {
@@ -596,7 +588,7 @@ function CaptureFlow() {
             exit="exit"
             className="pb-[calc(32px+var(--safe-bottom))]"
           >
-            <ScreenHeader variant="nav" title="なにを見ましたか？" onBack={() => go('photo')} right={<StepCount n={2} />} />
+            <ScreenHeader variant="nav" title="名前を選ぶ" onBack={() => go('photo')} right={<StepCount n={2} />} />
             {photoUrl && <img src={photoUrl} alt="撮影した写真" className="photo ml-4 mt-2 h-[72px] w-[72px] rounded-xs object-cover" />}
             <div className="px-4 pt-3">
               <SearchField value={query} onChange={setQuery} aria-label="生き物の名前で探す" />
@@ -646,7 +638,7 @@ function CaptureFlow() {
                   <ListRow
                     icon={IconScan}
                     title="AIで名前を調べる"
-                    subtitle={plus ? '1日30回まで' : '1日1回無料。Plusなら1日30回'}
+                    subtitle={plus ? '1日30回まで' : '1日1回まで無料（Plusは1日30回）'}
                     chevron
                     onClick={runAi}
                   />
@@ -690,7 +682,7 @@ function CaptureFlow() {
               {photoUrl ? (
                 <img src={photoUrl} alt="撮影した写真" className="photo h-[72px] w-[72px] shrink-0 rounded-xs object-cover" />
               ) : species ? (
-                <SpeciesPlate species={species} discovered={collection.has(species.id)} showReference numberSize="tile" className="h-[72px] w-[72px] shrink-0 rounded-xs" />
+                <SpeciesPlate species={species} discovered={collection.has(species.id)} showReference patternSize="thumb" className="h-[72px] w-[72px] shrink-0 rounded-xs" />
               ) : null}
               <div className="min-w-0 flex-1">
                 <div className="text-headline text-fg">{species ? <SpeciesName species={species} /> : '図鑑にない生き物'}</div>
@@ -794,7 +786,7 @@ function CaptureFlow() {
                     onChange={(e) => setMemo(e.target.value)}
                     rows={3}
                     cols={1}
-                    placeholder={rescue ? '状況（車線、時間帯、個体の様子など）' : 'どんな様子だった？'}
+                    placeholder={rescue ? '状況（車線、時間帯、個体の様子など）' : '見たときの様子（任意）'}
                     maxLength={500}
                     className="block min-h-[66px] min-w-0 flex-1 resize-none bg-transparent text-input leading-[22px] text-fg outline-none placeholder:text-fg-3 focus-visible:outline-none"
                   />
@@ -812,7 +804,7 @@ function CaptureFlow() {
                   {`${species.name}は保護が必要な生き物のため、位置は市町村までしか保存しません。共有画像にも地域名は入りません。`}
                 </Notice>
               ) : (
-                <Notice>位置は約100mぼかして保存します。共有画像には市町村名だけを表示します</Notice>
+                <Notice>位置は約100mぼかして保存します。共有画像には市町村名だけを表示します。</Notice>
               )}
             </div>
           </m.section>

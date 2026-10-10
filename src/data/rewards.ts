@@ -9,7 +9,11 @@ export interface Reward {
   description: string;
   points: number;
   kind: 'donation' | 'coupon' | 'goods' | 'lottery';
-  sponsor: string;
+  /**
+   * 一覧の副題（利用者にとっての中身を 1 行で）。提供元は契約が決まってから description に書く。
+   * 「協賛企業（募集中）」のような社内の状況は画面に出さない。
+   */
+  note?: string;
   /** このバッジを持っている人だけ交換できる */
   requiresBadge?: string;
 }
@@ -18,34 +22,34 @@ export const REWARDS: Reward[] = [
   {
     id: 'donate',
     title: '奄美の自然保護に寄付する',
-    description: '100ptごとに100円相当を、協賛企業が保全活動（ロードキル対策・外来種対策など）へ寄付します。',
+    description: '100 pt ごとに100円相当を、ロードキル対策や外来種対策など、奄美の保全活動に寄付します。',
     points: 100,
     kind: 'donation',
-    sponsor: '協賛企業（募集中）',
+    note: '集めたポイントを島の保護団体に届けます',
   },
   {
     id: 'tour-coupon',
-    title: '提携ツアー 1,000円OFF',
+    title: '提携ツアー 1,000円引き',
     description: 'ナイトツアーや森のガイドウォークで使える割引クーポン。',
     points: 300,
     kind: 'coupon',
-    sponsor: '掲載ガイド事業者（募集中）',
+    note: '提携ガイドのツアーで使えます',
   },
   {
     id: 'local-shop',
-    title: '島の協賛店クーポン',
-    description: '黒糖スイーツやパッションフルーツなど、協賛店で使えるクーポン。',
+    title: '島のお店のクーポン',
+    description: '黒糖スイーツやパッションフルーツなど、島のお店で使えるクーポン。',
     points: 200,
     kind: 'coupon',
-    sponsor: '地元協賛店（募集中）',
+    note: '島のお店で使えます',
   },
   {
     id: 'whale-lottery',
     title: '抽選：ホエールウォッチング ペア招待',
-    description: '冬のザトウクジラに会いに行こう。1口150pt、何口でも応募できます。',
+    description: '冬のザトウクジラに会いに行こう。1口150 pt、何口でも応募できます。',
     points: 150,
     kind: 'lottery',
-    sponsor: '協賛枠（募集中）',
+    note: '何口でも応募できます',
   },
   {
     id: 'pin-badge',
@@ -53,16 +57,14 @@ export const REWARDS: Reward[] = [
     description: 'ルリカケスを記録した人だけがもらえる、限定デザインの缶バッジ。',
     points: 500,
     kind: 'goods',
-    sponsor: 'AMAMI NATURE',
     requiresBadge: 'ruri',
   },
   {
     id: 'municipal-gift',
     title: '12市町村制覇 記念品',
-    description: '奄美群島12市町村すべてで記録した人へ、各市町村からの記念品。',
+    description: '奄美群島12市町村すべてで記録した人への記念品。',
     points: 0,
     kind: 'goods',
-    sponsor: '奄美群島の市町村（調整前）',
     requiresBadge: 'all-areas',
   },
 ];

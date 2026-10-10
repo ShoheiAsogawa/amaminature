@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { IconCheckCircleFill, IconFrameCorners, IconHandHeart, IconMicrophone, IconScan, IconWifiSlash, IconX } from '../components/icons';
+import { CollectibleCard } from '../components/CollectibleCard';
+import { IconCheckCircleFill, IconMicrophone, IconScan, IconWifiSlash, IconX } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import {
   Button,
@@ -16,26 +17,46 @@ import {
 } from '../components/ui';
 import { api } from '../lib/api';
 import type { PlusPlan } from '../lib/types';
+import { SPECIES_BY_ID } from '../data/species';
 import { isPlusActive, useStore } from '../store/useStore';
 
+// 金額は本文と同じく「円」で書く（¥ は使わない）
 const PLANS: { id: PlusPlan; title: string; price: string; note: string; tag?: string }[] = [
-  { id: 'trip', title: 'トリップパス', price: '¥480', note: '7日間、自動更新なし', tag: '旅行中の方に' },
-  { id: 'year', title: '年額プラン', price: '¥3,800', note: '月あたり約¥317', tag: 'いちばんお得' },
-  { id: 'month', title: '月額プラン', price: '¥480', note: '1か月ごとに自動更新' },
+  { id: 'trip', title: 'トリップパス', price: '480円', note: '7日間、自動更新なし', tag: '旅行中の方に' },
+  { id: 'year', title: '年額プラン', price: '3,800円', note: '月あたり約317円', tag: 'いちばんお得' },
+  { id: 'month', title: '月額プラン', price: '480円', note: '1か月ごとに自動更新' },
 ];
 
-/** いま使える機能 */
+/** いま使える機能（寄付は約束できる段階になってから足す） */
 const BENEFITS = [
-  { icon: IconScan, title: '写真から名前の候補を表示', body: '1日30回まで。無料では1日1回です' },
+  { icon: IconScan, title: '写真から名前の候補を表示', body: '1日30回まで（無料版は1日1回）' },
   { icon: IconWifiSlash, title: 'オフライン図鑑', body: '電波の届かない森の中でも、図鑑と解説を見られます' },
-  { icon: IconHandHeart, title: '奄美の自然を守る', body: '売上の一部を、ロードキル対策など奄美の保全活動へ寄付します（予定）' },
 ];
 
-/** 近日追加 */
-const SOON = [
-  { icon: IconMicrophone, title: '鳴き声から調べる' },
-  { icon: IconFrameCorners, title: '大島紬の限定カードフレーム' },
-];
+/** 近日追加（大島紬のフレームは、画面の先頭のカードで見せる） */
+const SOON = [{ icon: IconMicrophone, title: '鳴き声から調べる' }];
+
+/** 先頭のカード: 最近の記録（写真つき）を大島紬のフレームで。記録がなければルリカケスの見本 */
+function FramePreview() {
+  const latest = useStore((s) => s.sightings.find((x) => x.speciesId && x.photoId && SPECIES_BY_ID[x.speciesId]));
+  const sp = SPECIES_BY_ID[latest?.speciesId ?? 'rurikakesu'] ?? null;
+  return (
+    <figure className="bg-fill px-4 pb-5 pt-6">
+      <div className="mx-auto h-[330px] w-[280px]" aria-hidden>
+        <div className="origin-top" style={{ transform: 'scale(.82) rotate(-3deg)' }}>
+          <CollectibleCard
+            species={sp}
+            nickname={latest?.nickname}
+            photoId={latest?.photoId}
+            observedAt={latest?.observedAt}
+            frame="tsumugi"
+          />
+        </div>
+      </div>
+      <figcaption className="mt-1 text-center text-sub text-fg-2">大島紬の限定フレーム（近日追加）</figcaption>
+    </figure>
+  );
+}
 
 /** 固定 CTA バー（ボタン 50 ＋ 注記 1 行）の分だけ本文の下を空ける */
 const PLUS_CTA_PADDING = 'pb-[calc(116px+var(--safe-bottom))]';
@@ -77,7 +98,9 @@ export default function Plus() {
         }
       />
 
-      <section className="px-4 pt-2">
+      <FramePreview />
+
+      <section className="px-4 pt-6">
         <h1 className="balance text-display text-fg">
           <Phrase text="名前がわからなくても、写真から調べられる" />
         </h1>
@@ -104,7 +127,7 @@ export default function Plus() {
       </Group>
 
       <SectionHeader title="プラン" />
-      <Group note={<Phrase text="価格は税込の予定価格です。決済はLINEの中から、カードや各種ペイ（Stripe）で行う予定です。" />}>
+      <Group note="表示価格は税込です。">
         <div role="radiogroup" aria-label="プラン">
           {PLANS.map((p) => (
             <ListRow

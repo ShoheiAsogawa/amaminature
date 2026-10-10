@@ -170,7 +170,7 @@ await go('/capture');
 await page.locator('input[type=file]:not([capture])').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo, 'base64') });
 await shot('16-capture-preview');
 await page.getByRole('button', { name: 'この写真で進む' }).click();
-await page.getByText('なにを見ましたか？').waitFor();
+await page.getByText('名前を選ぶ').waitFor();
 await shot('17-capture-name');
 await page.getByLabel('生き物の名前で探す').fill('あかしょうびん');
 await page.getByRole('button', { name: /リュウキュウアカショウビン/ }).first().click();

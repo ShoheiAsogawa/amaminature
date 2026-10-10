@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExperienceItem, ExperienceSheet } from '../components/ExperienceCard';
-import { IconArrowClockwise, IconCaretRight, IconCheckCircleFill, IconCloudSlash, IconFlagBanner } from '../components/icons';
+import { IconArrowClockwise, IconCamera, IconCaretRight, IconCheckCircleFill, IconCloudSlash } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import { usePhotoUrl } from '../components/PhotoImg';
 import { SpeciesName } from '../components/SpeciesName';
@@ -9,6 +9,7 @@ import { referencePhoto, SpeciesPlate, SpeciesThumb } from '../components/Specie
 import {
   button,
   cn,
+  EmptyState,
   Group,
   InfoRow,
   ListRow,
@@ -106,6 +107,19 @@ export default function Home() {
   const exp = EXPERIENCES.filter((e) => e.months.includes(month) && e.months.length < 12)[0] ?? EXPERIENCES[0];
   const night = isNightNow();
   const selectedQuest = quests.find((q) => q.quest.id === questId) ?? null;
+  // 注目種の写真がない時は、利用者の写真（最近の記録）を季節の一文のすぐ下に置き、画面の最初の色にする
+  const recentFirst = !featuredPhoto && recent.length > 0;
+
+  const recentSection = recent.length > 0 && (
+    <section aria-labelledby="home-recent">
+      <SectionHeader id="home-recent" title="最近の記録" onAction={() => setSheet('records')} first={recentFirst} className={recentFirst ? 'pt-5' : undefined} />
+      <div className="no-scrollbar flex items-start gap-2 overflow-x-auto px-4 pb-1">
+        {recent.map((s) => (
+          <RecentTile key={s.id} sighting={s} />
+        ))}
+      </div>
+    </section>
+  );
 
   return (
     <Page>
@@ -136,10 +150,12 @@ export default function Home() {
         </figure>
       )}
 
+      {recentFirst && recentSection}
+
       {/* ───── 図鑑の進み具合（行全体で /zukan へ） ───── */}
-      <Link to="/zukan" className="mt-5 block px-4 py-3 active:bg-fill">
+      <Link to="/zukan" className={cn('block px-4 py-3 active:bg-fill', recentFirst ? 'mt-4' : 'mt-5')}>
         <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 text-headline text-fg">図鑑</span>
+          <span className="min-w-0 flex-1 text-headline font-normal text-fg">図鑑</span>
           <span className="text-headline text-fg">
             <span className="num">
               {stats.discovered}/{SPECIES.length}
@@ -154,6 +170,21 @@ export default function Home() {
           <Num value={points.toLocaleString('ja-JP')} unit="pt" />
         </span>
       </Link>
+
+      {/* ───── はじめての人へ（記録がまだない時だけ） ───── */}
+      {sightings.length === 0 && (
+        <EmptyState
+          icon={IconCamera}
+          title="最初の1枚を撮ろう"
+          body="近くで見られる生き物から始められます"
+          action={
+            <Link to="/capture" className={button({ variant: 'secondary', size: 'md' })}>
+              記録する
+            </Link>
+          }
+          className="pb-2"
+        />
+      )}
 
       {/* ───── 今月会えるかもしれない種 ───── */}
       {seasonal.length > 0 && (
@@ -181,7 +212,6 @@ export default function Home() {
             {activeQuests.slice(0, ROWS).map((qp) => (
               <ListRow
                 key={qp.quest.id}
-                icon={IconFlagBanner}
                 title={qp.quest.title}
                 subtitle={<Num value={`+${qp.quest.reward}`} unit="pt" />}
                 value={
@@ -199,17 +229,8 @@ export default function Home() {
         </section>
       )}
 
-      {/* ───── 最近の記録（記録がある時だけ） ───── */}
-      {recent.length > 0 && (
-        <section aria-labelledby="home-recent">
-          <SectionHeader id="home-recent" title="最近の記録" onAction={() => setSheet('records')} />
-          <div className="no-scrollbar flex items-start gap-2 overflow-x-auto px-4 pb-1">
-            {recent.map((s) => (
-              <RecentTile key={s.id} sighting={s} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ───── 最近の記録（記録がある時だけ。注目種の写真がない時は上に置く） ───── */}
+      {!recentFirst && recentSection}
 
       {/* ───── おすすめの体験 ───── */}
       <section aria-labelledby="home-experience">
@@ -314,7 +335,7 @@ function SpeciesRow({ species, entry }: { species: Species; entry?: CollectionEn
 /** 記録の絵。図鑑の種はプレート（写真 → 参考写真 → シルエット → 番号）、図鑑にない生き物は写真か fill */
 function RecordPlate({ sighting, className, small = false }: { sighting: Sighting; className?: string; small?: boolean }) {
   const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
-  if (sp) return <SpeciesPlate species={sp} photoId={sighting.photoId} numberSize={small ? 'small' : 'tile'} className={className} />;
+  if (sp) return <SpeciesPlate species={sp} photoId={sighting.photoId} patternSize={small ? 'thumb' : 'tile'} className={className} />;
   return <CustomPlate photoId={sighting.photoId} className={className} />;
 }
 
@@ -425,10 +446,9 @@ function QuestGroup({ heading, items }: { heading: string; items: QuestProgress[
       <ul>
         {items.map(({ quest, current, target, done, active }) => (
           <li key={quest.id} className="group/row flex pl-4">
-            <IconFlagBanner size={20} className="mt-3.5 shrink-0 text-fg-2" />
-            <div className="ml-3 min-w-0 flex-1 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
+            <div className="min-w-0 flex-1 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
               <div className="flex items-start gap-3">
-                <span className="min-w-0 flex-1 text-headline text-fg">
+                <span className="min-w-0 flex-1 text-headline font-normal text-fg">
                   <Phrase text={quest.title} />
                 </span>
                 {done ? (

@@ -8,7 +8,6 @@ import {
   ConfirmDialog,
   EmptyState,
   Field,
-  formatDateJa,
   Group,
   InfoRow,
   Input,
@@ -34,7 +33,7 @@ const ROAD_LABEL = { roadkill: '交通事故にあった生き物', injured: '�
 function locationText(s: Sighting): string {
   if (s.locationProtected) return '希少種のため座標は保存していません';
   if (s.lat != null && s.lng != null) return '約100mぼかして保存';
-  return '保存していません';
+  return '詳しい位置は保存していません';
 }
 
 /** 同期の行。LINE 連携していない（端末だけに保存した）記録は出さない */
@@ -127,13 +126,21 @@ function Detail({ sighting }: { sighting: Sighting }) {
     <main className="pb-[calc(32px+var(--safe-bottom))]">
       <ScreenHeader variant="nav" title={title} />
 
-      <div className="flex justify-center px-4 pt-4">
-        <CollectibleCard species={sp} nickname={sighting.nickname} name={sighting.customName} photoId={sighting.photoId} />
+      {/* 図鑑カードを fill の台に置き、白いページから切り離す（カードに日付と市町村が入っているので、項目には繰り返さない） */}
+      <div className="mt-2 flex justify-center bg-fill px-4 py-8">
+        <CollectibleCard
+          species={sp}
+          nickname={sighting.nickname}
+          name={sighting.customName}
+          photoId={sighting.photoId}
+          observedAt={sighting.observedAt}
+          areaName={area?.name}
+        />
       </div>
 
       <div className="mt-6 flex gap-2 px-4">
-        {/* LINE の中では LINE で送る。LINE の外（デモ）では LINE グリーンを使わない */}
-        <Button variant={lineMode ? 'line' : 'secondary'} size="md" className="flex-1" onClick={share} aria-busy={busy}>
+        {/* 共有が主な操作。LINE の中では LINE で送る。LINE の外（デモ）では LINE グリーンを使わない */}
+        <Button variant={lineMode ? 'line' : 'primary'} size="md" className="flex-[2]" onClick={share} aria-busy={busy}>
           {lineMode ? 'LINEで送る' : '画像を共有'}
         </Button>
         <Button variant="secondary" size="md" className="flex-1" onClick={openEdit}>
@@ -143,10 +150,8 @@ function Detail({ sighting }: { sighting: Sighting }) {
 
       <Group className="mt-6">
         {sighting.roadReport && <InfoRow label="路上レポート">{ROAD_LABEL[sighting.roadReport]}</InfoRow>}
-        <InfoRow label="日時">
-          {formatDateJa(sighting.observedAt, { time: true })}
-        </InfoRow>
-        <InfoRow label="地域">{area ? area.name : <span className="text-fg-3">未設定</span>}</InfoRow>
+        {/* 希少種のカードには市町村名を入れないので、ここにだけ出す */}
+        {sp?.sensitive && area && <InfoRow label="地域">{area.name}</InfoRow>}
         {sighting.memo && (
           <InfoRow label="メモ">
             <span className="whitespace-pre-wrap">{sighting.memo}</span>

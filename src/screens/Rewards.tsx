@@ -72,7 +72,8 @@ export default function Rewards() {
           </span>
         </p>
         <p className="mt-1 text-sub text-fg-2">
-          これまでに{points.toLocaleString()}pt獲得、{(points - balance).toLocaleString()}pt交換しました
+          これまでに{pt(points)}獲得
+          {points - balance > 0 ? <>、{pt(points - balance)}交換しました</> : 'しました'}
         </p>
       </section>
 
@@ -87,18 +88,21 @@ export default function Rewards() {
               icon={Icon}
               title={r.title}
               subtitle={
-                <>
-                  <span className="block">提供：{r.sponsor}</span>
-                  {s.locked && s.badge && <span className="block">「{s.badge.title}」バッジが必要</span>}
-                </>
+                r.note || (s.badge && r.requiresBadge) ? (
+                  <>
+                    {r.note && <span className="block">{r.note}</span>}
+                    {s.badge && s.locked && <span className="block">「{s.badge.title}」バッジが必要</span>}
+                  </>
+                ) : undefined
               }
               trailing={
-                s.ok ? (
+                r.points === 0 ? (
+                  // バッジで受け取る記念品はポイントを使わないので、0 pt とは出さない
+                  s.ok ? <span className="shrink-0 text-sub text-brand">受け取れます</span> : null
+                ) : s.ok ? (
                   <span className="shrink-0 text-callout font-semibold text-brand">{pt(r.points)}</span>
                 ) : s.short > 0 ? (
-                  <span className="shrink-0 text-sub text-fg-3">
-                    あと<span className="num">{s.short.toLocaleString()}</span>pt
-                  </span>
+                  <span className="shrink-0 text-sub text-fg-3">あと{pt(s.short)}</span>
                 ) : (
                   <span className="shrink-0 text-sub text-fg-3">{pt(r.points)}</span>
                 )
@@ -129,8 +133,8 @@ export default function Rewards() {
       )}
 
       <div className="mt-8 space-y-3">
-        <Notice>ポイントは、生き物の記録、路上レポート、セーフドライブ宣言で貯まります。景品は自治体と協賛企業の協力で提供されます。</Notice>
-        <Notice>ポイントに換金性はありません。購入もできません。景品は掲載イメージです。不正な記録が確認された場合は、ポイントを取り消すことがあります。</Notice>
+        <Notice>ポイントは、生き物の記録、路上レポート、セーフドライブ宣言で貯まります。</Notice>
+        <Notice>ポイントに換金性はありません。購入もできません。β版のため、景品の内容は変わることがあります。不正な記録が確認された場合は、ポイントを取り消すことがあります。</Notice>
       </div>
 
       <Sheet open={open} onClose={() => setOpen(false)} title={target?.title}>
@@ -149,7 +153,7 @@ export default function Rewards() {
             </Button>
             {!t.ok && (
               <ButtonNote>
-                {t.locked && t.badge ? `「${t.badge.title}」バッジを獲得すると交換できます` : `あと${t.short.toLocaleString()}pt`}
+                {t.locked && t.badge ? `「${t.badge.title}」バッジを獲得すると交換できます` : <>あと{pt(t.short)}</>}
               </ButtonNote>
             )}
             <Button variant="text" size="hit" className="mt-2 w-full" onClick={() => setOpen(false)}>

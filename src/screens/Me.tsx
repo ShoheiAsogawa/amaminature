@@ -26,7 +26,7 @@ import {
   StatRow,
   toast,
 } from '../components/ui';
-import { SPECIES } from '../data/species';
+import { SPECIES, SPECIES_DISCLAIMER } from '../data/species';
 import { api } from '../lib/api';
 import { exportBackup, importBackup } from '../lib/db';
 import { lineLogin, LIFF_ID } from '../lib/liff';
@@ -208,7 +208,17 @@ export default function Me() {
         <ListRow
           icon={IconCoins}
           title="ポイント"
-          subtitle={rank.next ? `次の「${rank.next.title}」まで${rank.next.min - points}pt` : undefined}
+          subtitle={
+            rank.next ? (
+              <>
+                <span>次の「{rank.next.title}」まで</span>
+                <span className="whitespace-nowrap">
+                  あと
+                  <Num value={(rank.next.min - points).toLocaleString()} unit="pt" />
+                </span>
+              </>
+            ) : undefined
+          }
           value={<Num value={balance.toLocaleString()} unit="pt" />}
           chevron
           to="/rewards"
@@ -244,7 +254,7 @@ export default function Me() {
         <ListRow title="観察者ネーム" value={settings.name || '未設定'} chevron onClick={() => setNameSheet(true)} />
       </Group>
 
-      {!lineMode && <Notice className="mt-6">デモモードです。記録はこの端末にだけ保存されます</Notice>}
+      {!lineMode && <Notice className="mt-6">デモモードです。記録はこの端末にだけ保存されます。</Notice>}
 
       {/* 設定 */}
       <SectionHeader title="設定" />
@@ -293,7 +303,7 @@ export default function Me() {
           <span className="text-caption text-fg-3">β版　運営：株式会社アマリンク</span>
         </div>
         <p className="mt-2 text-caption text-fg-3">
-          <Phrase text="図鑑データは監修前のβ版です。保護区分などは公式情報をご確認ください。" />
+          <Phrase text={SPECIES_DISCLAIMER} />
         </p>
       </footer>
 

@@ -124,7 +124,7 @@ export function AlertDialogImpl({
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="sheet-backdrop" />
         <AlertDialog.Popup className="fixed left-1/2 top-1/2 w-[min(320px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-surface p-5 text-fg shadow-sheet outline-none transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 dark:border-t dark:border-sep dark:shadow-none">
-          <AlertDialog.Title className="balance text-headline text-fg">
+          <AlertDialog.Title className="balance text-headline text-fg [font-feature-settings:normal]">
             <Phrase text={title} />
           </AlertDialog.Title>
           {body && (

@@ -87,7 +87,7 @@ function AppToaster() {
         unstyled: true,
         classNames: {
           toast:
-            'flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 rounded-md bg-toast px-4 py-3 font-sans text-toast-fg shadow-toast dark:shadow-none',
+            'flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 rounded-md bg-toast px-4 py-3 font-sans text-toast-fg shadow-toast dark:border-t dark:border-sep dark:shadow-none',
           title: 'text-callout',
           description: 'text-sub opacity-80',
           icon: 'shrink-0',

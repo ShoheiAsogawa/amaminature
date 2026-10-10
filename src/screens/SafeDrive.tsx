@@ -29,7 +29,7 @@ export default function SafeDrive() {
     setBusy(true);
     try {
       if (lineMode) await api.safeDrive().catch(() => undefined);
-      if (declareSafeDrive()) toast.success(`宣言しました。+${SAFE_DRIVE_POINTS}pt`);
+      if (declareSafeDrive()) toast.success(`宣言しました。+${SAFE_DRIVE_POINTS} pt`);
     } finally {
       setBusy(false);
     }
@@ -38,7 +38,7 @@ export default function SafeDrive() {
   const note = declared
     ? '今日は宣言済みです。明日また宣言できます'
     : all
-      ? `宣言は1日1回、${SAFE_DRIVE_POINTS}ptもらえます`
+      ? `宣言は1日1回、${SAFE_DRIVE_POINTS} ptもらえます`
       : `${CHECKS.length}つすべてにチェックすると宣言できます`;
 
   return (
@@ -64,7 +64,12 @@ export default function SafeDrive() {
           <ListRow
             key={c.text}
             icon={c.icon}
-            title={c.text}
+            // 2 行に折り返す文なので palt を切る（句読点を詰めない。§3.4）
+            title={
+              <span className="prose">
+                <Phrase text={c.text} />
+              </span>
+            }
             role="checkbox"
             aria-checked={checked[i]}
             trailing={<CheckMark checked={checked[i]} />}

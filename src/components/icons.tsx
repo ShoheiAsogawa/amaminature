@@ -561,6 +561,12 @@ export function IconUserPlus({ size = 24, ...p }: IconProps) {
   return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_USER_PLUS }} />;
 }
 
+const B_CAMERA = "<path fill=\"currentColor\" d=\"M208 56h-27.72l-13.63-20.44A8 8 0 0 0 160 32H96a8 8 0 0 0-6.65 3.56L75.71 56H48a24 24 0 0 0-24 24v112a24 24 0 0 0 24 24h160a24 24 0 0 0 24-24V80a24 24 0 0 0-24-24m8 136a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V80a8 8 0 0 1 8-8h32a8 8 0 0 0 6.66-3.56L100.28 48h55.43l13.63 20.44A8 8 0 0 0 176 72h32a8 8 0 0 1 8 8ZM128 88a44 44 0 1 0 44 44a44.05 44.05 0 0 0-44-44m0 72a28 28 0 1 1 28-28a28 28 0 0 1-28 28\"/>";
+/** camera */
+export function IconCamera({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_CAMERA }} />;
+}
+
 const B_AMAMI_KUROUSAGI = "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M71 207.8H186.9C202.1 207.8 208.8 197.4 205 186.9C203.1 179.3 198.3 173.6 192.6 169.8C211.6 164.1 223 150.8 223 135.6C223 107.1 205.9 88.1 181.2 83.4C179.3 67.2 170.8 57.7 159.4 57.7C148 57.7 141.3 67.2 142.3 80.5C99.5 78.6 44.4 101.4 34.9 145.1C27.3 181.2 42.5 207.8 71 207.8Z\"/><path d=\"M129.9 207.8C131.8 175.5 112.8 152.7 84.3 156.5\"/><circle cx=\"187.9\" cy=\"121.4\" r=\"11.4\" fill=\"currentColor\" stroke=\"none\"/></g>";
 /** amami:kurousagi */
 export function IconAmamiKurousagi({ size = 24, ...p }: IconProps) {

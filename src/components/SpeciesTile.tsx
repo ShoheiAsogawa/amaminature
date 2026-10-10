@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import tatsugoMaskUrl from '../art/tatsugo-mask.svg';
 import type { Species } from '../data/types';
 import { cn } from '../lib/cn';
 import { usePhotoUrl } from './PhotoImg';
@@ -54,18 +55,43 @@ export function SciName({ sci, className }: { sci: string; className?: string })
   );
 }
 
+/** 龍郷柄の 1 単位の大きさ。tile は 3 単位（図鑑のタイル）、thumb は 2 単位（行のサムネイル）、large は 40px（カード・ヒーロー） */
+export type PatternSize = 'tile' | 'thumb' | 'large';
+
+const FACE_DOWN_MASK = `url("${tatsugoMaskUrl}")`;
+const PATTERN_SIZE: Record<PatternSize, string> = { tile: '33.3333%', thumb: '50%', large: '40px' };
+
+/**
+ * 伏せた図鑑カード（未発見の種のプレート）。fill の地に、カードの裏面と同じ龍郷柄を silhouette 色で薄く敷く。
+ * 番号は出さない（タイルではキャプションに No.007 があるため、同じ番号を 2 回出さない）。
+ * 「幻」は柄を legend で塗る（不透明度 35%）。
+ *
+ * 仕様（§7.10）は「番号だけのプレート」だが、62 枚中 57 枚が同じ灰色の番号の四角になり、
+ * 読み込みに失敗した画像の壁に見えたため、カードの裏面（§6 の龍郷柄）に置き換えている。
+ */
+export function FaceDown({ legend = false, size = 'tile', className }: { legend?: boolean; size?: PatternSize; className?: string }) {
+  const maskSize = PATTERN_SIZE[size];
+  return (
+    <span
+      aria-hidden
+      className={cn('face-down pointer-events-none absolute inset-0', legend ? 'bg-legend opacity-[.35] dark:opacity-25' : 'bg-silhouette', className)}
+      style={{ ['--face-down-mask' as string]: FACE_DOWN_MASK, WebkitMaskSize: maskSize, maskSize }}
+    />
+  );
+}
+
 export type SpeciesPlateProps = {
   species: Species;
   /** 利用者の写真（IndexedDB / R2 の photoId） */
   photoId?: string | null;
   /** すでに読み込んだ写真の URL（記録直後の演出など） */
   photoUrl?: string | null;
-  /** 記録済みか。未発見なら参考写真は使わず、シルエットか番号にする */
+  /** 記録済みか。未発見なら参考写真は使わず、シルエットか伏せたカードにする */
   discovered?: boolean;
   /** 未発見でも参考写真を使う（ホームの季節の種の行のサムネイル） */
   showReference?: boolean;
-  /** 番号の文字の大きさ。tile は num-l（タイル・サムネイル 56）、small はサムネイル 40〜48、large は図鑑カード */
-  numberSize?: 'tile' | 'small' | 'large';
+  /** 伏せたカードの柄の大きさ（tile: 図鑑のタイル、thumb: 行のサムネイル 40〜56、large: 図鑑カード・ヒーロー） */
+  patternSize?: PatternSize;
   /** 写真の解像度 */
   photoSize?: 'thumb' | 'full';
   /** 写真の代替テキスト。省くと飾り（alt=""）。種詳細のヒーローは和名を渡す */
@@ -77,8 +103,8 @@ export type SpeciesPlateProps = {
 
 /**
  * 種のプレート（1:1 の絵の部分）。種タイル、行のサムネイル、図鑑カードで共通（§7.10・§6）。
- * 利用者の写真 → 参考写真 → シルエット（幅 64%、silhouette 色）→ 番号だけ（num-l、fg-3、50%）の順。
- * 角丸・大きさは className で決める（タイルは rounded-xs）。枠線・模様・影は付けない。
+ * 利用者の写真 → 参考写真 → シルエット（幅 64%、silhouette 色）→ 伏せたカード（龍郷柄）の順。
+ * 角丸・大きさは className で決める（タイルは rounded-xs）。
  */
 export function SpeciesPlate({
   species,
@@ -86,7 +112,7 @@ export function SpeciesPlate({
   photoUrl,
   discovered = true,
   showReference = false,
-  numberSize = 'tile',
+  patternSize = 'tile',
   photoSize = 'thumb',
   alt = '',
   className,
@@ -118,15 +144,7 @@ export function SpeciesPlate({
       ) : sil ? (
         <span aria-hidden className="block aspect-square w-[64%] bg-silhouette" style={silStyle} />
       ) : waiting ? null : (
-        <span
-          aria-hidden
-          className={cn(
-            'num text-fg-3 opacity-50',
-            numberSize === 'large' ? 'text-num-xl' : numberSize === 'small' ? 'text-sub font-semibold' : 'text-num-l',
-          )}
-        >
-          {speciesNo(species)}
-        </span>
+        <FaceDown legend={species.rarity === 4} size={patternSize} />
       )}
       {children}
     </div>
@@ -158,7 +176,7 @@ export function SpeciesThumb({
       photoId={photoId}
       discovered={discovered}
       showReference={showReference}
-      numberSize={size === 56 ? 'tile' : 'small'}
+      patternSize="thumb"
       className={cn('shrink-0 rounded-xs', size === 56 ? 'h-14 w-14' : size === 48 ? 'h-12 w-12' : 'h-10 w-10', className)}
     />
   );
@@ -182,7 +200,8 @@ export type SpeciesTileProps = {
 /**
  * 種タイル。3 列（SpeciesGrid）。プレート 1:1 の下 6px にキャプション:
  * 1 行目 No.001（caption、.num、fg-3）と右寄せのジェム、2 行目 和名（tile、2 行まで）。
- * 幻は 2px の legend の内側の線と、和名の後ろに「幻」。押下は不透明度 72%。
+ * 未発見のプレートは伏せたカード（番号はキャプションだけに出す）。
+ * 幻は和名の後ろに「幻」。記録済みの幻だけ写真に 2px の legend の内側の線。押下は不透明度 72%。
  */
 export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = false }: SpeciesTileProps) {
   const legendary = species.rarity === 4;
@@ -190,12 +209,9 @@ export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = f
   return (
     <Link to={`/species/${species.id}`} aria-label={label} className="block select-none active:opacity-[.72]">
       <SpeciesPlate species={species} photoId={discovered ? photoId : null} discovered={discovered} className="aspect-square w-full rounded-xs">
-        {legendary && (
-          <span
-            aria-hidden
-            className={cn('pointer-events-none absolute inset-0 rounded-xs', !discovered && 'opacity-50')}
-            style={{ boxShadow: 'inset 0 0 0 2px rgb(var(--c-legend))' }}
-          />
+        {/* 幻の内側の線は記録済み（写真）の時だけ。未発見は柄を legend で塗って表す（枠線が「選択中」に見えるため） */}
+        {legendary && discovered && (
+          <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xs" style={{ boxShadow: 'inset 0 0 0 2px rgb(var(--c-legend))' }} />
         )}
       </SpeciesPlate>
       <div aria-hidden className="mt-1.5 flex items-center justify-between gap-1">

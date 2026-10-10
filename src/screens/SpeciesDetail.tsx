@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { CollectibleCardBack } from '../components/CollectibleCard';
 import { ExperienceMeta, ExperienceSheet } from '../components/ExperienceCard';
 import { IconEyeSlash } from '../components/icons';
+import { Prose } from '../components/Prose';
 import { MonthBar, referencePhoto, SciName, silhouetteUrl, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
 import { SpeciesName } from '../components/SpeciesName';
 import {
@@ -21,7 +23,7 @@ import {
 } from '../components/ui';
 import { AREA_BY_ID } from '../data/areas';
 import { experiencesForSpecies } from '../data/experiences';
-import { CATEGORY_META, SPECIES_BY_ID } from '../data/species';
+import { CATEGORY_META, SPECIES_BY_ID, SPECIES_DISCLAIMER } from '../data/species';
 import type { Experience, Species } from '../data/types';
 import type { Sighting } from '../lib/types';
 import { useCollection } from '../store/useCollection';
@@ -67,8 +69,11 @@ function SpeciesDetail({ id }: { id: string }) {
   const entry = sp ? collection.get(sp.id) : undefined;
   const ref = sp ? referencePhoto(sp) : null;
   const userPhoto = entry?.photoId ?? null;
-  // 写真（利用者 → 参考）もシルエットもない時はヒーローを出さず、遷移ヘッダーから始める
-  const hasHero = !!sp && (!!userPhoto || !!ref || !!silhouetteUrl(sp.id));
+  const found = !!entry;
+  // 未発見の種は、伏せた図鑑カード（龍郷柄）を 4:3 のヒーローにする。
+  // 記録済みで写真（利用者 → 参考）もシルエットもない時だけ、ヒーローを出さずに遷移ヘッダーから始める
+  const hasPicture = !!sp && (!!userPhoto || !!ref || !!silhouetteUrl(sp.id));
+  const hasHero = !!sp && (!found || hasPicture);
   const navTitleShown = useScrolledPast(nameRef, !!sp && !hasHero);
 
   const [exp, setExp] = useState<Experience | null>(null);
@@ -95,16 +100,23 @@ function SpeciesDetail({ id }: { id: string }) {
     <main className="pb-[calc(40px+var(--safe-bottom))]">
       {hasHero ? (
         <>
-          <ScreenHeader variant="photo" onBack={back} />
-          <SpeciesPlate
-            species={sp}
-            photoId={userPhoto}
-            showReference
-            photoSize="full"
-            numberSize="large"
-            alt={sp.name}
-            className="aspect-[4/3] w-full rounded-none"
-          />
+          <ScreenHeader variant="photo" onBack={back} title={sp.name} />
+          {hasPicture ? (
+            <SpeciesPlate
+              species={sp}
+              photoId={userPhoto}
+              showReference
+              photoSize="full"
+              patternSize="large"
+              alt={sp.name}
+              className="aspect-[4/3] w-full rounded-none"
+            />
+          ) : (
+            // 未発見で絵がない種: まだ裏返していない図鑑カード（裏面）を置く
+            <div className="grid aspect-[4/3] w-full place-items-center bg-fill">
+              <CollectibleCardBack markSize={32} legend={sp.rarity === 4} className="h-[210px] w-[150px] -rotate-3 shadow-toast" />
+            </div>
+          )}
           {credit && <p className="px-4 pt-1 text-right text-caption text-fg-3">© {credit}</p>}
         </>
       ) : (
@@ -131,6 +143,7 @@ function SpeciesDetail({ id }: { id: string }) {
         <p className="mt-0.5">
           <SciName sci={sp.sci} className="text-callout" />
         </p>
+        {!found && <p className="mt-2 text-callout text-fg-2">まだ出会っていません</p>}
         <Link to={`/capture?species=${sp.id}`} className={cn(button({ variant: 'primary', size: 'lg' }), 'mt-5')}>
           この生き物を記録する
         </Link>
@@ -159,11 +172,29 @@ function SpeciesDetail({ id }: { id: string }) {
         </>
       )}
 
-      {/* ───── 解説 ───── */}
-      <SectionHeader title="どんな生き物？" />
-      <p className="px-4 text-body text-fg">{sp.description}</p>
+      {/* ───── 解説（どんな生き物か → いつ・どう探すか → 項目の一覧） ───── */}
+      <SectionHeader
+        title={
+          <>
+            どんな生き物<span className="[font-feature-settings:normal]">？</span>
+          </>
+        }
+      />
+      <p className="px-4 text-body text-fg">
+        <Prose text={sp.description} />
+      </p>
 
-      <Group className="mt-6">
+      <SectionHeader title="見られる季節" />
+      <div className="px-4">
+        <MonthBar months={sp.months} highlight={month} />
+      </div>
+
+      <SectionHeader title="観察のコツ" />
+      <p className="px-4 text-body text-fg">
+        <Prose text={sp.tip} />
+      </p>
+
+      <Group className="mt-8">
         <InfoRow label="分類">{CATEGORY_META[sp.category].label}</InfoRow>
         {sp.endemic && <InfoRow label="固有性">{sp.endemic === 'species' ? '固有種' : '固有亜種'}</InfoRow>}
         {sp.protection && sp.protection.length > 0 && (
@@ -187,25 +218,21 @@ function SpeciesDetail({ id }: { id: string }) {
         <InfoRow label="英名">{sp.en}</InfoRow>
       </Group>
 
-      <SectionHeader title="見られる季節" />
-      <div className="px-4">
-        <MonthBar months={sp.months} highlight={month} />
-      </div>
-
-      <SectionHeader title="観察のコツ" />
-      <p className="px-4 text-body text-fg">{sp.tip}</p>
-
       {sp.manner && (
         <>
           <SectionHeader title="観察マナー" />
-          <p className="px-4 text-body text-fg">{sp.manner}</p>
+          <p className="px-4 text-body text-fg">
+            <Prose text={sp.manner} />
+          </p>
         </>
       )}
 
       {sp.culture && (
         <>
           <SectionHeader title="シマの話" />
-          <p className="px-4 text-body text-fg">{sp.culture}</p>
+          <p className="px-4 text-body text-fg">
+            <Prose text={sp.culture} />
+          </p>
         </>
       )}
 
@@ -232,7 +259,7 @@ function SpeciesDetail({ id }: { id: string }) {
         </>
       )}
 
-      <p className="mt-8 px-4 text-sub text-fg-3">解説は監修前のβ版データです。保護区分は公開前に最新の公式情報で確認します。</p>
+      <p className="mt-8 px-4 text-sub text-fg-3">{SPECIES_DISCLAIMER}</p>
 
       <ExperienceSheet exp={exp} onClose={() => setExp(null)} />
 
@@ -243,7 +270,7 @@ function SpeciesDetail({ id }: { id: string }) {
               key={s.id}
               to={`/sighting/${s.id}`}
               onClick={() => setRecordsOpen(false)}
-              leading={<SpeciesPlate species={sp} photoId={s.photoId} numberSize="tile" className="h-14 w-14 shrink-0 rounded-xs" />}
+              leading={<SpeciesPlate species={sp} photoId={s.photoId} patternSize="thumb" className="h-14 w-14 shrink-0 rounded-xs" />}
               thumbSize={56}
               title={s.nickname || sp.name}
               phrase={false}

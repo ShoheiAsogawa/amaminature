@@ -56,7 +56,7 @@ export { cn } from '../lib/cn';
 /** トースト（Sonner、§7.18）。<Toaster> は App.tsx に 1 つだけ置いてある */
 export { toast } from 'sonner';
 export type { ConfirmDialogProps, SheetProps, SheetSnapPoint } from './Sheet';
-export { BADGE_EMBLEM, BADGE_TITLE_BREAK, BadgeEmblem, BadgeName } from './BadgeEmblem';
+export { BadgeEmblem, BadgeName } from './BadgeEmblem';
 export { StampSeal } from './StampSeal';
 
 /** アイコンとして渡せるもの（生成した Icon* と、size / className を受け取る同じ形のコンポーネント） */
@@ -84,22 +84,6 @@ export const CATEGORY_ICON_SELECTED: Record<Category, IconComponent> = {
   plant: IconAmamiFernFill,
 };
 
-/** カテゴリのアイコン。行頭 20、チップ 16。選択中は fill 版（あれば） */
-export function CategoryIcon({
-  category,
-  selected = false,
-  size = 20,
-  className,
-}: {
-  category: Category;
-  selected?: boolean;
-  size?: number;
-  className?: string;
-}) {
-  const Icon = (selected ? CATEGORY_ICON_SELECTED : CATEGORY_ICON)[category];
-  return <Icon size={size} className={cn('shrink-0', className)} />;
-}
-
 // ───────── 書式 ─────────
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -113,11 +97,6 @@ export function formatDateJa(iso: string | Date, opts: { time?: boolean; year?: 
   const { time = false, year = true } = opts;
   const date = `${year ? `${d.getFullYear()}年` : ''}${d.getMonth() + 1}月${d.getDate()}日`;
   return time ? `${date} ${d.getHours()}:${pad2(d.getMinutes())}` : date;
-}
-
-/** ¥4,000 */
-export function yen(n: number): string {
-  return `¥${n.toLocaleString('ja-JP')}`;
 }
 
 /** 画面ごとの document.title（§7.3）。LINE のヘッダーに出る */
@@ -168,6 +147,11 @@ export type ScreenHeaderProps = {
   onBack?: () => void;
   /** nav: 戻るボタンを出さない（記録の 1 段階目など、左に別のボタンを置く時は left を使う） */
   left?: ReactNode;
+  /**
+   * photo: このスクロール量（px）を超えたら、丸ボタンを消して nav と同じ 44px の固定バー（戻る＋title）に替える。
+   * 既定は 4:3 の全幅写真の高さ − 44。
+   */
+  solidAfter?: number;
   className?: string;
 };
 
@@ -175,9 +159,11 @@ export type ScreenHeaderProps = {
  * 画面ヘッダー（docs/DESIGN_SYSTEM.md §7.3）。画面内にワードマークは出さない。英字の上ラベルは付けない。
  * document.title は useDocumentTitle() で別に設定する（タブ画面と固定の画面は App.tsx が設定済み）。
  */
-export function ScreenHeader({ title, variant = 'tab', right, onBack, left, className }: ScreenHeaderProps) {
+export function ScreenHeader({ title, variant = 'tab', right, onBack, left, solidAfter, className }: ScreenHeaderProps) {
   const back = useBack(onBack);
-  const scrolled = useScrolled(8);
+  const photoThreshold =
+    solidAfter ?? (typeof window !== 'undefined' ? Math.round(Math.min(window.innerWidth, 480) * 0.75) - 44 : 248);
+  const scrolled = useScrolled(variant === 'photo' ? photoThreshold : 8);
 
   if (variant === 'tab') {
     return (
@@ -191,11 +177,42 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, clas
   }
 
   if (variant === 'photo') {
+    // 写真が上に流れたら、浮いた丸ボタンを本文に重ねたままにせず、遷移先と同じ固定バー（戻る＋タイトル）に替える（150ms のクロスフェード）
     return (
-      <header className={cn('pointer-events-none fixed inset-x-0 top-0 z-30 mx-auto w-full max-w-[480px] pt-safe', className)}>
-        <div className="flex h-[52px] items-center justify-between px-2">
-          <div className="pointer-events-auto flex items-center">{left ?? <PhotoButton label="戻る" icon={IconCaretLeft} onClick={back} />}</div>
-          <div className="pointer-events-auto flex items-center">{right}</div>
+      <header className={cn('pointer-events-none fixed inset-x-0 top-0 z-30 mx-auto w-full max-w-[480px]', className)}>
+        <div
+          aria-hidden={!scrolled}
+          className={cn(
+            'pt-safe border-b border-sep bg-page transition-opacity duration-150',
+            scrolled ? 'pointer-events-auto opacity-100' : 'opacity-0',
+          )}
+        >
+          <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center">
+            <div className="flex items-center justify-start">
+              <button
+                type="button"
+                onClick={back}
+                aria-label="戻る"
+                tabIndex={scrolled ? 0 : -1}
+                className="grid h-11 w-11 place-items-center text-fg active:opacity-60"
+              >
+                <IconCaretLeft size={24} />
+              </button>
+            </div>
+            <div aria-hidden="true" className="min-w-0 truncate px-1 text-center text-headline text-fg">{title}</div>
+            <div />
+          </div>
+        </div>
+        <div
+          aria-hidden={scrolled}
+          className={cn('pt-safe absolute inset-x-0 top-0 transition-opacity duration-150', scrolled && 'opacity-0')}
+        >
+          <div className="flex h-[52px] items-center justify-between px-2">
+            <div className={cn('flex items-center', !scrolled && 'pointer-events-auto')}>
+              {left ?? <PhotoButton label="戻る" icon={IconCaretLeft} onClick={back} />}
+            </div>
+            <div className={cn('flex items-center', !scrolled && 'pointer-events-auto')}>{right}</div>
+          </div>
         </div>
       </header>
     );
@@ -304,7 +321,8 @@ export type SectionHeaderProps = {
 
 /** セクション見出し。左に section（18/26、600）、右に任意で「すべて見る ›」 */
 export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見る', action, note, first = false, id, className }: SectionHeaderProps) {
-  const linkCls = '-my-[11px] -mr-1 flex h-11 shrink-0 items-center gap-0.5 px-1 pt-[2px] text-sub font-semibold text-brand active:opacity-60';
+  // 「すべて見る」は 400（見出しと行の太さに埋もれないよう、太さは構造だけに使う）
+  const linkCls = '-my-[11px] -mr-1 flex h-11 shrink-0 items-center gap-0.5 px-1 pt-[2px] text-sub text-brand active:opacity-60';
   const right = to ? (
     <Link to={to} className={linkCls}>
       {actionLabel}
@@ -468,10 +486,14 @@ export function ListRow({
         )}
       >
         <span className="min-w-0 flex-1">
-          <span className={cn('block', size === 'headline' ? 'text-headline' : 'text-callout', disabled ? 'text-fg-3' : 'text-fg')}>
+          {/* 行のタイトルは 400（太さは画面・セクションの見出し、主な数字、主ボタンだけに使う） */}
+          <span className={cn('block font-normal', size === 'headline' ? 'text-headline' : 'text-callout', disabled ? 'text-fg-3' : 'text-fg')}>
             {phrase && typeof title === 'string' ? <Phrase text={title} /> : title}
           </span>
-          {subtitle && <span className={cn('mt-0.5 block text-sub', disabled ? 'text-fg-3' : 'text-fg-2')}>{subtitle}</span>}
+          {/* 副題は 2 行に折り返すことがあるので palt を切る（句読点を詰めない。§3.4） */}
+          {subtitle && (
+            <span className={cn('mt-0.5 block text-pretty text-sub [font-feature-settings:normal]', disabled ? 'text-fg-3' : 'text-fg-2')}>{subtitle}</span>
+          )}
         </span>
         {value != null && value !== false && <span className="shrink-0 text-callout text-fg-2">{value}</span>}
         {trailing}
