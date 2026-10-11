@@ -567,6 +567,132 @@ export function IconCamera({ size = 24, ...p }: IconProps) {
   return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_CAMERA }} />;
 }
 
+const B_STAR = "<path fill=\"currentColor\" d=\"M239.18 97.26A16.38 16.38 0 0 0 224.92 86l-59-4.76l-22.78-55.09a16.36 16.36 0 0 0-30.27 0L90.11 81.23L31.08 86a16.46 16.46 0 0 0-9.37 28.86l45 38.83L53 211.75a16.38 16.38 0 0 0 24.5 17.82l50.5-31.08l50.53 31.08A16.4 16.4 0 0 0 203 211.75l-13.76-58.07l45-38.83a16.43 16.43 0 0 0 4.94-17.59m-15.34 5.47l-48.7 42a8 8 0 0 0-2.56 7.91l14.88 62.8a.37.37 0 0 1-.17.48c-.18.14-.23.11-.38 0l-54.72-33.65a8 8 0 0 0-8.38 0l-54.72 33.67c-.15.09-.19.12-.38 0a.37.37 0 0 1-.17-.48l14.88-62.8a8 8 0 0 0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16a8 8 0 0 0 6.72-4.94l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153 91.86a8 8 0 0 0 6.75 4.92l63.92 5.16c.15 0 .24 0 .33.29s0 .4-.16.5\"/>";
+/** star */
+export function IconStar({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_STAR }} />;
+}
+
+const B_STAR_FILL = "<path fill=\"currentColor\" d=\"m234.29 114.85l-45 38.83L203 211.75a16.4 16.4 0 0 1-24.5 17.82L128 198.49l-50.53 31.08A16.4 16.4 0 0 1 53 211.75l13.76-58.07l-45-38.83A16.46 16.46 0 0 1 31.08 86l59-4.76l22.76-55.08a16.36 16.36 0 0 1 30.27 0l22.75 55.08l59 4.76a16.46 16.46 0 0 1 9.37 28.86Z\"/>";
+/** star-fill */
+export function IconStarFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_STAR_FILL }} />;
+}
+
+const B_SPARKLE_FILL = "<path fill=\"currentColor\" d=\"M208 144a15.78 15.78 0 0 1-10.42 14.94L146 178l-19 51.62a15.92 15.92 0 0 1-29.88 0L78 178l-51.62-19a15.92 15.92 0 0 1 0-29.88L78 110l19-51.62a15.92 15.92 0 0 1 29.88 0L146 110l51.62 19A15.78 15.78 0 0 1 208 144m-56-96h16v16a8 8 0 0 0 16 0V48h16a8 8 0 0 0 0-16h-16V16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16m88 32h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16\"/>";
+/** sparkle-fill */
+export function IconSparkleFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_SPARKLE_FILL }} />;
+}
+
+const B_FIRE_FILL = "<path fill=\"currentColor\" d=\"M143.38 17.85a8 8 0 0 0-12.63 3.41l-22 60.41l-24.16-23.41a8 8 0 0 0-11.93.89C51 87.53 40 116.08 40 144a88 88 0 0 0 176 0c0-59.45-50.79-108-72.62-126.15m40.51 135.49a57.6 57.6 0 0 1-46.56 46.55a7.7 7.7 0 0 1-1.33.11a8 8 0 0 1-1.32-15.89c16.57-2.79 30.63-16.85 33.44-33.45a8 8 0 0 1 15.78 2.68Z\"/>";
+/** fire-fill */
+export function IconFireFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_FIRE_FILL }} />;
+}
+
+const B_LIGHTNING_FILL = "<path fill=\"currentColor\" d=\"m213.85 125.46l-112 120a8 8 0 0 1-13.69-7l14.66-73.33l-57.63-21.64a8 8 0 0 1-3-13l112-120a8 8 0 0 1 13.69 7l-14.7 73.41l57.63 21.61a8 8 0 0 1 3 12.95Z\"/>";
+/** lightning-fill */
+export function IconLightningFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_LIGHTNING_FILL }} />;
+}
+
+const B_COINS_FILL = "<path fill=\"currentColor\" d=\"M184 89.57V84c0-25.08-37.83-44-88-44S8 58.92 8 84v40c0 20.89 26.25 37.49 64 42.46V172c0 25.08 37.83 44 88 44s88-18.92 88-44v-40c0-20.7-25.42-37.32-64-42.43m-128 57.3C36.41 141.4 24 132.39 24 124v-14.07c8.16 5.78 19.09 10.44 32 13.57Zm80-23.37c12.91-3.13 23.84-7.79 32-13.57V124c0 8.39-12.41 17.4-32 22.87Zm-16 71.37c-19.59-5.47-32-14.48-32-22.87v-4.17c2.63.1 5.29.17 8 .17c3.88 0 7.67-.13 11.39-.35a122 122 0 0 0 12.61 3.76Zm0-44.62A163 163 0 0 1 96 152a163 163 0 0 1-24-1.75v-23.79A184 184 0 0 0 96 128a184 184 0 0 0 24-1.54Zm64 48a165.5 165.5 0 0 1-48 0V174.4a179.5 179.5 0 0 0 24 1.6a184 184 0 0 0 24-1.54ZM232 172c0 8.39-12.41 17.4-32 22.87V171.5c12.91-3.13 23.84-7.79 32-13.57Z\"/>";
+/** coins-fill */
+export function IconCoinsFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_COINS_FILL }} />;
+}
+
+const B_CROWN_SIMPLE_FILL = "<path fill=\"currentColor\" d=\"M239.75 90.81c0 .11 0 .21-.07.32L217 195a16 16 0 0 1-15.72 13H54.71A16 16 0 0 1 39 195L16.32 91.13c0-.11-.05-.21-.07-.32A16 16 0 0 1 44 77.39l33.67 36.29l35.8-80.29a1 1 0 0 0 0-.1a16 16 0 0 1 29.06 0a1 1 0 0 0 0 .1l35.8 80.29L212 77.39a16 16 0 0 1 27.71 13.42Z\"/>";
+/** crown-simple-fill */
+export function IconCrownSimpleFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_CROWN_SIMPLE_FILL }} />;
+}
+
+const B_GIFT_FILL = "<path fill=\"currentColor\" d=\"M216 72h-35.08c.39-.33.79-.65 1.17-1A29.53 29.53 0 0 0 192 49.57A32.62 32.62 0 0 0 158.44 16A29.53 29.53 0 0 0 137 25.91a55 55 0 0 0-9 14.48a55 55 0 0 0-9-14.48A29.53 29.53 0 0 0 97.56 16A32.62 32.62 0 0 0 64 49.57A29.53 29.53 0 0 0 73.91 71c.38.33.78.65 1.17 1H40a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16v64a16 16 0 0 0 16 16h60a4 4 0 0 0 4-4v-92H40V88h80v32h16V88h80v32h-80v92a4 4 0 0 0 4 4h60a16 16 0 0 0 16-16v-64a16 16 0 0 0 16-16V88a16 16 0 0 0-16-16M84.51 59a13.7 13.7 0 0 1-4.5-10a16.62 16.62 0 0 1 16.58-17h.49a13.7 13.7 0 0 1 10 4.5c8.39 9.48 11.35 25.2 12.39 34.92C109.71 70.39 94 67.43 84.51 59m87 0c-9.49 8.4-25.24 11.36-35 12.4C137.7 60.89 141 45.5 149 36.51a13.7 13.7 0 0 1 10-4.5h.49A16.62 16.62 0 0 1 176 49.08a13.7 13.7 0 0 1-4.51 9.92Z\"/>";
+/** gift-fill */
+export function IconGiftFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_GIFT_FILL }} />;
+}
+
+const B_LOCK_SIMPLE_FILL = "<path fill=\"currentColor\" d=\"M208 80h-32V56a48 48 0 0 0-96 0v24H48a16 16 0 0 0-16 16v112a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V96a16 16 0 0 0-16-16M96 56a32 32 0 0 1 64 0v24H96Z\"/>";
+/** lock-simple-fill */
+export function IconLockSimpleFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_LOCK_SIMPLE_FILL }} />;
+}
+
+const B_MEDAL_FILL = "<path fill=\"currentColor\" d=\"M216 96a88 88 0 1 0-144 67.83V240a8 8 0 0 0 11.58 7.16L128 225l44.43 22.21a8.1 8.1 0 0 0 3.57.79a8 8 0 0 0 8-8v-76.17A87.85 87.85 0 0 0 216 96M56 96a72 72 0 1 1 72 72a72.08 72.08 0 0 1-72-72m16 0a56 56 0 1 1 56 56a56.06 56.06 0 0 1-56-56\"/>";
+/** medal-fill */
+export function IconMedalFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_MEDAL_FILL }} />;
+}
+
+const B_TARGET = "<path fill=\"currentColor\" d=\"M221.87 83.16A104.1 104.1 0 1 1 195.67 49l22.67-22.68a8 8 0 0 1 11.32 11.32l-96 96a8 8 0 0 1-11.32-11.32l27.72-27.72a40 40 0 1 0 17.87 31.09a8 8 0 1 1 16-.9a56 56 0 1 1-22.38-41.65l22.75-22.75a87.88 87.88 0 1 0 23.13 29.67a8 8 0 0 1 14.44-6.9\"/>";
+/** target */
+export function IconTarget({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_TARGET }} />;
+}
+
+const B_SPEAKER_SIMPLE_HIGH_FILL = "<path fill=\"currentColor\" d=\"M168 32v192a8 8 0 0 1-12.91 6.31L85.25 176H40a16 16 0 0 1-16-16V96a16 16 0 0 1 16-16h45.25l69.84-54.31A8 8 0 0 1 168 32m32 64a8 8 0 0 0-8 8v48a8 8 0 0 0 16 0v-48a8 8 0 0 0-8-8m32-16a8 8 0 0 0-8 8v80a8 8 0 0 0 16 0V88a8 8 0 0 0-8-8\"/>";
+/** speaker-simple-high-fill */
+export function IconSpeakerSimpleHighFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_SPEAKER_SIMPLE_HIGH_FILL }} />;
+}
+
+const B_SPEAKER_SIMPLE_SLASH_FILL = "<path fill=\"currentColor\" d=\"M221.92 210.62a8 8 0 1 1-11.84 10.76L168 175.09v48.6a8.29 8.29 0 0 1-3.91 7.18a8 8 0 0 1-9-.56L85.25 176H40a16 16 0 0 1-16-16V96a16 16 0 0 1 16-16h41.55L50.08 45.38a8 8 0 0 1 11.84-10.76ZM200.53 160a8.17 8.17 0 0 0 7.47-8.25v-47.48a8.17 8.17 0 0 0-7.47-8.27a8 8 0 0 0-8.53 8v48a8 8 0 0 0 8.53 8M161 119.87a4 4 0 0 0 7-2.7V32.24a8.25 8.25 0 0 0-2.88-6.39a8 8 0 0 0-10-.16l-43.29 33.64a4 4 0 0 0-.5 5.85ZM231.47 80a8.17 8.17 0 0 0-7.47 8.27v79.46a8.17 8.17 0 0 0 7.47 8.25a8 8 0 0 0 8.53-8V88a8 8 0 0 0-8.53-8\"/>";
+/** speaker-simple-slash-fill */
+export function IconSpeakerSimpleSlashFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_SPEAKER_SIMPLE_SLASH_FILL }} />;
+}
+
+const B_QUESTION_FILL = "<path fill=\"currentColor\" d=\"M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24m0 168a12 12 0 1 1 12-12a12 12 0 0 1-12 12m8-48.72v.72a8 8 0 0 1-16 0v-8a8 8 0 0 1 8-8c13.23 0 24-9 24-20s-10.77-20-24-20s-24 9-24 20v4a8 8 0 0 1-16 0v-4c0-19.85 17.94-36 40-36s40 16.15 40 36c0 17.38-13.76 31.93-32 35.28\"/>";
+/** question-fill */
+export function IconQuestionFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_QUESTION_FILL }} />;
+}
+
+const B_SEAL_CHECK_FILL = "<path fill=\"currentColor\" d=\"M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57c-1.36-3.27-1.44-8.69-1.52-13.94c-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52c-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14c-3.25 1.36-8.69 1.44-13.94 1.52c-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94c-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18m-52.2 6.84l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32\"/>";
+/** seal-check-fill */
+export function IconSealCheckFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_SEAL_CHECK_FILL }} />;
+}
+
+const B_MAP_TRIFOLD_FILL = "<path fill=\"currentColor\" d=\"M228.92 49.69a8 8 0 0 0-6.86-1.45l-61.13 15.28l-61.35-30.68a8 8 0 0 0-5.52-.6l-64 16A8 8 0 0 0 24 56v144a8 8 0 0 0 9.94 7.76l61.13-15.28l61.35 30.68a8.15 8.15 0 0 0 3.58.84a8 8 0 0 0 1.94-.24l64-16A8 8 0 0 0 232 200V56a8 8 0 0 0-3.08-6.31M96 176a8 8 0 0 0-1.94.24L40 189.75V62.25l55.07-13.77l.93.46Zm120 17.75l-55.07 13.77l-.93-.46V80a8 8 0 0 0 1.94-.23L216 66.25Z\"/>";
+/** map-trifold-fill */
+export function IconMapTrifoldFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_MAP_TRIFOLD_FILL }} />;
+}
+
+const B_ROCKET_LAUNCH_FILL = "<path fill=\"currentColor\" d=\"M101.85 191.14C97.34 201 82.29 224 40 224a8 8 0 0 1-8-8c0-42.29 23-57.34 32.86-61.85a8 8 0 0 1 6.64 14.56c-6.43 2.93-20.62 12.36-23.12 38.91c26.55-2.5 36-16.69 38.91-23.12a8 8 0 1 1 14.56 6.64m122-144a16 16 0 0 0-15-15c-12.58-.75-44.73.4-71.4 27.07L88 108.7a8 8 0 0 1-11.33-11.31l26.56-26.57a4 4 0 0 0-2.82-6.82H74.35A15.9 15.9 0 0 0 63 68.68L28.7 103a16 16 0 0 0 9.07 27.16l38.47 5.37l44.21 44.21l5.37 38.49a15.94 15.94 0 0 0 10.78 12.92a16.1 16.1 0 0 0 5.1.83a15.9 15.9 0 0 0 11.3-4.68l34.32-34.3a16 16 0 0 0 4.68-11.35v-26.06a4 4 0 0 0-6.83-2.82l-26.57 26.56a8 8 0 0 1-11.71-.42a8.2 8.2 0 0 1 .6-11.1l49.27-49.27c26.69-26.68 27.84-58.83 27.09-71.42Z\"/>";
+/** rocket-launch-fill */
+export function IconRocketLaunchFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_ROCKET_LAUNCH_FILL }} />;
+}
+
+const B_CONFETTI_FILL = "<path fill=\"currentColor\" d=\"M111.49 52.63a15.8 15.8 0 0 0-26 5.77L33 202.78A15.83 15.83 0 0 0 47.76 224a16 16 0 0 0 5.46-1l144.37-52.5a15.8 15.8 0 0 0 5.78-26Zm-46.35 108.5l19.2-52.79l63.32 63.32l-52.8 19.2ZM160 72a37.8 37.8 0 0 1 3.84-15.58C169.14 45.83 179.14 40 192 40c6.7 0 11-2.29 13.65-7.21a22 22 0 0 0 2.35-8.85a8 8 0 0 1 16 .06c0 12.86-8.52 32-32 32c-6.7 0-11 2.29-13.65 7.21a22 22 0 0 0-2.35 8.85a8 8 0 0 1-16-.06m-24-32V16a8 8 0 0 1 16 0v24a8 8 0 0 1-16 0m101.66 82.34a8 8 0 1 1-11.32 11.31l-16-16a8 8 0 0 1 11.32-11.32Zm4.87-42.75l-24 8a8 8 0 0 1-5.06-15.18l24-8a8 8 0 0 1 5.06 15.18\"/>";
+/** confetti-fill */
+export function IconConfettiFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_CONFETTI_FILL }} />;
+}
+
+const B_PAW_PRINT_FILL = "<path fill=\"currentColor\" d=\"M240 108a28 28 0 1 1-28-28a28 28 0 0 1 28 28m-168 0a28 28 0 1 0-28 28a28 28 0 0 0 28-28m20-20a28 28 0 1 0-28-28a28 28 0 0 0 28 28m72 0a28 28 0 1 0-28-28a28 28 0 0 0 28 28m23.12 60.86a35.3 35.3 0 0 1-16.87-21.14a44 44 0 0 0-84.5 0A35.25 35.25 0 0 1 69 148.82A40 40 0 0 0 88 224a39.5 39.5 0 0 0 15.52-3.13a64.1 64.1 0 0 1 48.87 0a40 40 0 0 0 34.73-72Z\"/>";
+/** paw-print-fill */
+export function IconPawPrintFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_PAW_PRINT_FILL }} />;
+}
+
+const B_PLAY_FILL = "<path fill=\"currentColor\" d=\"M240 128a15.74 15.74 0 0 1-7.6 13.51L88.32 229.65a16 16 0 0 1-16.2.3A15.86 15.86 0 0 1 64 216.13V39.87a15.86 15.86 0 0 1 8.12-13.82a16 16 0 0 1 16.2.3l144.08 88.14A15.74 15.74 0 0 1 240 128\"/>";
+/** play-fill */
+export function IconPlayFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_PLAY_FILL }} />;
+}
+
+const B_FLAG_BANNER_FILL = "<path fill=\"currentColor\" d=\"m239.22 59.44l-45.63 95.82a4 4 0 0 1-.16.34l-34.21 71.84a8 8 0 1 1-14.44-6.88L173.62 160H40a8 8 0 0 1-5.66-13.66L76.69 104L34.34 61.66A8 8 0 0 1 40 48h192a8 8 0 0 1 7.22 11.44\"/>";
+/** flag-banner-fill */
+export function IconFlagBannerFill({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_FLAG_BANNER_FILL }} />;
+}
+
 const B_AMAMI_KUROUSAGI = "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M71 207.8H186.9C202.1 207.8 208.8 197.4 205 186.9C203.1 179.3 198.3 173.6 192.6 169.8C211.6 164.1 223 150.8 223 135.6C223 107.1 205.9 88.1 181.2 83.4C179.3 67.2 170.8 57.7 159.4 57.7C148 57.7 141.3 67.2 142.3 80.5C99.5 78.6 44.4 101.4 34.9 145.1C27.3 181.2 42.5 207.8 71 207.8Z\"/><path d=\"M129.9 207.8C131.8 175.5 112.8 152.7 84.3 156.5\"/><circle cx=\"187.9\" cy=\"121.4\" r=\"11.4\" fill=\"currentColor\" stroke=\"none\"/></g>";
 /** amami:kurousagi */
 export function IconAmamiKurousagi({ size = 24, ...p }: IconProps) {

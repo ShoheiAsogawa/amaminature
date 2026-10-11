@@ -49,8 +49,8 @@ export default defineConfig({
         scope: demo ? '.' : '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#FFFFFF',
-        theme_color: '#FFFFFF',
+        background_color: '#EEF5FF',
+        theme_color: '#2160E8',
         categories: ['education', 'travel', 'lifestyle'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },

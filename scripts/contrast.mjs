@@ -1,7 +1,7 @@
-// 配色のコントラスト検査（docs/DESIGN_SYSTEM.md §2.2・§12.3）
+// 配色のコントラスト検査（docs/DESIGN_SYSTEM.md）
 // 使い方: npm run contrast
 //
-// src/styles/index.css の :root（ライト）と :root[data-theme='dark']（夜の森）から --c-* を読み、
+// src/styles/index.css の :root（ひるの島）と :root[data-theme='dark']（よるの森）から --c-* を読み、
 // 文字と面の組み合わせが WCAG 2.x の基準（文字 4.5:1、UI 部品・細いバー 3:1）を満たすか確かめる。
 // あわせて src/styles/palette.ts（canvas 用の 16 進数）が index.css と同じ値かも確かめる。
 // 1 つでも満たさなければ終了コード 1。
@@ -55,6 +55,13 @@ for (const [theme, t] of [
   // UI 部品（記録ボタンなど）とページ、細いバー（進捗・季節）と溝は 3:1
   checks.push({ theme, fg: 'brand-fill', bg: 'page', min: 3, t, note: 'UI 部品' });
   checks.push({ theme, fg: 'brand', bg: 'fill', min: 3, t, note: '細いバー' });
+  checks.push({ theme, fg: 'capture', bg: 'page', min: 3, t, note: '撮るボタン' });
+  checks.push({ theme, fg: 'xp', bg: 'night', min: 3, t, note: 'XP バー（紺の溝）' });
+  // コインの地の上の墨の文字
+  checks.push({ theme, fg: 'fg', bg: 'gold', min: 4.5, t: { ...t, fg: light.fg } });
+  // タイプのチップ（白い文字）とレア度の星（面の上の図形）
+  for (const c of ['mammal', 'bird', 'herp', 'insect', 'aqua', 'plant']) checks.push({ theme, fg: 'white', bg: `type-${c}`, min: 4.5, t: { ...t, white: [255, 255, 255] } });
+  for (const r of [1, 2, 3]) checks.push({ theme, fg: `rare-${r}`, bg: 'surface', min: 3, t, note: '星' });
 }
 
 let failed = 0;
@@ -87,37 +94,13 @@ for (const [name, t] of [
   ['DARK', dark],
 ]) {
   const p = paletteObject(name);
-  for (const [k, rgb] of Object.entries(t)) {
-    const key = camel(k);
-    if (p[key] !== hex(rgb)) mismatches.push(`${name}.${key}: palette.ts ${p[key] ?? '（なし）'} / index.css ${hex(rgb)}`);
-  }
+  // palette.ts は canvas で使うトークンだけを持つ。palette.ts にあるキーの値が index.css と同じか比べる
   for (const key of Object.keys(p)) {
-    if (!Object.keys(t).some((k) => camel(k) === key)) mismatches.push(`${name}.${key}: index.css に --c-* がありません`);
+    const k = Object.keys(t).find((x) => camel(x) === key);
+    if (!k) mismatches.push(`${name}.${key}: index.css に --c-* がありません`);
+    else if (p[key] !== hex(t[k])) mismatches.push(`${name}.${key}: palette.ts ${p[key]} / index.css ${hex(t[k])}`);
   }
 }
-// 素材（--mat-*）の色の並び
-function cssHexList(selector, prop) {
-  const m = block(css, selector).match(new RegExp(`--mat-${prop}:([^;]+);`));
-  return m ? [...m[1].matchAll(/#[0-9a-fA-F]{6}/g)].map((x) => x[0].toUpperCase()) : [];
-}
-function paletteHexList(theme, prop) {
-  const start = paletteSrc.indexOf('export const MATERIALS');
-  const tStart = paletteSrc.indexOf(`${theme}: {`, start);
-  const pStart = paletteSrc.indexOf(`${prop}:`, tStart);
-  const pEnd = prop === 'dorozome' ? paletteSrc.indexOf('\n', pStart) : paletteSrc.indexOf('],\n    },', pStart);
-  return [...paletteSrc.slice(pStart, pEnd).matchAll(/#[0-9a-fA-F]{6}/g)].map((x) => x[0].toUpperCase());
-}
-for (const [theme, selector] of [
-  ['light', ':root'],
-  ['dark', ":root[data-theme='dark']"],
-]) {
-  for (const prop of ['dorozome', 'yakougai', 'kinpaku']) {
-    const a = cssHexList(selector, prop).join(' ');
-    const b = paletteHexList(theme, prop).join(' ');
-    if (a !== b) mismatches.push(`MATERIALS.${theme}.${prop}: palette.ts [${b}] / index.css [${a}]`);
-  }
-}
-
 const w = [6, 26, 9, 5, 20];
 console.log(['テーマ', '文字 / 面', '比', '基準', '結果'].map((s, i) => s.padEnd(w[i])).join(' '), '色');
 for (const r of rows) console.log(r.slice(0, 5).map((s, i) => String(s).padEnd(w[i])).join(' '), r[5] ?? '');

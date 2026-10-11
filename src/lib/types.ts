@@ -57,6 +57,20 @@ export interface Settings {
   safeDriveDates: string[];
   /** ポイント交換の履歴 */
   redemptions: Redemption[];
+  /** 効果音とふるえ（バイブ） */
+  sound: boolean;
+  /** きょうのミッションの記録。日付（YYYY-MM-DD）が変わったら空に戻す */
+  daily: DailyLog;
+  /** アプリを開いた日（YYYY-MM-DD、新しい順に最大 60 日）。連続日数に使う */
+  visitDates: string[];
+}
+
+export interface DailyLog {
+  date: string;
+  /** 図鑑で見た種（重複なし） */
+  viewed: string[];
+  /** ミッションをすべて達成した演出を見せたか */
+  celebrated: boolean;
 }
 
 export interface Redemption {

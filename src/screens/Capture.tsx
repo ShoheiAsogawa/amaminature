@@ -2,6 +2,7 @@ import { AnimatePresence, m, type Variants } from 'framer-motion';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  IconCameraFill,
   IconCaretLeft,
   IconCarProfile,
   IconCircleNotch,
@@ -20,14 +21,13 @@ import {
   IconX,
   type IconProps,
 } from '../components/icons';
+import { TYPE_META } from '../components/game';
 import { Phrase } from '../components/Phrase';
 import { SciName, SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
 import { SpeciesName } from '../components/SpeciesName';
 import {
   Button,
   ButtonNote,
-  CATEGORY_ICON,
-  CATEGORY_ICON_SELECTED,
   Chip,
   ChipRow,
   cn,
@@ -58,6 +58,7 @@ import { getCurrentPosition } from '../lib/position';
 import {
   allQuestProgress,
   BADGES,
+  computePoints,
   computeStats,
   currentMonth,
   earnedBadges,
@@ -175,6 +176,8 @@ function CaptureFlow() {
     /** 記録した後の図鑑の種数 */
     discovered: number;
     quests: Quest[];
+    pointsBefore: number;
+    pointsAfter: number;
   } | null>(null);
 
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -355,6 +358,10 @@ function CaptureFlow() {
       const questsBefore = new Set(allQuestProgress(sightings, nowMonth).filter((q) => q.done).map((q) => q.quest.id));
       const isNew = !!speciesId && !rescue && !collection.has(speciesId);
       const points = pointsForNewSighting(s, sightings);
+      // レベルの計算（図鑑の進み具合と同じく、サーバーが受け付けなかった記録は数えない）
+      const counted = sightings.filter((x) => x.syncState !== 'rejected');
+      const pointsBefore = computePoints(counted, nowMonth, settings.safeDriveDates.length);
+      const pointsAfter = computePoints([s, ...counted], nowMonth, settings.safeDriveDates.length);
 
       await addSighting(
         s,
@@ -368,7 +375,7 @@ function CaptureFlow() {
       const quests = allQuestProgress(after, nowMonth)
         .filter((q) => q.done && !questsBefore.has(q.quest.id))
         .map((q) => QUESTS.find((x) => x.id === q.quest.id)!);
-      setResult({ sighting: s, isNew, points, badges, quests, discovered: afterStats.discovered });
+      setResult({ sighting: s, isNew, points, badges, quests, discovered: afterStats.discovered, pointsBefore, pointsAfter });
     } catch {
       toast('保存できませんでした。もう一度お試しください');
     } finally {
@@ -403,6 +410,8 @@ function CaptureFlow() {
           newBadges={result.badges}
           completedQuests={result.quests}
           discovered={result.discovered}
+          pointsBefore={result.pointsBefore}
+          pointsAfter={result.pointsAfter}
           onAgain={reset}
         />
       </Suspense>
@@ -564,9 +573,10 @@ function CaptureFlow() {
                     onClick={() => cameraRef.current?.click()}
                     disabled={processing}
                     aria-label="カメラで撮る"
-                    className="grid h-[72px] w-[72px] place-items-center justify-self-center rounded-full border-4 border-white active:opacity-70"
+                    className="relative grid h-[80px] w-[80px] place-items-center justify-self-center rounded-full border-[5px] border-white bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge))] transition-transform duration-75 active:translate-y-[3px]"
                   >
-                    <span className="block h-[58px] w-[58px] rounded-full bg-white" />
+                    <span aria-hidden className="absolute inset-[-5px] animate-ring-pulse rounded-full border-4 border-capture" />
+                    <IconCameraFill size={34} />
                   </button>
                   <Button variant="text" size="hit" className="justify-self-end text-white" disabled={processing} onClick={afterPhoto}>
                     写真なしで記録
@@ -598,11 +608,12 @@ function CaptureFlow() {
                 <Chip
                   key={c}
                   selected={cat === c}
-                  icon={CATEGORY_ICON[c]}
-                  selectedIcon={CATEGORY_ICON_SELECTED[c]}
+                  icon={TYPE_META[c].icon}
                   onClick={() => setCat(cat === c ? null : c)}
+                  className={cn(cat === c && [TYPE_META[c].bg, 'border-transparent shadow-[0_3px_0_rgb(0_0_0/.25)]'])}
+                  aria-label={CATEGORY_META[c].label}
                 >
-                  {CATEGORY_META[c].short}
+                  {TYPE_META[c].label}
                 </Chip>
               ))}
             </ChipRow>

@@ -1,31 +1,58 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogoMark, Wordmark } from '../components/Brand';
+import { LogoMark } from '../components/Brand';
 import { TATSUGO_STYLE } from '../components/CollectibleCard';
+import { Coin, MessageWindow, Sparkles } from '../components/game';
 import { IconCarProfile, IconEyeSlash, IconHandHeart, IconTicket } from '../components/icons';
 import { Phrase } from '../components/Phrase';
-import { BadgeEmblem, BadgeName, Button, cn, CTA_PADDING, CtaBar, Field, Input, Num, StampSeal } from '../components/ui';
+import { BadgeEmblem, BadgeName, Button, cn, CTA_PADDING, CtaBar, Field, Input, StampSeal } from '../components/ui';
 import { api } from '../lib/api';
 import { BADGES } from '../lib/progress';
+import { sfx } from '../lib/sfx';
 import { useStore } from '../store/useStore';
+
+// ───────── タイトルのロゴ ─────────
+
+function TitleLogo() {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="grid h-11 w-11 place-items-center rounded-full border-[3px] border-white bg-brand-fill shadow-[0_3px_0_rgb(var(--c-brand-pressed))]">
+        <LogoMark size={26} className="text-white" />
+      </span>
+      <div className="leading-none">
+        <div className="num text-[24px] tracking-[0.03em] text-white">
+          AMAMI <span className="text-gold">NATURE</span>
+        </div>
+        <div className="mt-1 text-caption text-white/75">奄美いきもの図鑑クエスト</div>
+      </div>
+    </div>
+  );
+}
 
 // ───────── 紹介のページの絵（写真がない間は、アプリの中の物そのものを見せる） ─────────
 
 /** 1 ページ目: 伏せた図鑑カード（裏面の龍郷柄）を 3 枚、扇に広げる */
 function CardFan() {
-  const card = (rot: number, x: number, y: number, z: number) => (
-    <div
-      className="absolute left-1/2 top-1/2 grid h-[235px] w-[168px] place-items-center rounded-lg shadow-toast"
-      style={{ ...TATSUGO_STYLE, transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`, zIndex: z }}
-    >
-      <LogoMark size={36} className="text-white/70" />
+  const card = (rot: number, x: number, y: number, z: number, delay: string) => (
+    <div className="absolute left-1/2 top-1/2" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`, zIndex: z }}>
+      <div
+        className="grid h-[214px] w-[152px] animate-float place-items-center rounded-[18px] border-[5px] border-white shadow-object"
+        style={{ ...TATSUGO_STYLE, animationDelay: delay }}
+      >
+        <span className="grid h-16 w-16 place-items-center rounded-full border-4 border-white bg-brand-pressed">
+          <LogoMark size={32} className="text-white" />
+        </span>
+      </div>
     </div>
   );
   return (
-    <div className="relative h-[280px] w-[300px]">
-      {card(-11, -58, 14, 1)}
-      {card(11, 58, 14, 2)}
-      {card(0, 0, 0, 3)}
+    <div className="relative h-[260px] w-[300px]">
+      {card(-12, -64, 16, 1, '0.4s')}
+      {card(12, 64, 16, 2, '0.8s')}
+      {card(0, 0, 0, 3, '0s')}
+      <span className="num absolute left-1/2 top-[-8px] z-10 -translate-x-1/2 -rotate-6 rounded-full bg-capture px-3 py-0.5 text-[18px] text-white shadow-[0_3px_0_rgb(var(--c-capture-edge))]">
+        62 SPECIES
+      </span>
     </div>
   );
 }
@@ -40,7 +67,7 @@ function GuardBadges() {
         return (
           <div key={id} className="flex flex-col items-center gap-3">
             <BadgeEmblem badge={b} earned size={88} />
-            <span className="text-center text-sub text-fg">
+            <span className="text-center text-sub font-black text-white">
               <BadgeName badge={b} />
             </span>
           </div>
@@ -56,22 +83,25 @@ function StampsAndReward() {
   const yesterday = new Date(today.getTime() - 864e5);
   return (
     <div className="w-full max-w-[358px] px-4">
-      <div className="grid grid-cols-4 justify-items-center">
+      <div className="grid grid-cols-4 justify-items-center rounded-lg bg-white/90 py-3">
         <StampSeal name="奄美市" visited date={yesterday} />
         <StampSeal name="龍郷町" visited date={today} />
         <StampSeal name="徳之島町" visited={false} />
         <StampSeal name="与論町" visited={false} />
       </div>
-      <div className="mt-8 overflow-hidden rounded-md bg-fill">
+      <div className="panel mt-8 overflow-hidden">
         {[
           { icon: IconTicket, title: '提携ツアー 1,000円引き', points: 300 },
           { icon: IconHandHeart, title: '奄美の自然保護に寄付する', points: 100 },
         ].map((r) => (
           <div key={r.title} className="group/row flex items-center pl-4">
             <r.icon size={20} className="shrink-0 text-fg-2" />
-            <span className="ml-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b border-sep py-2.5 pr-4 group-last/row:border-b-0">
-              <span className="min-w-0 flex-1 text-callout text-fg">{r.title}</span>
-              <Num value={r.points} unit="pt" className="shrink-0 text-callout font-semibold text-brand" />
+            <span className="ml-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b-2 border-sep py-2.5 pr-4 group-last/row:border-b-0">
+              <span className="min-w-0 flex-1 text-callout font-bold text-fg">{r.title}</span>
+              <span className="flex shrink-0 items-center gap-1">
+                <Coin size={20} />
+                <span className="num text-[17px] text-fg">{r.points}</span>
+              </span>
             </span>
           </div>
         ))}
@@ -85,20 +115,23 @@ function StampsAndReward() {
  * 写真の領域を省かず、アプリの中の物（図鑑カードの裏面、バッジ、スタンプ）を同じ場所に置く。
  * 写真を用意したら photo に { src, credit } を入れる（絵の代わりに写真が入る）。
  */
-const SLIDES: { title: string; body: string; visual: ReactNode; photo?: { src: string; credit: string } }[] = [
+const SLIDES: { title: string; body: string; message: string; visual: ReactNode; photo?: { src: string; credit: string } }[] = [
   {
     title: '奄美の生き物を記録して、自分だけの図鑑をつくろう',
     body: '森と海で出会った生き物を撮って、名前をつけて集めましょう。世界自然遺産の島には、ここにしかいない生き物がたくさんいます。',
+    message: 'ようこそ、奄美の島へ！ ここには 世界で ここにしか いない 生き物が たくさん いるよ。 撮って あつめて、図鑑を コンプしよう！',
     visual: <CardFan />,
   },
   {
     title: '夜の道は、生き物たちの道でもある',
     body: 'セーフドライブ宣言や路上レポートで、アマミノクロウサギなどの交通事故を減らす取り組みに参加できます。',
+    message: '夜の 林道には クロウサギが 出てくるんだ。 ゆっくり 走って 守ってあげてね。 守ると バッジが もらえるよ！',
     visual: <GuardBadges />,
   },
   {
     title: '貯めたポイントで、島の体験と交換しよう',
     body: '記録やレポートでポイントが貯まります。ツアーの割引や島のお店のクーポンと交換したり、自然保護に寄付したりできます。',
+    message: '記録すると ポイントが たまるよ。 レアな 生き物ほど たくさん！ ツアーや 島のお店で つかえるんだ。',
     visual: <StampsAndReward />,
   },
 ];
@@ -148,13 +181,14 @@ function Intro({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="relative">
+    <div className="stage relative text-white" style={{ background: 'var(--stage)' }}>
+      <Sparkles count={4} className="fixed opacity-60" />
       {/* 最後のページでは［はじめる］と同じ動作になるので出さない */}
       {!last && (
         <div className="pointer-events-none fixed inset-x-0 top-0 z-20 mx-auto w-full max-w-[480px] pt-safe">
           <div className="flex h-[60px] items-center justify-end px-3">
-            <Button variant="text" size="hit" className="pointer-events-auto" onClick={onDone}>
-              スキップ
+            <Button variant="text" size="hit" className="pointer-events-auto text-white/75" onClick={onDone}>
+              スキップ ›
             </Button>
           </div>
         </div>
@@ -172,7 +206,7 @@ function Intro({ onDone }: { onDone: () => void }) {
             aria-roledescription="スライド"
             aria-label={`${i + 1} / ${SLIDES.length}`}
             aria-hidden={i !== index}
-            className={cn('flex h-full w-full shrink-0 snap-start snap-always flex-col overflow-y-auto pt-safe', INTRO_CTA_PADDING)}
+            className={cn('relative flex h-full w-full shrink-0 snap-start snap-always flex-col overflow-y-auto pt-safe', INTRO_CTA_PADDING)}
           >
             {s.photo ? (
               <figure className="h-[60%] shrink-0">
@@ -182,35 +216,44 @@ function Intro({ onDone }: { onDone: () => void }) {
             ) : (
               <>
                 {/* ワードマークは 1 ページ目だけ。ほかのページも同じ高さを空け、絵と見出しの位置をそろえる */}
-                <div className="flex h-[60px] shrink-0 items-center px-4">{i === 0 && <Wordmark />}</div>
-                <div aria-hidden className="flex min-h-[300px] flex-1 items-center justify-center overflow-hidden py-4">
+                <div className="flex h-[60px] shrink-0 items-center px-4">{i === 0 && <TitleLogo />}</div>
+                <div aria-hidden className="flex min-h-[280px] flex-1 items-center justify-center overflow-hidden py-4">
                   {s.visual}
                 </div>
               </>
             )}
-            <div className="shrink-0 px-4 pt-4">
-              <h2 className="balance text-display text-fg">
+            <div className="shrink-0 px-4 pt-2">
+              <h2 className="balance text-title font-black text-white">
                 <Phrase text={s.title} />
               </h2>
-              <p className="mt-3 text-body text-fg-2">
-                <Phrase text={s.body} />
-              </p>
+              <p className="sr-only">{s.body}</p>
+              <div className="mt-3 text-left">
+                {i === index && <MessageWindow speaker="島のガイド" text={s.message} speed={30} />}
+              </div>
             </div>
           </section>
         ))}
       </div>
 
-      <CtaBar>
-        <div className="mb-4 flex justify-center gap-2" aria-hidden>
+      <div className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] px-4 pb-[calc(14px+var(--safe-bottom))] pt-3">
+        <div className="mb-3.5 flex justify-center gap-2" aria-hidden>
           {SLIDES.map((_, i) => (
-            <span key={i} className={cn('h-1.5 w-1.5 rounded-full', i === index ? 'bg-fg' : 'bg-sep')} />
+            <span key={i} className={cn('h-2.5 rounded-full transition-all', i === index ? 'w-7 bg-gold' : 'w-2.5 bg-white/30')} />
           ))}
         </div>
         <p className="sr-only" aria-live="polite">
           {index + 1} / {SLIDES.length}
         </p>
-        <Button onClick={next}>{last ? 'はじめる' : '次へ'}</Button>
-      </CtaBar>
+        <Button
+          variant="gold"
+          onClick={() => {
+            sfx(last ? 'get' : 'tap');
+            next();
+          }}
+        >
+          {last ? 'はじめる' : '次へ'}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -221,22 +264,26 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
 
   return (
     <main className={cn('min-h-dvh pt-safe', CTA_PADDING)}>
-      <section className="px-4 pt-10">
-        <h1 className="text-title text-fg">3つの約束</h1>
-        <p className="mt-2 text-body text-fg-2">
-          <Phrase text="島の生き物を守るための約束です。" />
+      <section className="px-4 pt-8">
+        <p className="num text-[14px] tracking-[0.1em] text-brand">RANGER OATH</p>
+        <h1 className="mt-1 text-display text-fg">レンジャーの3つの約束</h1>
+        <p className="mt-2 text-body font-bold text-fg-2">
+          <Phrase text="島の生き物を守るための約束です。約束すると、最初のバッジがもらえます。" />
         </p>
       </section>
 
-      <ul className="mt-4">
-        {PLEDGES.map((p) => (
-          <li key={p.title} className="group/row flex pl-4">
-            <p.icon size={20} className="mt-[17px] shrink-0 text-fg-2" />
-            <div className="ml-3 min-w-0 flex-1 border-b border-sep py-3.5 pr-4 group-last/row:border-b-0">
-              <p className="text-headline text-fg">
+      <ul className="mt-5 space-y-2.5 px-4">
+        {PLEDGES.map((p, i) => (
+          <li key={p.title} className="panel flex gap-3 p-3.5">
+            <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+              <p.icon size={24} />
+              <span className="num absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-gold text-[12px] leading-none text-[#3d2a00]">{i + 1}</span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-headline font-black text-fg">
                 <Phrase text={p.title} />
               </p>
-              <p className="mt-1 text-body text-fg-2">
+              <p className="mt-1 text-sub font-bold text-fg-2">
                 <Phrase text={p.body} />
               </p>
             </div>
@@ -251,13 +298,20 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
           onFinish(name);
         }}
       >
-        <Field label="観察者ネーム（あとで変更できます）">
+        <Field label="レンジャーネーム（あとで変更できます）">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例：しまのりす" maxLength={20} enterKeyHint="done" />
         </Field>
       </form>
 
       <CtaBar>
-        <Button onClick={() => onFinish(name)}>約束してはじめる</Button>
+        <Button
+          onClick={() => {
+            sfx('badge');
+            onFinish(name);
+          }}
+        >
+          約束してはじめる
+        </Button>
       </CtaBar>
     </main>
   );

@@ -1,11 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Ring, Sparkles, TYPE_META } from '../components/game';
 import { IconSlidersHorizontal } from '../components/icons';
 import { SpeciesGrid, SpeciesTile } from '../components/SpeciesTile';
 import {
   Button,
-  CATEGORY_ICON,
-  CATEGORY_ICON_SELECTED,
   Chip,
   ChipRow,
   cn,
@@ -14,7 +13,6 @@ import {
   HeaderButton,
   ListRow,
   Page,
-  ProgressBar,
   RadioMark,
   ScreenHeader,
   SearchField,
@@ -135,23 +133,23 @@ export default function Zukan() {
 
   return (
     <Page>
-      <ScreenHeader
-        variant="tab"
-        title="図鑑"
-        right={
-          <div className="mr-2 flex items-baseline gap-2 pt-1">
-            <span className="text-callout font-semibold text-fg">
-              <span className="num">
-                {found}/{total}
-              </span>
-              種
-            </span>
-            <span className="num text-sub text-fg-2">{pct}%</span>
+      <ScreenHeader variant="tab" title="アマミ図鑑" />
+      {/* コンプ率のパネル（夜空の地） */}
+      <div className="relative mx-4 overflow-hidden rounded-lg border-2 border-night bg-night p-4 text-white shadow-[0_4px_0_rgb(var(--c-edge))]">
+        <Sparkles count={4} className="opacity-60" />
+        <div className="relative flex items-center gap-4">
+          <Ring value={found / Math.max(1, total)} size={84} stroke={10} color="rgb(var(--c-gold))" track="rgb(255 255 255 / .15)">
+            <span className="num text-[22px] leading-none">{pct}%</span>
+          </Ring>
+          <div className="min-w-0 flex-1">
+            <p className="text-sub font-black text-white/70">ゲットした生き物</p>
+            <p className="mt-0.5 leading-none">
+              <span className="num text-[40px]">{found}</span>
+              <span className="num text-[20px] text-white/60"> / {total}</span>
+            </p>
+            <p className="mt-1.5 text-caption text-gold">{found >= total ? 'コンプリート！ おめでとう！' : `コンプまで あと ${total - found} 種`}</p>
           </div>
-        }
-      />
-      <div className="px-4">
-        <ProgressBar value={found / Math.max(1, total)} id="zukan" label="図鑑に記録した種の割合" />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-2 pl-4 pr-2">
@@ -165,7 +163,7 @@ export default function Zukan() {
       </div>
 
       <div ref={chipsRef}>
-        <ChipRow className="mt-3">
+        <ChipRow className="mt-3 pt-0.5">
           {status !== 'all' && (
             <Chip selected removable onClick={() => update({ f: null })} aria-label={`${STATUS_LABEL[status]}の絞り込みを解除`}>
               {STATUS_LABEL[status]}
@@ -178,16 +176,18 @@ export default function Zukan() {
             const inCat = SPECIES.filter((s) => s.category === c);
             const foundInCat = inCat.filter((s) => collection.has(s.id)).length;
             const active = category === c;
+            const t = TYPE_META[c];
             return (
               <Chip
                 key={c}
                 selected={active}
-                icon={CATEGORY_ICON[c]}
-                selectedIcon={CATEGORY_ICON_SELECTED[c]}
+                icon={t.icon}
                 count={`${foundInCat}/${inCat.length}`}
                 onClick={() => setCategory(active ? null : c)}
+                className={cn(active && [t.bg, 'border-transparent shadow-[0_3px_0_rgb(0_0_0/.25)]'])}
+                aria-label={`${CATEGORY_META[c].label}（${foundInCat}/${inCat.length}）`}
               >
-                {CATEGORY_META[c].short}
+                {t.label}
               </Chip>
             );
           })}
@@ -222,12 +222,12 @@ export default function Zukan() {
       )}
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="表示の条件">
-        <p className="mb-1.5 text-sub font-semibold text-fg-2" id="zukan-status-label">
+        <p className="mb-1.5 text-sub font-black text-fg-2" id="zukan-status-label">
           表示
         </p>
         <Segmented options={STATUS_OPTIONS} value={draftStatus} onChange={setDraftStatus} aria-label="表示" />
 
-        <p className="mb-1.5 mt-6 text-sub font-semibold text-fg-2" id="zukan-sort-label">
+        <p className="mb-1.5 mt-6 text-sub font-black text-fg-2" id="zukan-sort-label">
           並び順
         </p>
         <Group boxClassName="mx-0">

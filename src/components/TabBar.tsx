@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { cn } from '../lib/cn';
+import { sfx } from '../lib/sfx';
 import {
   IconBookOpenText,
   IconBookOpenTextFill,
@@ -15,7 +16,6 @@ import {
 
 type Tab = { to: string; label: string; icon: IconComponent; activeIcon: IconComponent; end?: boolean };
 
-// §5.3 通常は regular、選択中は fill
 const TABS: (Tab | null)[] = [
   { to: '/', label: 'ホーム', icon: IconHouseSimple, activeIcon: IconHouseSimpleFill, end: true },
   { to: '/zukan', label: '図鑑', icon: IconBookOpenText, activeIcon: IconBookOpenTextFill },
@@ -25,44 +25,53 @@ const TABS: (Tab | null)[] = [
 ];
 
 /**
- * タブバー（docs/DESIGN_SYSTEM.md §7.2）。/ /zukan /explore /me だけで出す。
- * 下端に固定、高さ 56px ＋ 安全領域、page の不透明な地、上辺に 1px の sep。浮かせない・角丸なし・影なし・ぼかしなし。
- * 5 つの等幅の区画。選択中は fill のアイコンと brand の 600 のラベル（点や下線は付けない）。
- * 中央は 48px の brand-fill の円に camera-fill（ラベルなし）。タップした時のアニメーションはない。
+ * タブバー（docs/DESIGN_SYSTEM.md）。/ /zukan /explore /me だけで出す。
+ * 下に浮いた白いバー（2px の線と厚み）。中央は大きな赤い「きろく」ボタン（白い縁、波紋が広がる）。
+ * 選択中のタブはアイコンを瑠璃の丸に入れ、少し跳ねる。
  */
 export function TabBar() {
   return (
-    <nav
-      aria-label="メインメニュー"
-      className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] border-t border-sep bg-page pb-[var(--safe-bottom)]"
-    >
-      <div className="grid h-14 grid-cols-5">
+    <nav aria-label="メインメニュー" className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] px-3 pb-[calc(10px+var(--safe-bottom))]">
+      <div className="grid h-16 grid-cols-5 rounded-xl border-2 border-line bg-surface shadow-[0_4px_0_rgb(var(--c-edge)),0_10px_24px_rgb(20_27_66/.12)]">
         {TABS.map((t) =>
           t === null ? (
-            <div key="capture" className="grid place-items-center">
+            <div key="capture" className="relative grid place-items-center">
               <Link
                 to="/capture"
                 aria-label="記録する"
-                className="grid h-12 w-12 place-items-center rounded-full bg-brand-fill text-on-brand active:bg-brand-pressed"
+                onClick={() => sfx('tap')}
+                className="absolute -top-7 grid h-[66px] w-[66px] place-items-center rounded-full border-4 border-surface bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge)),0_8px_18px_rgb(240_69_58/.35)] transition-transform duration-75 active:translate-y-[3px]"
               >
-                <IconCameraFill size={24} />
+                <span aria-hidden className="absolute inset-0 animate-ring-pulse rounded-full border-4 border-capture" />
+                <IconCameraFill size={30} />
               </Link>
+              <span aria-hidden className="absolute bottom-[7px] text-tab text-capture">
+                きろく
+              </span>
             </div>
           ) : (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.end}
+              onClick={() => sfx('tap')}
               className={({ isActive }) =>
-                cn('flex select-none flex-col items-center justify-center pt-[2px]', isActive ? 'text-brand' : 'text-fg-2')
+                cn('flex select-none flex-col items-center justify-center gap-0.5 pt-[2px]', isActive ? 'text-brand' : 'text-fg-3')
               }
             >
               {({ isActive }) => {
                 const Icon = isActive ? t.activeIcon : t.icon;
                 return (
                   <>
-                    <Icon size={24} />
-                    <span className={cn('mt-0.5 text-tab', isActive && 'font-semibold')}>{t.label}</span>
+                    <span
+                      className={cn(
+                        'grid h-8 w-12 place-items-center rounded-full transition-colors',
+                        isActive && 'animate-pop-in bg-brand-soft',
+                      )}
+                    >
+                      <Icon size={24} />
+                    </span>
+                    <span className="text-tab">{t.label}</span>
                   </>
                 );
               }}

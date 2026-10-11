@@ -1,34 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LogoMark } from '../components/Brand';
 import { ExperienceItem, ExperienceSheet } from '../components/ExperienceCard';
-import { IconArrowClockwise, IconCamera, IconCaretRight, IconCheckCircleFill, IconCloudSlash } from '../components/icons';
+import { Coin, Ring, Sparkles, Stars, TYPE_META, TypeBadge, XPBar } from '../components/game';
+import {
+  IconArrowClockwise,
+  IconBookOpenTextFill,
+  IconCameraFill,
+  IconCarProfileFill,
+  IconCaretRight,
+  IconCheck,
+  IconCheckCircleFill,
+  IconCloudSlash,
+  IconFireFill,
+  IconFlagBannerFill,
+  IconTrophyFill,
+  type IconComponent,
+} from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import { usePhotoUrl } from '../components/PhotoImg';
+import { PlayerHud } from '../components/Player';
 import { SpeciesName } from '../components/SpeciesName';
-import { referencePhoto, SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
-import {
-  button,
-  cn,
-  EmptyState,
-  Group,
-  InfoRow,
-  ListRow,
-  Notice,
-  Num,
-  Page,
-  ProgressBar,
-  RarityGems,
-  SectionHeader,
-  Sheet,
-} from '../components/ui';
+import { SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
+import { button, cn, Group, InfoRow, ListRow, Num, Page, RarityGems, SectionHeader, Sheet, toast } from '../components/ui';
 import { EXPERIENCES } from '../data/experiences';
-import { SPECIES, SPECIES_BY_ID, speciesInSeason } from '../data/species';
+import { CATEGORY_ORDER, SPECIES, SPECIES_BY_ID, speciesInSeason } from '../data/species';
 import type { Species } from '../data/types';
+import { confettiBurst } from '../lib/confetti';
+import type { Mission } from '../lib/missions';
 import type { QuestProgress } from '../lib/progress';
+import { sfx } from '../lib/sfx';
 import type { Sighting } from '../lib/types';
 import { useCollection, type CollectionEntry } from '../store/useCollection';
-import { useProgress } from '../store/useProgress';
+import { useMissions, useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
+
+/** 画面の左上の小さなロゴ */
+function Brand() {
+  return (
+    <span className="flex items-center gap-2" aria-label="AMAMI NATURE">
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-fill text-white shadow-[0_3px_0_rgb(var(--c-brand-pressed))]">
+        <LogoMark size={22} className="text-white" />
+      </span>
+      <span aria-hidden className="num text-[19px] leading-none tracking-[0.03em] text-fg">
+        AMAMI <span className="text-brand">NATURE</span>
+      </span>
+    </span>
+  );
+}
 
 /**
  * 月ごとの季節の一文と、その月の注目種（docs/DESIGN_SYSTEM.md §8.1）。
@@ -48,6 +67,9 @@ const SEASON_NOTE: Record<number, { text: string; speciesId: string }> = {
   11: { text: 'アサギマダラが海を越えて、南へ旅していきます', speciesId: 'asagimadara' },
   12: { text: 'ザトウクジラが、冬の奄美の海にやってきます', speciesId: 'zatoukujira' },
 };
+
+/** バナーの上の英字の月 */
+const MONTH_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /** ホームに出す行の数（季節の種・クエスト） */
 const ROWS = 3;
@@ -86,8 +108,10 @@ function sightingName(s: Sighting): string {
 
 export default function Home() {
   const sightings = useStore((s) => s.sightings);
+  const markCelebrated = useStore((s) => s.markCelebrated);
   const collection = useCollection();
-  const { stats, points, rank, quests, month } = useProgress();
+  const { stats, quests, month } = useProgress();
+  const { missions, done, allDone, celebrated, streak } = useMissions();
 
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   // 閉じるアニメーションの間も中身を残すため、選んだクエストは閉じても消さない
@@ -96,7 +120,6 @@ export default function Home() {
 
   const note = SEASON_NOTE[month];
   const featured = note ? SPECIES_BY_ID[note.speciesId] : undefined;
-  const featuredPhoto = featured ? referencePhoto(featured) : null;
 
   // 注目種を先頭に、あとはレア度の高い順（同じなら図鑑番号順）
   const seasonal = speciesInSeason(month).sort(
@@ -107,152 +130,203 @@ export default function Home() {
   const exp = EXPERIENCES.filter((e) => e.months.includes(month) && e.months.length < 12)[0] ?? EXPERIENCES[0];
   const night = isNightNow();
   const selectedQuest = quests.find((q) => q.quest.id === questId) ?? null;
-  // 注目種の写真がない時は、利用者の写真（最近の記録）を季節の一文のすぐ下に置き、画面の最初の色にする
-  const recentFirst = !featuredPhoto && recent.length > 0;
+  const rate = stats.discovered / SPECIES.length;
 
-  const recentSection = recent.length > 0 && (
-    <section aria-labelledby="home-recent">
-      <SectionHeader id="home-recent" title="最近の記録" onAction={() => setSheet('records')} first={recentFirst} className={recentFirst ? 'pt-5' : undefined} />
-      <div className="no-scrollbar flex items-start gap-2 overflow-x-auto px-4 pb-1">
-        {recent.map((s) => (
-          <RecentTile key={s.id} sighting={s} />
-        ))}
-      </div>
-    </section>
-  );
+  // きょうのミッションを全部達成したら、その日 1 回だけお祝いする
+  useEffect(() => {
+    if (!allDone || celebrated) return;
+    const t = window.setTimeout(() => {
+      markCelebrated();
+      sfx('mission');
+      void confettiBurst('mission');
+      toast.success('ミッションコンプリート！ また明日も来てね');
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [allDone, celebrated, markCelebrated]);
 
   return (
     <Page>
-      {/* ───── 季節の見出し（ヒーローは置かない） ───── */}
+      {/* ───── ステータス ───── */}
       <header className="pt-safe px-4">
-        <div className="flex items-start gap-3 pt-4">
-          <h1 className="min-w-0 flex-1 text-display text-fg">{month}月の奄美</h1>
+        <div className="flex items-center gap-2 pb-3 pt-3">
+          <Brand />
+          <span className="flex-1" />
           <SyncStatus />
+          {streak > 0 && (
+            <span
+              className="flex h-9 items-center gap-1 rounded-full border-2 border-capture/30 bg-surface pl-2 pr-3 shadow-pop-sm"
+              aria-label={`${streak}日連続でプレイ中`}
+            >
+              <IconFireFill size={18} className="text-capture" aria-hidden />
+              <span className="num text-[16px] leading-none text-capture" aria-hidden>
+                {streak}
+              </span>
+              <span className="text-caption text-fg-2" aria-hidden>
+                日連続
+              </span>
+            </span>
+          )}
         </div>
-        {note && (
-          <p className="mt-1 text-callout text-fg-2">
-            <Phrase text={note.text} />
-          </p>
-        )}
+        <PlayerHud />
       </header>
 
-      {featured && featuredPhoto && (
-        <figure className="mx-4 mt-4">
-          <Link to={`/species/${featured.id}`} className="block active:opacity-[.72]">
-            <img
-              src={featuredPhoto.src}
-              alt={featured.name}
-              draggable={false}
-              className="photo aspect-[4/3] w-full rounded-md bg-fill object-cover"
-            />
+      {/* ───── 季節のバナー（いまの奄美） ───── */}
+      <section className="mx-4 mt-4 overflow-hidden rounded-lg border-2 border-night bg-night text-white shadow-[0_4px_0_rgb(var(--c-edge))]" aria-labelledby="home-season-title">
+        <div className="relative px-4 pb-4 pt-3.5" style={{ background: 'radial-gradient(120% 140% at 100% 0%, rgb(var(--c-night-2)) 0%, transparent 60%)' }}>
+          <Sparkles count={4} className="opacity-70" />
+          <p className="num text-[13px] tracking-[0.08em] text-gold">
+            {MONTH_EN[month - 1]} · {night ? 'NIGHT MODE' : 'DAY MODE'}
+          </p>
+          <h1 id="home-season-title" className="mt-0.5 text-title font-black">
+            {month}月の奄美
+          </h1>
+          {note && (
+            <p className="mt-1 text-sub font-bold text-white/80">
+              <Phrase text={note.text} />
+            </p>
+          )}
+          <Link to="/capture" onClick={() => sfx('tap')} className={cn(button({ variant: 'capture' }), 'relative mt-4')}>
+            <IconCameraFill size={24} />
+            {sightings.length === 0 ? 'さいしょの1枚を撮りにいく' : 'いきものを さがしにいく'}
           </Link>
-          {featuredPhoto.credit && <figcaption className="mt-1.5 text-right text-caption text-fg-3">© {featuredPhoto.credit}</figcaption>}
-        </figure>
-      )}
+        </div>
+      </section>
 
-      {recentFirst && recentSection}
-
-      {/* ───── 図鑑の進み具合（行全体で /zukan へ） ───── */}
-      <Link to="/zukan" className={cn('block px-4 py-3 active:bg-fill', recentFirst ? 'mt-4' : 'mt-5')}>
-        <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 text-headline font-normal text-fg">図鑑</span>
-          <span className="text-headline text-fg">
-            <span className="num">
-              {stats.discovered}/{SPECIES.length}
+      {/* ───── きょうのミッション ───── */}
+      <section aria-labelledby="home-missions">
+        <SectionHeader
+          id="home-missions"
+          title="きょうのミッション"
+          action={
+            <span className="num rounded-full bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${missions.length}つ中${done}つ達成`}>
+              {done}/{missions.length}
             </span>
-            種
+          }
+        />
+        <div className="panel mx-4 overflow-hidden">
+          {missions.map((mi) => (
+            <MissionRow key={mi.id} mission={mi} />
+          ))}
+          <div className={cn('flex items-center gap-2 px-4 py-2.5 text-sub font-black', allDone ? 'bg-gold-soft text-legend' : 'bg-fill text-fg-3')}>
+            <IconTrophyFill size={18} className={allDone ? 'text-gold-edge' : 'text-fg-3'} aria-hidden />
+            {allDone ? 'コンプリート！ また明日も来てね' : `全部クリアで、連続記録をのばそう`}
+          </div>
+        </div>
+      </section>
+
+      {/* ───── 図鑑のコンプ率 ───── */}
+      <Link to="/zukan" onClick={() => sfx('tap')} className="panel pressable mx-4 mt-7 flex items-center gap-4 p-4">
+        <Ring value={rate} size={78} stroke={10}>
+          <span className="num text-[20px] leading-none text-fg">{Math.round(rate * 100)}%</span>
+        </Ring>
+        <span className="min-w-0 flex-1">
+          <span className="block text-section font-black text-fg">アマミ図鑑</span>
+          <span className="mt-0.5 block text-sub font-bold text-fg-2">
+            <span className="num text-[18px] text-brand">{stats.discovered}</span>
+            <span className="num text-[14px]"> / {SPECIES.length}</span> 種 ゲット
           </span>
-          <IconCaretRight size={16} className="shrink-0 text-fg-3" />
+          <span className="mt-2 flex gap-1" aria-hidden>
+            {CATEGORY_ORDER.map((c) => {
+              const v = stats.byCategory[c];
+              return (
+                <span key={c} className="h-2 flex-1 overflow-hidden rounded-full bg-fill-strong">
+                  <span className={cn('block h-full rounded-full', TYPE_META[c].bg)} style={{ width: `${(v.found / v.total) * 100}%` }} />
+                </span>
+              );
+            })}
+          </span>
         </span>
-        <ProgressBar id="zukan" value={stats.discovered / SPECIES.length} label="図鑑の進み具合" className="mt-2" />
-        <span className="mt-2 flex flex-wrap gap-x-3 text-sub text-fg-2">
-          <span>{rank.current.title}</span>
-          <Num value={points.toLocaleString('ja-JP')} unit="pt" />
-        </span>
+        <IconCaretRight size={20} className="shrink-0 text-fg-3" />
       </Link>
 
-      {/* ───── はじめての人へ（記録がまだない時だけ） ───── */}
-      {sightings.length === 0 && (
-        <EmptyState
-          icon={IconCamera}
-          title="最初の1枚を撮ろう"
-          body="近くで見られる生き物から始められます"
-          action={
-            <Link to="/capture" className={button({ variant: 'secondary', size: 'md' })}>
-              記録する
-            </Link>
-          }
-          className="pb-2"
-        />
-      )}
-
-      {/* ───── 今月会えるかもしれない種 ───── */}
+      {/* ───── いま会えるかも ───── */}
       {seasonal.length > 0 && (
         <section aria-labelledby="home-season">
-          <SectionHeader
-            id="home-season"
-            title={`${month}月に会えるかも`}
-            onAction={seasonal.length > ROWS ? () => setSheet('season') : undefined}
-            // 図鑑の行の下 12px の押下領域と合わせて、見出しの上を 32px にする
-            className="pt-5"
-          />
-          <div>
-            {seasonal.slice(0, ROWS).map((sp) => (
-              <SpeciesRow key={sp.id} species={sp} entry={collection.get(sp.id)} />
+          <SectionHeader id="home-season" title={`${month}月に会えるかも`} onAction={() => setSheet('season')} />
+          <div className="no-scrollbar flex gap-2.5 overflow-x-auto px-4 pb-2">
+            {seasonal.map((sp) => (
+              <SeasonCard key={sp.id} species={sp} entry={collection.get(sp.id)} featured={sp.id === featured?.id} />
             ))}
           </div>
         </section>
       )}
 
-      {/* ───── クエスト ───── */}
+      {/* ───── イベントクエスト ───── */}
       {activeQuests.length > 0 && (
         <section aria-labelledby="home-quests">
-          <SectionHeader id="home-quests" title="開催中のクエスト" onAction={() => setSheet('quests')} />
-          <div>
+          <SectionHeader id="home-quests" title="イベントクエスト" onAction={() => setSheet('quests')} />
+          <div className="space-y-2.5 px-4">
             {activeQuests.slice(0, ROWS).map((qp) => (
-              <ListRow
+              <button
                 key={qp.quest.id}
-                title={qp.quest.title}
-                subtitle={<Num value={`+${qp.quest.reward}`} unit="pt" />}
-                value={
-                  <span className="num">
-                    {qp.current}/{qp.target}
-                  </span>
-                }
+                type="button"
                 onClick={() => {
+                  sfx('tap');
                   setQuestId(qp.quest.id);
                   setSheet('quest');
                 }}
-              />
+                className="panel pressable block w-full overflow-hidden text-left"
+              >
+                <span className="flex items-center gap-3 px-4 pb-2 pt-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-soft text-gold-edge">
+                    <IconFlagBannerFill size={22} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-headline font-black text-fg">
+                      <Phrase text={qp.quest.title} />
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1 text-caption text-fg-2">
+                      ほうしゅう <Coin size={14} />
+                      <span className="num text-[13px] text-legend">+{qp.quest.reward}</span>
+                    </span>
+                  </span>
+                  <span className="num shrink-0 text-[18px] text-fg-2">
+                    {qp.current}/{qp.target}
+                  </span>
+                </span>
+                <span className="block px-4 pb-3.5">
+                  <XPBar value={qp.current / qp.target} tone="gold" height={12} label="クエストの進み具合" />
+                </span>
+              </button>
             ))}
           </div>
         </section>
       )}
 
-      {/* ───── 最近の記録（記録がある時だけ。注目種の写真がない時は上に置く） ───── */}
-      {!recentFirst && recentSection}
+      {/* ───── さいきんのゲット ───── */}
+      {recent.length > 0 && (
+        <section aria-labelledby="home-recent">
+          <SectionHeader id="home-recent" title="さいきんのゲット" onAction={() => setSheet('records')} />
+          <div className="no-scrollbar flex items-start gap-2.5 overflow-x-auto px-4 pb-2">
+            {recent.map((s) => (
+              <RecentTile key={s.id} sighting={s} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ───── 夜だけ：夜の道路の注意 ───── */}
+      {night && (
+        <Link
+          to="/safe-drive"
+          className="pressable mx-4 mt-7 flex items-center gap-3 rounded-lg border-2 border-night bg-night p-4 text-white shadow-[0_4px_0_rgb(var(--c-edge))]"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold text-night">
+            <IconCarProfileFill size={24} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-headline font-black">夜のパトロール中は安全運転</span>
+            <span className="mt-0.5 block text-sub font-bold text-white/75">夜の道路ではクロウサギが飛び出します</span>
+          </span>
+          <IconCaretRight size={20} className="shrink-0 text-white/70" />
+        </Link>
+      )}
 
       {/* ───── おすすめの体験 ───── */}
       <section aria-labelledby="home-experience">
         <SectionHeader id="home-experience" title="おすすめの体験" />
         <ExperienceItem exp={exp} onOpen={() => setSheet('experience')} />
       </section>
-
-      {/* ───── 夜だけ：夜の道路の注意 ───── */}
-      {night && (
-        <Notice
-          kind="night"
-          className="mt-8"
-          action={
-            <Link to="/safe-drive" className={cn(button({ variant: 'text', size: 'hit' }), 'gap-0.5')}>
-              セーフドライブ
-              <IconCaretRight size={14} />
-            </Link>
-          }
-        >
-          夜の道路ではクロウサギが飛び出します
-        </Notice>
-      )}
 
       <footer className="mt-10 px-4 text-caption text-fg-3">β版　運営：株式会社アマリンク</footer>
 
@@ -283,6 +357,78 @@ export default function Home() {
 
       <ExperienceSheet exp={sheet === 'experience' ? exp : null} onClose={close} />
     </Page>
+  );
+}
+
+// ───────── ミッション ─────────
+
+const MISSION_ICON: Record<Mission['id'], IconComponent> = {
+  record: IconCameraFill,
+  study: IconBookOpenTextFill,
+  safe: IconCarProfileFill,
+};
+
+function MissionRow({ mission }: { mission: Mission }) {
+  const Icon = MISSION_ICON[mission.id];
+  return (
+    <Link
+      to={mission.to}
+      onClick={() => sfx('tap')}
+      className="group/row flex items-center gap-3 border-b-2 border-sep px-4 py-3 active:bg-fill"
+      aria-label={`${mission.title}${mission.done ? '（達成）' : `（${mission.current}/${mission.target}）`}`}
+    >
+      <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', mission.done ? 'bg-xp text-white' : 'bg-brand-soft text-brand')}>
+        {mission.done ? <IconCheck size={22} /> : <Icon size={22} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cn('block text-callout font-black', mission.done ? 'text-fg-3 line-through decoration-2' : 'text-fg')}>{mission.title}</span>
+        {mission.target > 1 && (
+          <span className="mt-1.5 flex items-center gap-2">
+            <XPBar value={mission.current / mission.target} height={10} className="flex-1" />
+            <span className="num text-[13px] text-fg-2">
+              {mission.current}/{mission.target}
+            </span>
+          </span>
+        )}
+      </span>
+      {mission.done ? (
+        <span className="num shrink-0 animate-pop-in rounded-full bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
+      ) : (
+        <IconCaretRight size={18} className="shrink-0 text-fg-3" />
+      )}
+    </Link>
+  );
+}
+
+// ───────── 季節の種のカード ─────────
+
+/** 「いま会えるかも」の横スクロールのカード（ゲームのキャラクターカード） */
+function SeasonCard({ species, entry, featured }: { species: Species; entry?: CollectionEntry; featured: boolean }) {
+  const found = !!entry;
+  const t = TYPE_META[species.category];
+  return (
+    <Link
+      to={`/species/${species.id}`}
+      onClick={() => sfx('tap')}
+      className={cn('pressable relative block w-[132px] shrink-0 rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', found ? t.border : 'border-line')}
+      aria-label={`${species.name}${found ? '（ゲット済み）' : ''}`}
+    >
+      <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference className="aspect-square w-full rounded-[10px]">
+        {featured && (
+          <span className="absolute left-1 top-1 rounded-full bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">PICK UP</span>
+        )}
+        {found && (
+          <span className="absolute bottom-1 right-1 rounded-full bg-xp px-1.5 pt-[1px] font-num text-[10px] leading-4 text-[#0b3d22]">GET</span>
+        )}
+      </SpeciesPlate>
+      <span className="mt-1.5 flex items-center justify-between gap-1 px-0.5">
+        <TypeBadge category={species.category} size="sm" />
+        <Stars rarity={species.rarity} size={10} />
+      </span>
+      <span className="mt-1 line-clamp-2 min-h-8 px-0.5 text-tile text-fg">
+        <SpeciesName species={species} clamp={false} />
+      </span>
+    </Link>
   );
 }
 
@@ -348,14 +494,18 @@ function CustomPlate({ photoId, className }: { photoId: string | null; className
   );
 }
 
-/** 最近の記録のタイル（96px、rounded-xs）。下に名前を 1 行（ニックネームは省略記号可、和名は省略しない） */
+/** さいきんのゲットのタイル（104px のカード）。下に名前を 1 行 */
 function RecentTile({ sighting }: { sighting: Sighting }) {
   const sp = sighting.speciesId ? SPECIES_BY_ID[sighting.speciesId] : null;
   const nickname = sighting.nickname.trim();
   return (
-    <Link to={`/sighting/${sighting.id}`} className="block w-24 shrink-0 select-none active:opacity-[.72]">
-      <RecordPlate sighting={sighting} className="h-24 w-24 rounded-xs" />
-      <span className="mt-1.5 block text-sub text-fg">
+    <Link
+      to={`/sighting/${sighting.id}`}
+      onClick={() => sfx('tap')}
+      className={cn('pressable block w-[112px] shrink-0 select-none rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', sp ? TYPE_META[sp.category].border : 'border-line')}
+    >
+      <RecordPlate sighting={sighting} className="aspect-square w-full rounded-[10px]" />
+      <span className="mt-1 block px-0.5 text-tile text-fg">
         {nickname ? (
           <span className="block truncate">{nickname}</span>
         ) : sp ? (
@@ -402,14 +552,14 @@ function QuestDetail({ qp }: { qp: QuestProgress }) {
         <Phrase text={quest.description} />
       </p>
       <div className="mt-4 flex items-center gap-3">
-        <ProgressBar value={current / target} label="クエストの進み具合" className="flex-1" />
+        <XPBar value={current / target} tone="gold" label="クエストの進み具合" className="flex-1" />
         {done ? (
           <span className="flex shrink-0 items-center gap-1 text-sub text-fg-2">
             <IconCheckCircleFill size={16} className="text-success" />
             達成
           </span>
         ) : (
-          <span className="num shrink-0 text-callout font-semibold text-fg">
+          <span className="num shrink-0 text-[18px] text-fg">
             {current}/{target}
           </span>
         )}
@@ -442,13 +592,13 @@ function QuestList({ quests }: { quests: QuestProgress[] }) {
 function QuestGroup({ heading, items }: { heading: string; items: QuestProgress[] }) {
   return (
     <section className="mb-4">
-      <h3 className="px-4 pb-1 pt-2 text-sub font-semibold text-fg-2">{heading}</h3>
+      <h3 className="px-4 pb-1 pt-2 text-sub font-black text-fg-2">{heading}</h3>
       <ul>
         {items.map(({ quest, current, target, done, active }) => (
           <li key={quest.id} className="group/row flex pl-4">
-            <div className="min-w-0 flex-1 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
+            <div className="min-w-0 flex-1 border-b-2 border-sep py-3 pr-4 group-last/row:border-b-0">
               <div className="flex items-start gap-3">
-                <span className="min-w-0 flex-1 text-headline font-normal text-fg">
+                <span className="min-w-0 flex-1 text-headline font-black text-fg">
                   <Phrase text={quest.title} />
                 </span>
                 {done ? (

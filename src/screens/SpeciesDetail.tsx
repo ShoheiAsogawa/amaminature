@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CollectibleCardBack } from '../components/CollectibleCard';
 import { ExperienceMeta, ExperienceSheet } from '../components/ExperienceCard';
-import { IconEyeSlash } from '../components/icons';
+import { Stars, TYPE_META, TypeBadge } from '../components/game';
+import { IconCameraFill, IconEyeSlash, IconLightbulb, IconMoonStarsFill } from '../components/icons';
 import { Prose } from '../components/Prose';
-import { MonthBar, referencePhoto, SciName, silhouetteUrl, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
+import { MonthBar, referencePhoto, SciName, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
 import { SpeciesName } from '../components/SpeciesName';
 import {
   button,
@@ -15,7 +15,6 @@ import {
   InfoRow,
   ListRow,
   Notice,
-  RarityGems,
   ScreenHeader,
   SectionHeader,
   Sheet,
@@ -25,8 +24,10 @@ import { AREA_BY_ID } from '../data/areas';
 import { experiencesForSpecies } from '../data/experiences';
 import { CATEGORY_META, SPECIES_BY_ID, SPECIES_DISCLAIMER } from '../data/species';
 import type { Experience, Species } from '../data/types';
+import { sfx } from '../lib/sfx';
 import type { Sighting } from '../lib/types';
 import { useCollection } from '../store/useCollection';
+import { useStore } from '../store/useStore';
 
 // 種詳細（docs/DESIGN_SYSTEM.md §8.3）
 
@@ -44,8 +45,8 @@ function useScrolledPast(ref: RefObject<HTMLElement | null>, enabled: boolean) {
   useEffect(() => {
     const el = ref.current;
     if (!enabled || !el || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(([e]) => setPast(!e.isIntersecting && e.boundingClientRect.top < 44), {
-      rootMargin: '-44px 0px 0px 0px',
+    const io = new IntersectionObserver(([e]) => setPast(!e.isIntersecting && e.boundingClientRect.top < 56), {
+      rootMargin: '-56px 0px 0px 0px',
     });
     io.observe(el);
     return () => io.disconnect();
@@ -70,11 +71,13 @@ function SpeciesDetail({ id }: { id: string }) {
   const ref = sp ? referencePhoto(sp) : null;
   const userPhoto = entry?.photoId ?? null;
   const found = !!entry;
-  // 未発見の種は、伏せた図鑑カード（龍郷柄）を 4:3 のヒーローにする。
-  // 記録済みで写真（利用者 → 参考）もシルエットもない時だけ、ヒーローを出さずに遷移ヘッダーから始める
-  const hasPicture = !!sp && (!!userPhoto || !!ref || !!silhouetteUrl(sp.id));
-  const hasHero = !!sp && (!found || hasPicture);
-  const navTitleShown = useScrolledPast(nameRef, !!sp && !hasHero);
+  // 名前がヘッダーの下に隠れたら、ヘッダーに名前を出す
+  const navTitleShown = useScrolledPast(nameRef, !!sp);
+  const markViewed = useStore((s) => s.markViewed);
+  // きょうのミッション「図鑑で 3 種しらべる」
+  useEffect(() => {
+    if (sp) markViewed(sp.id);
+  }, [sp, markViewed]);
 
   const [exp, setExp] = useState<Experience | null>(null);
   const [recordsOpen, setRecordsOpen] = useState(false);
@@ -96,46 +99,54 @@ function SpeciesDetail({ id }: { id: string }) {
   const areas = [...new Set(records.map((s) => (s.areaId ? AREA_BY_ID[s.areaId]?.name : null)).filter((n): n is string => !!n))];
   const credit = !userPhoto && ref?.credit ? ref.credit : null;
 
+  const t = TYPE_META[sp.category];
+
   return (
     <main className="pb-[calc(40px+var(--safe-bottom))]">
-      {hasHero ? (
-        <>
-          <ScreenHeader variant="photo" onBack={back} title={sp.name} />
-          {hasPicture ? (
+      <ScreenHeader
+        variant="nav"
+        onBack={back}
+        title={
+          <span aria-hidden={!navTitleShown} className={cn('transition-opacity duration-150', navTitleShown ? 'opacity-100' : 'opacity-0')}>
+            {sp.name}
+          </span>
+        }
+      />
+
+      {/* ───── ヒーロー（タイプの色の地に、写真か「？」のカード） ───── */}
+      <div className={cn('relative -mt-[calc(56px+var(--safe-top))] overflow-hidden px-4 pb-6 pt-[calc(64px+var(--safe-top))]', t.soft)}>
+        <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_55%,rgb(255_255_255/.65),transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_55%,rgb(255_255_255/.08),transparent_70%)]" />
+        <div className="relative mx-auto w-[min(240px,64vw)]">
+          <div className={cn('rounded-xl border-4 bg-surface p-1.5 shadow-[0_6px_0_rgb(0_0_0/.15)]', found ? t.border : sp.rarity === 4 ? 'border-gold' : 'border-line')}>
             <SpeciesPlate
               species={sp}
               photoId={userPhoto}
+              discovered={found}
               showReference
               photoSize="full"
               patternSize="large"
               alt={sp.name}
-              className="aspect-[4/3] w-full rounded-none"
+              className={cn('aspect-square w-full rounded-[18px]', found && sp.rarity >= 3 && 'shine')}
             />
-          ) : (
-            // 未発見で絵がない種: まだ裏返していない図鑑カード（裏面）を置く
-            <div className="grid aspect-[4/3] w-full place-items-center bg-fill">
-              <CollectibleCardBack markSize={32} legend={sp.rarity === 4} className="h-[210px] w-[150px] -rotate-3 shadow-toast" />
-            </div>
-          )}
-          {credit && <p className="px-4 pt-1 text-right text-caption text-fg-3">© {credit}</p>}
-        </>
-      ) : (
-        <ScreenHeader
-          variant="nav"
-          onBack={back}
-          title={
-            <span aria-hidden={!navTitleShown} className={cn('transition-opacity duration-150', navTitleShown ? 'opacity-100' : 'opacity-0')}>
-              {sp.name}
+          </div>
+          {found ? (
+            <span className="num absolute -right-4 -top-3 rotate-12 rounded-full border-[3px] border-white bg-xp px-3 py-0.5 text-[18px] text-[#0b3d22] shadow-[0_3px_0_rgb(var(--c-xp-edge))]">
+              GET!
             </span>
-          }
-        />
-      )}
+          ) : (
+            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-line bg-surface px-3 py-1 text-caption text-fg-2 shadow-pop-sm">
+              まだ出会っていない
+            </span>
+          )}
+        </div>
+        {credit && <p className="relative mt-3 text-center text-caption text-fg-3">© {credit}</p>}
+      </div>
 
       {/* ───── 名前 ───── */}
-      <div className={cn('px-4', hasHero ? (credit ? 'pt-2' : 'pt-4') : 'pt-2')}>
+      <div className="px-4 pt-4">
         <div className="flex items-center gap-3">
-          <span className="num text-caption text-fg-3">No.{speciesNo(sp)}</span>
-          <RarityGems rarity={sp.rarity} withLabel />
+          <span className={cn('num text-[20px] leading-6', t.text)}>No.{speciesNo(sp)}</span>
+          <Stars rarity={sp.rarity} size={18} withLabel />
         </div>
         <h1 ref={nameRef} className="mt-1 text-display text-fg">
           <SpeciesName species={sp} />
@@ -143,8 +154,27 @@ function SpeciesDetail({ id }: { id: string }) {
         <p className="mt-0.5">
           <SciName sci={sp.sci} className="text-callout" />
         </p>
-        {!found && <p className="mt-2 text-callout text-fg-2">まだ出会っていません</p>}
-        <Link to={`/capture?species=${sp.id}`} className={cn(button({ variant: 'primary', size: 'lg' }), 'mt-5')}>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <TypeBadge category={sp.category} />
+          {sp.endemic && (
+            <span className="inline-flex h-7 items-center rounded-full bg-gold px-2.5 text-caption text-[#3d2a00]">
+              {sp.endemic === 'species' ? '固有種' : '固有亜種'}
+            </span>
+          )}
+          {sp.nocturnal && (
+            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-night px-2.5 text-caption text-white">
+              <IconMoonStarsFill size={13} aria-hidden />
+              夜行性
+            </span>
+          )}
+          {sp.protection?.some((p) => p.includes('天然記念物')) && (
+            <span className="inline-flex h-7 items-center rounded-full border-2 border-capture/40 bg-surface px-2.5 text-caption text-danger">
+              {sp.protection.find((p) => p.includes('特別天然記念物')) ? '特別天然記念物' : '天然記念物'}
+            </span>
+          )}
+        </div>
+        <Link to={`/capture?species=${sp.id}`} onClick={() => sfx('tap')} className={cn(button({ variant: 'capture', size: 'lg' }), 'mt-5')}>
+          <IconCameraFill size={22} />
           この生き物を記録する
         </Link>
       </div>
@@ -164,7 +194,7 @@ function SpeciesDetail({ id }: { id: string }) {
             note={areas.length > 0 ? `${areas.join('、')}で記録` : undefined}
             onAction={records.length > 3 ? () => setRecordsOpen(true) : undefined}
           />
-          <div className="no-scrollbar flex gap-2 overflow-x-auto px-4">
+          <div className="no-scrollbar flex gap-2.5 overflow-x-auto px-4 pb-2">
             {records.map((s) => (
               <RecordTile key={s.id} sighting={s} species={sp} />
             ))}
@@ -180,19 +210,26 @@ function SpeciesDetail({ id }: { id: string }) {
           </>
         }
       />
-      <p className="px-4 text-body text-fg">
-        <Prose text={sp.description} />
-      </p>
+      <div className="panel mx-4 px-4 py-3.5">
+        <p className="text-body font-bold text-fg">
+          <Prose text={sp.description} />
+        </p>
+      </div>
 
       <SectionHeader title="見られる季節" />
-      <div className="px-4">
+      <div className="panel mx-4 px-3 pb-2.5 pt-3">
         <MonthBar months={sp.months} highlight={month} />
       </div>
 
-      <SectionHeader title="観察のコツ" />
-      <p className="px-4 text-body text-fg">
-        <Prose text={sp.tip} />
-      </p>
+      <SectionHeader title="さがしかたのコツ" />
+      <div className="mx-4 flex gap-3 rounded-md border-2 border-gold/60 bg-gold-soft/70 p-3.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-[#3d2a00]">
+          <IconLightbulb size={20} />
+        </span>
+        <p className="min-w-0 flex-1 pt-1 text-body font-bold text-fg">
+          <Prose text={sp.tip} />
+        </p>
+      </div>
 
       <Group className="mt-8">
         <InfoRow label="分類">{CATEGORY_META[sp.category].label}</InfoRow>
@@ -221,18 +258,22 @@ function SpeciesDetail({ id }: { id: string }) {
       {sp.manner && (
         <>
           <SectionHeader title="観察マナー" />
-          <p className="px-4 text-body text-fg">
-            <Prose text={sp.manner} />
-          </p>
+          <div className="panel mx-4 px-4 py-3.5">
+            <p className="text-body font-bold text-fg">
+              <Prose text={sp.manner} />
+            </p>
+          </div>
         </>
       )}
 
       {sp.culture && (
         <>
           <SectionHeader title="シマの話" />
-          <p className="px-4 text-body text-fg">
-            <Prose text={sp.culture} />
-          </p>
+          <div className="panel mx-4 px-4 py-3.5">
+            <p className="text-body font-bold text-fg">
+              <Prose text={sp.culture} />
+            </p>
+          </div>
         </>
       )}
 
@@ -289,19 +330,19 @@ function SpeciesDetail({ id }: { id: string }) {
   );
 }
 
-/** あなたの記録の 1 枚（96、rounded-xs）。下にニックネーム（sub）と日付（caption） */
+/** あなたの記録の 1 枚（104 のカード）。下にニックネームと日付 */
 function RecordTile({ sighting: s, species }: { sighting: Sighting; species: Species }) {
   const date = shortDate(s.observedAt);
   return (
     <Link
       to={`/sighting/${s.id}`}
       aria-label={`${s.nickname || species.name}、${date}`}
-      className="block w-24 shrink-0 select-none active:opacity-[.72]"
+      className={cn('pressable block w-[112px] shrink-0 select-none rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', TYPE_META[species.category].border)}
     >
-      <SpeciesPlate species={species} photoId={s.photoId} className="h-24 w-24 rounded-xs" />
-      <span aria-hidden className="mt-1.5 block">
-        {s.nickname && <span className="block truncate text-sub text-fg">{s.nickname}</span>}
-        <span className="block text-caption text-fg-2">{date}</span>
+      <SpeciesPlate species={species} photoId={s.photoId} className="aspect-square w-full rounded-[10px]" />
+      <span aria-hidden className="mt-1 block px-0.5">
+        {s.nickname && <span className="block truncate text-tile text-fg">{s.nickname}</span>}
+        <span className="num block text-[12px] text-fg-2">{date}</span>
       </span>
     </Link>
   );

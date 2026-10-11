@@ -20,7 +20,6 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { RARITY_META } from '../data/species';
 import type { Category, Rarity } from '../data/types';
 import { cn } from '../lib/cn';
 import type { Badge } from '../lib/progress';
@@ -37,7 +36,6 @@ import {
   IconCaretLeft,
   IconCaretRight,
   IconCheck,
-  IconCheckCircleFill,
   IconFishSimple,
   IconInfo,
   IconMagnifyingGlass,
@@ -47,6 +45,7 @@ import {
   IconX,
   type IconComponent,
 } from './icons';
+import { Stars } from './game';
 import { Phrase } from './Phrase';
 import type { ConfirmDialogProps, SheetProps } from './Sheet';
 
@@ -168,9 +167,9 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
   if (variant === 'tab') {
     return (
       <header className={cn('pt-safe', className)}>
-        <div className="flex h-[52px] items-center gap-2 px-4 pb-2 pt-3">
-          <h1 className="min-w-0 flex-1 truncate text-title text-fg">{title}</h1>
-          {right && <div className="-mr-2 flex shrink-0 items-center">{right}</div>}
+        <div className="flex h-[60px] items-center gap-2 px-4 pb-1 pt-4">
+          <h1 className="min-w-0 flex-1 truncate text-display text-fg">{title}</h1>
+          {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
         </div>
       </header>
     );
@@ -183,7 +182,7 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
         <div
           aria-hidden={!scrolled}
           className={cn(
-            'pt-safe border-b border-sep bg-page transition-opacity duration-150',
+            'pt-safe border-b-2 border-line bg-page transition-opacity duration-150',
             scrolled ? 'pointer-events-auto opacity-100' : 'opacity-0',
           )}
         >
@@ -199,7 +198,7 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
                 <IconCaretLeft size={24} />
               </button>
             </div>
-            <div aria-hidden="true" className="min-w-0 truncate px-1 text-center text-headline text-fg">{title}</div>
+            <div aria-hidden="true" className="min-w-0 truncate px-1 text-center text-headline font-black text-fg">{title}</div>
             <div />
           </div>
         </div>
@@ -221,20 +220,25 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
   return (
     <header
       className={cn(
-        'pt-safe sticky top-0 z-30 border-b transition-colors duration-150',
-        scrolled ? 'border-sep bg-page' : 'border-transparent bg-transparent',
+        'pt-safe sticky top-0 z-30 border-b-2 transition-colors duration-150',
+        scrolled ? 'border-line bg-page/95 backdrop-blur' : 'border-transparent bg-transparent',
         className,
       )}
     >
-      <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center">
-        <div className="flex items-center justify-start">
+      <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center">
+        <div className="flex items-center justify-start pl-3">
           {left ?? (
-            <button type="button" onClick={back} aria-label="戻る" className="grid h-11 w-11 place-items-center text-fg active:opacity-60">
-              <IconCaretLeft size={24} />
+            <button
+              type="button"
+              onClick={back}
+              aria-label="戻る"
+              className="pressable grid h-10 w-10 place-items-center rounded-full border-2 border-line bg-surface text-fg shadow-pop-sm"
+            >
+              <IconCaretLeft size={20} />
             </button>
           )}
         </div>
-        <h1 className="min-w-0 truncate px-1 text-center text-headline text-fg">{title}</h1>
+        <h1 className="min-w-0 truncate px-1 text-center text-headline font-black text-fg">{title}</h1>
         <div className="flex items-center justify-end pr-4">{right}</div>
       </div>
     </header>
@@ -255,17 +259,17 @@ export function HeaderButton({
   to?: string;
   className?: string;
 }) {
-  const cls = cn('grid h-10 w-10 place-items-center rounded-full text-fg active:bg-fill', className);
+  const cls = cn('pressable grid h-10 w-10 place-items-center rounded-full border-2 border-line bg-surface text-fg shadow-pop-sm', className);
   if (to) {
     return (
       <Link to={to} aria-label={label} className={cls}>
-        <Icon size={24} />
+        <Icon size={20} />
       </Link>
     );
   }
   return (
     <button type="button" onClick={onClick} aria-label={label} className={cls}>
-      <Icon size={24} />
+      <Icon size={20} />
     </button>
   );
 }
@@ -322,7 +326,8 @@ export type SectionHeaderProps = {
 /** セクション見出し。左に section（18/26、600）、右に任意で「すべて見る ›」 */
 export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見る', action, note, first = false, id, className }: SectionHeaderProps) {
   // 「すべて見る」は 400（見出しと行の太さに埋もれないよう、太さは構造だけに使う）
-  const linkCls = '-my-[11px] -mr-1 flex h-11 shrink-0 items-center gap-0.5 px-1 pt-[2px] text-sub text-brand active:opacity-60';
+  const linkCls =
+    'pressable -my-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full border-2 border-line bg-surface pl-3 pr-2 text-caption font-black text-brand shadow-pop-sm';
   const right = to ? (
     <Link to={to} className={linkCls}>
       {actionLabel}
@@ -337,10 +342,11 @@ export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見
     action
   );
   return (
-    <div className={cn('px-4 pb-2', first ? 'pt-4' : 'pt-8', className)}>
+    <div className={cn('px-4 pb-3', first ? 'pt-4' : 'pt-7', className)}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id={id} className="balance min-w-0 text-section text-fg">
-          {typeof title === 'string' ? <Phrase text={title} /> : title}
+        <h2 id={id} className="balance flex min-w-0 items-center gap-2 text-section text-fg">
+          <span aria-hidden className="h-5 w-1.5 shrink-0 rounded-full bg-brand-fill" />
+          <span className="min-w-0">{typeof title === 'string' ? <Phrase text={title} /> : title}</span>
         </h2>
         {right}
       </div>
@@ -373,7 +379,7 @@ export function Group({
 }) {
   return (
     <div className={className}>
-      <div className={cn('mx-4 overflow-hidden rounded-md bg-fill', boxClassName)}>
+      <div className={cn('panel mx-4 overflow-hidden', boxClassName)}>
         <GroupContext.Provider value={true}>{children}</GroupContext.Provider>
       </div>
       {note && <p className="mx-4 mt-2 px-4 text-sub text-fg-2">{note}</p>}
@@ -464,10 +470,13 @@ export function ListRow({
   const size = titleSize ?? (inGroup ? 'callout' : 'headline');
   const minH = thumbSize === 56 ? 'min-h-[76px]' : thumbSize ? 'min-h-16' : subtitle ? 'min-h-16' : inGroup ? 'min-h-12' : 'min-h-14';
 
+  // グループの外の行は 1 行ずつのカード（白い面・2px の線・厚み）。グループの中の行は線で区切る
   const rowCls = cn(
     'group/row relative flex w-full items-stretch pl-4 text-left',
-    interactive && (inGroup ? 'active:bg-fill-strong' : 'active:bg-fill'),
-    selected && 'bg-brand-soft',
+    inGroup
+      ? interactive && 'active:bg-fill'
+      : cn('mx-4 mb-2.5 w-[calc(100%-2rem)] rounded-md border-2 border-line bg-surface shadow-pop-sm', interactive && 'pressable'),
+    selected && (inGroup ? 'bg-brand-soft' : 'border-brand bg-brand-soft'),
     className,
   );
 
@@ -482,12 +491,11 @@ export function ListRow({
         className={cn(
           'flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-4',
           minH,
-          !noDivider && 'border-b border-sep group-last/row:border-b-0',
+          inGroup && !noDivider && 'border-b-2 border-sep group-last/row:border-b-0',
         )}
       >
         <span className="min-w-0 flex-1">
-          {/* 行のタイトルは 400（太さは画面・セクションの見出し、主な数字、主ボタンだけに使う） */}
-          <span className={cn('block font-normal', size === 'headline' ? 'text-headline' : 'text-callout', disabled ? 'text-fg-3' : 'text-fg')}>
+          <span className={cn('block font-bold', size === 'headline' ? 'text-headline' : 'text-callout', disabled ? 'text-fg-3' : 'text-fg')}>
             {phrase && typeof title === 'string' ? <Phrase text={title} /> : title}
           </span>
           {/* 副題は 2 行に折り返すことがあるので palt を切る（句読点を詰めない。§3.4） */}
@@ -498,12 +506,13 @@ export function ListRow({
         {value != null && value !== false && <span className="shrink-0 text-callout text-fg-2">{value}</span>}
         {trailing}
         {checked && (
-          <>
-            <IconCheckCircleFill size={20} className="shrink-0 text-success" />
-            <span className="sr-only">記録済み</span>
-          </>
+          <span className="flex h-6 shrink-0 items-center gap-1 rounded-full bg-xp px-2 text-caption font-black text-[#0b3d22]">
+            <IconCheck size={12} aria-hidden />
+            GET
+            <span className="sr-only">（記録済み）</span>
+          </span>
         )}
-        {chevron && <IconCaretRight size={16} className="shrink-0 text-fg-3" />}
+        {chevron && <IconCaretRight size={18} className="shrink-0 text-fg-3" />}
       </span>
     </>
   );
@@ -543,9 +552,9 @@ export function ListRow({
 export function InfoRow({ label, children, trailing, className }: { label: ReactNode; children: ReactNode; trailing?: ReactNode; className?: string }) {
   return (
     <div className={cn('group/row flex pl-4', className)}>
-      <div className="flex min-h-12 min-w-0 flex-1 items-start gap-3 border-b border-sep py-3 pr-4 group-last/row:border-b-0">
-        <span className="w-24 shrink-0 text-callout text-fg-2">{label}</span>
-        <span className="min-w-0 flex-1 text-callout text-fg">{children}</span>
+      <div className="flex min-h-12 min-w-0 flex-1 items-start gap-3 border-b-2 border-sep py-3 pr-4 group-last/row:border-b-0">
+        <span className="w-24 shrink-0 text-callout font-bold text-fg-2">{label}</span>
+        <span className="min-w-0 flex-1 text-callout font-bold text-fg">{children}</span>
         {trailing && <span className="-my-1 shrink-0 self-center">{trailing}</span>}
       </div>
     </div>
@@ -554,29 +563,48 @@ export function InfoRow({ label, children, trailing, className }: { label: React
 
 // ───────── ボタン（§7.6） ─────────
 
+/** 押した時に沈む動き（厚みの影は variant ごとに書く。Tailwind が読めるようクラス名は省略せずに書く） */
+const PRESS = 'transition-[transform,box-shadow] duration-75 active:translate-y-[3px]';
+
 /**
  * ボタンのクラス。<button className={button({ variant: 'secondary', size: 'md' })}> や <Link> にも使える。
- * 角丸はすべて 12。ラベルの後ろに矢印を付けない。押下は色の切り替えだけ。
+ * ゲームのボタン：太い文字、角丸 18、下に 4px の厚み。押すと沈む。
  */
-export const button = cva('inline-flex select-none items-center justify-center gap-2 pt-[2px] transition-colors disabled:pointer-events-none', {
-  variants: {
-    variant: {
-      primary: 'bg-brand-fill text-on-brand active:bg-brand-pressed disabled:bg-fill disabled:text-fg-3',
-      secondary: 'bg-fill text-fg active:bg-fill-strong disabled:text-fg-3',
-      text: 'bg-transparent text-brand active:opacity-60',
-      'danger-text': 'bg-transparent text-danger active:opacity-60',
-      danger: 'bg-danger text-on-danger active:opacity-90',
-      line: 'bg-line-green text-white active:opacity-90',
-      'on-stage': 'bg-white/[.14] text-white active:bg-white/20',
+export const button = cva(
+  'inline-flex select-none items-center justify-center gap-2 pt-[1px] font-black tracking-[0.02em] disabled:pointer-events-none disabled:translate-y-0',
+  {
+    variants: {
+      variant: {
+        primary: cn(
+          PRESS,
+          'bg-brand-fill text-on-brand shadow-[0_4px_0_rgb(var(--c-brand-pressed))] active:shadow-[0_1px_0_rgb(var(--c-brand-pressed))]',
+          'disabled:bg-fill-strong disabled:text-fg-3 disabled:shadow-[0_4px_0_rgb(var(--c-edge))]',
+        ),
+        secondary: cn(
+          PRESS,
+          'border-2 border-line bg-surface text-brand shadow-[0_4px_0_rgb(var(--c-edge))] active:shadow-[0_1px_0_rgb(var(--c-edge))] disabled:text-fg-3',
+        ),
+        gold: cn(
+          PRESS,
+          'bg-gold text-[#3d2a00] shadow-[0_4px_0_rgb(var(--c-gold-edge))] active:shadow-[0_1px_0_rgb(var(--c-gold-edge))]',
+          'disabled:bg-fill-strong disabled:text-fg-3 disabled:shadow-[0_4px_0_rgb(var(--c-edge))]',
+        ),
+        capture: cn(PRESS, 'bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge))] active:shadow-[0_1px_0_rgb(var(--c-capture-edge))]'),
+        text: 'bg-transparent font-bold text-brand active:opacity-60',
+        'danger-text': 'bg-transparent font-bold text-danger active:opacity-60',
+        danger: cn(PRESS, 'bg-danger text-on-danger shadow-[0_4px_0_#78140e] active:shadow-[0_1px_0_#78140e]'),
+        line: cn(PRESS, 'bg-line-green text-white shadow-[0_4px_0_#049640] active:shadow-[0_1px_0_#049640]'),
+        'on-stage': cn(PRESS, 'border-2 border-white/25 bg-white/[.12] text-white shadow-[0_4px_0_rgb(0_0_0/.35)] active:shadow-[0_1px_0_rgb(0_0_0/.35)]'),
+      },
+      size: {
+        lg: 'h-14 w-full rounded-md px-5 text-[17px]',
+        md: 'h-11 rounded-sm px-5 text-callout',
+        hit: 'min-h-11 px-1 text-callout',
+      },
     },
-    size: {
-      lg: 'h-[50px] w-full rounded-md px-5 text-headline',
-      md: 'h-11 rounded-md px-4 text-callout font-semibold',
-      hit: 'min-h-11 px-1 text-callout font-semibold',
-    },
+    defaultVariants: { variant: 'primary', size: 'lg' },
   },
-  defaultVariants: { variant: 'primary', size: 'lg' },
-});
+);
 
 export type ButtonVariants = VariantProps<typeof button>;
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & ButtonVariants;
@@ -588,11 +616,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 /** 無効なボタンの下に出す理由 1 行（sub、fg-2）。例「あと140pt」 */
 export function ButtonNote({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn('mt-2 text-center text-sub text-fg-2', className)}>{children}</p>;
+  return <p className={cn('mt-2.5 text-center text-sub font-bold text-fg-2', className)}>{children}</p>;
 }
 
-/** 固定 CTA バーがある画面の本文に付ける下余白（74px ＋ 安全領域 ＋ 16px） */
-export const CTA_PADDING = 'pb-[calc(90px+var(--safe-bottom))]';
+/** 固定 CTA バーがある画面の本文に付ける下余白（84px ＋ 安全領域 ＋ 16px） */
+export const CTA_PADDING = 'pb-[calc(100px+var(--safe-bottom))]';
 
 /**
  * 固定 CTA バー（§7.6）。page の地、上辺に 1px の sep。主な操作が 1 つの画面だけ（記録 3、Plus、
@@ -602,7 +630,7 @@ export function CtaBar({ children, note, className }: { children: ReactNode; not
   return (
     <div
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] border-t border-sep bg-page px-4 pb-[calc(12px+var(--safe-bottom))] pt-3',
+        'fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] rounded-t-xl border-t-2 border-line bg-surface/95 px-4 pb-[calc(14px+var(--safe-bottom))] pt-3.5 backdrop-blur',
         className,
       )}
     >
@@ -638,12 +666,12 @@ export function CheckMark({ checked, size = 24, className }: { checked: boolean;
       transition={{ duration: 0.12 }}
       className={cn(
         'grid shrink-0 place-items-center rounded-full',
-        checked ? 'bg-brand-fill text-on-brand' : 'border-[1.5px] border-fg-3',
+        checked ? 'bg-xp text-white shadow-[0_2px_0_rgb(var(--c-xp-edge))]' : 'border-[2.5px] border-line bg-surface',
         className,
       )}
       style={{ width: size, height: size }}
     >
-      {checked && <IconCheck size={Math.round(size * 0.6)} />}
+      {checked && <IconCheck size={Math.round(size * 0.62)}/>}
     </m.span>
   );
 }
@@ -662,12 +690,12 @@ export function RadioMark({ checked, className }: { checked: boolean; className?
       animate={{ scale: 1 }}
       transition={{ duration: 0.12 }}
       className={cn(
-        'grid h-5 w-5 shrink-0 place-items-center rounded-full',
-        checked ? 'bg-brand-fill' : 'border-[1.5px] border-fg-3',
+        'grid h-6 w-6 shrink-0 place-items-center rounded-full',
+        checked ? 'bg-brand-fill shadow-[0_2px_0_rgb(var(--c-brand-pressed))]' : 'border-[2.5px] border-line bg-surface',
         className,
       )}
     >
-      {checked && <span className="h-2 w-2 rounded-full bg-on-brand" />}
+      {checked && <span className="h-2.5 w-2.5 rounded-full bg-on-brand" />}
     </m.span>
   );
 }
@@ -703,12 +731,12 @@ export function Chip({ children, selected = false, icon, selectedIcon, count, on
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        'inline-flex h-8 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-full px-3 pt-[2px] text-sub transition-colors',
+        'pressable inline-flex h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 pt-[1px] text-sub font-bold',
         selected
-          ? 'bg-brand-fill font-semibold text-on-brand active:bg-brand-pressed'
+          ? 'border-brand-pressed bg-brand-fill text-on-brand shadow-[0_3px_0_rgb(var(--c-brand-pressed))]'
           : onFill
-            ? 'bg-fill-strong text-fg active:opacity-[.72]'
-            : 'bg-fill text-fg active:bg-fill-strong',
+            ? 'border-line bg-fill text-fg shadow-pop-sm'
+            : 'border-line bg-surface text-fg shadow-pop-sm',
         disabled && 'text-fg-3',
         className,
       )}
@@ -725,7 +753,7 @@ export function Chip({ children, selected = false, icon, selectedIcon, count, on
 /** チップの横スクロール行（間隔 8、左右 16、端のフェードなし）。シートの中でもスワイプと競合しない */
 export function ChipRow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('no-scrollbar flex gap-2 overflow-x-auto px-4', className)} data-base-ui-swipe-ignore="x">
+    <div className={cn('no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1.5', className)} data-base-ui-swipe-ignore="x">
       {children}
     </div>
   );
@@ -749,7 +777,7 @@ export function Segmented<T extends string>({
 }) {
   const id = useId();
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn('flex h-8 w-full rounded-sm bg-fill p-[2px]', className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn('flex h-11 w-full rounded-full border-2 border-line bg-fill p-1', className)}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -759,12 +787,12 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={cn('relative flex-1 select-none whitespace-nowrap rounded-thumb px-2 pt-[2px] text-sub', active ? 'font-semibold text-fg' : 'text-fg-2')}
+            className={cn('relative flex-1 select-none whitespace-nowrap rounded-full px-2 pt-[1px] text-sub font-bold', active ? 'text-on-brand' : 'text-fg-2')}
           >
             {active && (
               <m.span
                 layoutId={`seg-${id}`}
-                className="absolute inset-0 rounded-thumb bg-thumb shadow-thumb dark:shadow-none"
+                className="absolute inset-0 rounded-full bg-brand-fill shadow-[0_2px_0_rgb(var(--c-brand-pressed))]"
                 transition={{ type: 'spring', stiffness: 500, damping: 40 }}
               />
             )}
@@ -795,8 +823,8 @@ export function SearchField({
   'aria-label'?: string;
 }) {
   return (
-    <div className={cn('relative flex h-9 min-w-0 items-center rounded-sm bg-fill focus-within:ring-2 focus-within:ring-brand', className)}>
-      <IconMagnifyingGlass size={16} className="pointer-events-none absolute left-3 text-fg-3" />
+    <div className={cn('relative flex h-11 min-w-0 items-center rounded-full border-2 border-line bg-surface focus-within:border-brand', className)}>
+      <IconMagnifyingGlass size={18} className="pointer-events-none absolute left-3.5 text-fg-3" />
       <input
         type="search"
         size={1}
@@ -806,10 +834,10 @@ export function SearchField({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label={ariaLabel}
-        className="h-full w-full min-w-0 appearance-none rounded-sm bg-transparent pl-9 pr-10 text-input leading-5 text-fg outline-none placeholder:text-fg-3 focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-full w-full min-w-0 appearance-none rounded-full bg-transparent pl-10 pr-10 text-input font-bold leading-5 text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
-        <button type="button" onClick={() => onChange('')} aria-label="入力を消す" className="absolute right-0 grid h-9 w-10 place-items-center">
+        <button type="button" onClick={() => onChange('')} aria-label="入力を消す" className="absolute right-0.5 grid h-10 w-10 place-items-center">
           <span className="grid h-5 w-5 place-items-center rounded-full bg-fg-3 text-fill">
             <IconX size={12} />
           </span>
@@ -823,14 +851,15 @@ export function SearchField({
 export function Field({ label, children, note, className }: { label: ReactNode; children: ReactNode; note?: ReactNode; className?: string }) {
   return (
     <label className={cn('block', className)}>
-      <span className="mb-1.5 block text-sub font-semibold text-fg-2">{label}</span>
+      <span className="mb-1.5 block text-sub font-black text-fg-2">{label}</span>
       {children}
       {note && <span className="mt-1.5 block text-sub text-fg-2">{note}</span>}
     </label>
   );
 }
 
-const fieldBox = 'rounded-sm bg-fill text-input text-fg outline-none placeholder:text-fg-3 focus-visible:outline-none';
+const fieldBox =
+  'rounded-sm border-2 border-line bg-surface text-input font-bold text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none';
 
 /** 入力欄。高さ 48、fill、枠線なし、フォーカスで 2px の brand のリング。trailing で右端にボタン（40px）を置ける */
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { trailing?: ReactNode }>(function Input(
@@ -839,11 +868,11 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 ) {
   // size={1}: 和文フォントの字幅で入力欄の最小幅が広がり、横スクロールが出るのを防ぐ（幅は w-full で決める）
   if (!trailing) {
-    return <input ref={ref} size={1} className={cn(fieldBox, 'h-12 w-full min-w-0 px-[14px] focus:ring-2 focus:ring-brand', className)} {...props} />;
+    return <input ref={ref} size={1} className={cn(fieldBox, 'h-12 w-full min-w-0 px-[14px] focus:border-brand', className)} {...props} />;
   }
   return (
-    <div className={cn('flex h-12 w-full min-w-0 items-center rounded-sm bg-fill focus-within:ring-2 focus-within:ring-brand', className)}>
-      <input ref={ref} size={1} className={cn(fieldBox, 'h-full min-w-0 flex-1 bg-transparent pl-[14px] pr-1')} {...props} />
+    <div className={cn('flex h-12 w-full min-w-0 items-center rounded-sm border-2 border-line bg-surface focus-within:border-brand', className)}>
+      <input ref={ref} size={1} className={cn(fieldBox, 'h-full min-w-0 flex-1 border-0 bg-transparent pl-[14px] pr-1')} {...props} />
       <span className="flex shrink-0 items-center pr-1">{trailing}</span>
     </div>
   );
@@ -851,7 +880,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 
 /** 複数行の入力欄（最小 96px、入力欄と同じ見た目） */
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...props }, ref) {
-  return <textarea ref={ref} cols={1} className={cn(fieldBox, 'block min-h-24 w-full min-w-0 resize-none px-[14px] py-3 focus:ring-2 focus:ring-brand', className)} {...props} />;
+  return <textarea ref={ref} cols={1} className={cn(fieldBox, 'block min-h-24 w-full min-w-0 resize-none px-[14px] py-3 focus:border-brand', className)} {...props} />;
 });
 
 /**
@@ -875,9 +904,9 @@ export function DateTimeRow({
   const shown = d && !Number.isNaN(d.getTime()) ? formatDateJa(d, { time: true, year: d.getFullYear() !== new Date().getFullYear() }) : '';
   return (
     <div className={cn('group/row relative flex pl-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand active:bg-fill-strong', className)}>
-      <div className="flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b border-sep py-2.5 pr-4 group-last/row:border-b-0">
-        <span className="w-24 shrink-0 text-callout text-fg-2">{label}</span>
-        <span className="min-w-0 flex-1 text-callout text-fg">{shown}</span>
+      <div className="flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b-2 border-sep py-2.5 pr-4 group-last/row:border-b-0">
+        <span className="w-24 shrink-0 text-callout font-bold text-fg-2">{label}</span>
+        <span className="min-w-0 flex-1 text-callout font-bold text-fg">{shown}</span>
         <IconCaretRight size={16} className="shrink-0 text-fg-3" />
       </div>
       <input
@@ -894,37 +923,9 @@ export function DateTimeRow({
 
 // ───────── レア度・進捗・統計（§7.11〜7.13） ─────────
 
-/**
- * レア度ジェム。6px の菱形 4 つ、間隔 3px。塗りは fg-2（幻は legend）、空きは 1px の sep の輪郭。
- * withLabel で右に言葉（sub、fg-2、間隔 6px）。行と詳細では付け、タイルではジェムだけ。
- */
-export function RarityGems({
-  rarity,
-  withLabel = false,
-  className,
-}: {
-  rarity: Rarity;
-  withLabel?: boolean;
-  className?: string;
-}) {
-  const word = RARITY_META[rarity].label;
-  const on = rarity === 4 ? 'bg-legend' : 'bg-fg-2';
-  return (
-    <span role="img" aria-label={`レア度 ${word}`} className={cn('inline-flex shrink-0 items-center gap-1.5', className)}>
-      <span className="inline-flex items-center gap-[3px]" aria-hidden>
-        {[1, 2, 3, 4].map((i) => (
-          <span key={i} className="grid h-[9px] w-[9px] place-items-center">
-            <span data-gem={i <= rarity ? 'on' : 'off'} className={cn('block h-1.5 w-1.5 rotate-45', i <= rarity ? on : 'border border-sep')} />
-          </span>
-        ))}
-      </span>
-      {withLabel && (
-        <span className="text-sub text-fg-2" aria-hidden>
-          {word}
-        </span>
-      )}
-    </span>
-  );
+/** レア度（星 4 段階）。withLabel で言葉を添える。中身は game.tsx の Stars */
+export function RarityGems({ rarity, withLabel = false, className }: { rarity: Rarity; withLabel?: boolean; className?: string }) {
+  return <Stars rarity={rarity} withLabel={withLabel} className={className} />;
 }
 
 const lastBarValues = new Map<string, number>();
@@ -962,9 +963,12 @@ export function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(v * 100)}
-      className={cn('h-1 overflow-hidden rounded-bar bg-fill', className)}
+      className={cn('h-3 overflow-hidden rounded-full border-2 border-line bg-fill', className)}
     >
-      <div className="h-full rounded-bar bg-brand transition-[width] duration-300 ease-out" style={{ width: `${shown * 100}%` }} />
+      <div
+        className="stripes h-full rounded-full bg-brand-fill transition-[width] duration-500 ease-out"
+        style={{ width: `${shown * 100}%` }}
+      />
     </div>
   );
 }
@@ -990,7 +994,7 @@ export function Stat({ value, unit, label, className }: { value: ReactNode; unit
     <div className={cn('flex min-w-0 flex-1 flex-col items-center text-center', className)}>
       <div className="flex items-baseline">
         <span className="num text-num-l text-fg">{value}</span>
-        {unit && <span className={cn('text-sub text-fg-2', unitGap(unit))}>{unit}</span>}
+        {unit && <span className={cn('text-sub font-bold text-fg-2', unitGap(unit))}>{unit}</span>}
       </div>
       <div className="mt-1 text-caption text-fg-2">{label}</div>
     </div>
@@ -1001,10 +1005,10 @@ export function Stat({ value, unit, label, className }: { value: ReactNode; unit
 export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
   const items = Children.toArray(children);
   return (
-    <div className={cn('flex items-center px-4', className)}>
+    <div className={cn('panel mx-4 flex items-center px-2 py-3.5', className)}>
       {items.map((c, i) => (
         <Fragment key={i}>
-          {i > 0 && <span aria-hidden className="h-7 w-px shrink-0 bg-sep" />}
+          {i > 0 && <span aria-hidden className="h-8 w-[2px] shrink-0 rounded-full bg-sep" />}
           {c}
         </Fragment>
       ))}
@@ -1131,7 +1135,7 @@ export function EmptyState({
   onAction?: () => void;
   className?: string;
 }) {
-  const btn = button({ variant: 'secondary', size: 'md' });
+  const btn = button({ variant: 'primary', size: 'md' });
   const act =
     action ??
     (actionLabel ? (
@@ -1146,9 +1150,13 @@ export function EmptyState({
       )
     ) : null);
   return (
-    <div className={cn('px-4 py-6', className)}>
-      {Icon && <Icon size={40} className="mb-3 text-fg-3" />}
-      <p className="text-headline text-fg">
+    <div className={cn('panel mx-4 my-2 flex flex-col items-center px-5 py-6 text-center', className)}>
+      {Icon && (
+        <span className="mb-3 grid h-16 w-16 animate-float place-items-center rounded-full bg-brand-soft text-brand">
+          <Icon size={34} />
+        </span>
+      )}
+      <p className="text-headline font-black text-fg">
         <Phrase text={title} />
       </p>
       {body && (
@@ -1162,10 +1170,10 @@ export function EmptyState({
 }
 
 const NOTICE = {
-  info: { icon: IconInfo, iconCls: 'text-fg-2', textCls: 'text-fg-2' },
-  caution: { icon: IconWarning, iconCls: 'text-warning', textCls: 'text-fg' },
-  danger: { icon: IconWarningCircleFill, iconCls: 'text-danger', textCls: 'text-fg' },
-  night: { icon: IconMoonStars, iconCls: 'text-fg-2', textCls: 'text-fg-2' },
+  info: { icon: IconInfo, iconCls: 'bg-brand-soft text-brand', textCls: 'text-fg-2', box: 'border-line bg-surface' },
+  caution: { icon: IconWarning, iconCls: 'bg-gold-soft text-warning', textCls: 'text-fg', box: 'border-gold/60 bg-gold-soft/60' },
+  danger: { icon: IconWarningCircleFill, iconCls: 'bg-danger text-on-danger', textCls: 'text-fg', box: 'border-danger/50 bg-danger/[.06]' },
+  night: { icon: IconMoonStars, iconCls: 'bg-night text-gold', textCls: 'text-fg', box: 'border-night-2/40 bg-brand-soft' },
 } as const;
 
 export type NoticeKind = keyof typeof NOTICE;
@@ -1200,11 +1208,13 @@ export function Notice({
   return (
     <div
       role={kind === 'danger' || kind === 'caution' ? 'note' : undefined}
-      className={cn('mx-4 flex items-start gap-3', boxed && 'rounded-sm bg-fill p-3', action && 'items-center', className)}
+      className={cn('mx-4 flex items-start gap-3 rounded-md border-2 p-3', k.box, boxed && 'border-dashed', action && 'items-center', className)}
     >
-      <Icon size={20} className={cn('shrink-0', k.iconCls)} />
-      <p className={cn('min-w-0 flex-1 text-sub', k.textCls)}>
-        {title && <span className="font-semibold">{typeof title === 'string' ? <Phrase text={title} /> : title}</span>}
+      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full', k.iconCls)}>
+        <Icon size={18} />
+      </span>
+      <p className={cn('min-w-0 flex-1 pt-1 text-sub font-bold', k.textCls)}>
+        {title && <span className="font-black">{typeof title === 'string' ? <Phrase text={title} /> : title}</span>}
         {typeof children === 'string' ? <Phrase text={children} /> : children}
       </p>
       {action && <div className="-my-3 shrink-0">{action}</div>}

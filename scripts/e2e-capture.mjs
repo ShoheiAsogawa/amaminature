@@ -1,4 +1,4 @@
-// 撮影→名前→記録→カード演出→サーバー同期 までをブラウザで通しで確認する E2E
+// 撮影→名前→記録→ゲット！の演出→サーバー同期 までをブラウザで通しで確認する E2E
 //
 // 前提: `npm run build && npm run dev:worker`（.dev.vars の SESSION_SECRET を使用）
 // 使い方: node scripts/e2e-capture.mjs [http://127.0.0.1:8787]
@@ -74,14 +74,16 @@ await page.getByLabel('地域').selectOption('tatsugo');
 await page.screenshot({ path: `${OUT}/e2e-details.png` });
 await page.getByRole('button', { name: '図鑑に記録する' }).click();
 
-await page.getByText('図鑑に登録しました').waitFor();
+// ゲット！の演出（スキップで結果の画面へ）
+await page.getByRole('button', { name: 'スキップ ›' }).click();
+await page.getByText('図鑑に とうろく！').waitFor();
 await page.waitForTimeout(1600);
 await page.screenshot({ path: `${OUT}/e2e-reveal.png` });
 check('card reveal shown', await page.getByText('「ルリ太郎」').isVisible());
-check('reveal shows +30pt', await page.getByText('+30pt').isVisible());
-// バッジ獲得は閉じる操作（続けて記録）の後に、同じ舞台で 1 つずつ出る（§8.5）。［OK］で次へ進む
-await page.getByRole('button', { name: '続けて記録' }).click();
-const ok = page.getByRole('button', { name: 'OK' });
+check('reveal shows +30pt', (await page.getByText('+30ポイント').count()) > 0);
+// バッジ獲得は閉じる操作（つづけてさがす）の後に、同じ舞台で 1 つずつ出る。［やったー！］で次へ進む
+await page.getByRole('button', { name: 'つづけてさがす' }).click();
+const ok = page.getByRole('button', { name: 'やったー！' });
 await ok.waitFor();
 let ruriShown = false;
 for (let i = 0; i < 8 && (await ok.isVisible().catch(() => false)); i++) {

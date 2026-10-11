@@ -1,5 +1,5 @@
 /**
- * テーマの色を 16 進数で持つ表（docs/DESIGN_SYSTEM.md §2.1・§8.15）。
+ * テーマの色を 16 進数で持つ表（docs/DESIGN_SYSTEM.md）。
  *
  * 画面の色は CSS 変数（src/styles/index.css の --c-*）と Tailwind のトークンで指定する。
  * この表を使うのは canvas（共有画像）など CSS 変数を読めない所だけ。
@@ -36,122 +36,97 @@ export type ThemeColors = {
 
 /** ライト（共有画像はテーマに関係なく常にこちら） */
 export const LIGHT: ThemeColors = {
-  page: '#FFFFFF',
+  page: '#EEF5FF',
   surface: '#FFFFFF',
-  fill: '#F1F3F2',
-  fillStrong: '#E4E8E6',
-  sep: '#E1E4E2',
-  fg: '#161A18',
-  fg2: '#4A524E',
-  fg3: '#656C68',
-  brand: '#1E50A2',
-  brandFill: '#1E50A2',
-  brandPressed: '#173F82',
-  brandSoft: '#E8EEF7',
+  fill: '#EEF3FA',
+  fillStrong: '#DEE7F3',
+  sep: '#DDE5F1',
+  fg: '#1B1F3B',
+  fg2: '#475174',
+  fg3: '#5F6A8A',
+  brand: '#1F5FE0',
+  brandFill: '#2160E8',
+  brandPressed: '#1546B8',
+  brandSoft: '#DCE8FF',
   onBrand: '#FFFFFF',
   onDanger: '#FFFFFF',
-  success: '#1B7A47',
-  warning: '#8F5C00',
-  danger: '#C0322B',
-  legend: '#8A6A1E',
-  silhouette: '#D3D8D5',
+  success: '#0B7A3F',
+  warning: '#A85200',
+  danger: '#C8261B',
+  legend: '#9A5B00',
+  silhouette: '#26305C',
   lineGreen: '#06C755',
   thumb: '#FFFFFF',
-  toast: '#1F2422',
-  toastFg: '#F2F4F3',
+  toast: '#1B1F3B',
+  toastFg: '#F3F5FF',
 };
 
-/** 夜の森 */
+/** よるの森 */
 export const DARK: ThemeColors = {
-  page: '#000000',
-  surface: '#1A1714',
-  fill: '#24201C',
-  fillStrong: '#2F2A25',
-  sep: '#36302A',
-  fg: '#D4CDC2',
-  fg2: '#ADA498',
-  fg3: '#90877B',
-  brand: '#9DA9D8',
-  brandFill: '#4057A3',
-  brandPressed: '#334790',
-  brandSoft: '#1A2038',
-  onBrand: '#ECEAF2',
-  onDanger: '#1A1714',
-  success: '#7DB894',
-  warning: '#D6A35A',
-  danger: '#E2786C',
-  legend: '#C9A65A',
-  silhouette: '#332D27',
+  page: '#0B1030',
+  surface: '#161D45',
+  fill: '#1E2752',
+  fillStrong: '#293466',
+  sep: '#2C386C',
+  fg: '#F3F5FF',
+  fg2: '#BBC3E6',
+  fg3: '#929CC6',
+  brand: '#8FB4FF',
+  brandFill: '#2F66EE',
+  brandPressed: '#1C46B4',
+  brandSoft: '#1E2D64',
+  onBrand: '#FFFFFF',
+  onDanger: '#161D45',
+  success: '#4FD58A',
+  warning: '#FFBE4D',
+  danger: '#FF8A80',
+  legend: '#FFCF5C',
+  silhouette: '#04071A',
   lineGreen: '#06C755',
-  thumb: '#3A332C',
-  toast: '#2E2924',
-  toastFg: '#D4CDC2',
+  thumb: '#293466',
+  toast: '#293466',
+  toastFg: '#F3F5FF',
 };
 
 /** 色の位置（0〜1）と色の組 */
 export type ColorStop = readonly [offset: number, color: string];
 
-export type Materials = {
-  /** 泥染（レア度 2）。単色 */
-  dorozome: string;
-  /** 夜光貝（レア度 3）。conic-gradient(from 200deg, …) の色を等間隔に並べる */
-  yakougai: { fromDeg: number; stops: readonly ColorStop[] };
-  /** 金箔（レア度 4）。linear-gradient(135deg, …) */
-  kinpaku: { deg: number; stops: readonly ColorStop[] };
-};
-
 /**
- * 図鑑カードの素材（§2.1）。図鑑カードと共有画像の外周以外では使わない。
- * canvas では createConicGradient(fromDeg の角度) / createLinearGradient(deg の方向) で描く。
+ * 共有画像（canvas）で使うゲームの色。値は index.css の --c-type-* / --c-rare-* / --c-gold など と同じ。
+ * カードの枠は CollectibleCard.tsx の FRAME と同じ並び（めずらしい＝虹、幻＝金）。
  */
-export const MATERIALS: { light: Materials; dark: Materials } = {
-  light: {
-    dorozome: '#4B3A2E',
-    yakougai: {
-      fromDeg: 200,
-      stops: [
-        [0, '#C9DCE6'],
-        [0.25, '#E3D3E6'],
-        [0.5, '#D2E8DC'],
-        [0.75, '#EDE1C8'],
-        [1, '#C9DCE6'],
-      ],
-    },
-    kinpaku: {
-      deg: 135,
-      stops: [
-        [0, '#8A6A22'],
-        [0.4, '#E2C77A'],
-        [0.5, '#F3E4B2'],
-        [0.62, '#BE9845'],
-        [1, '#8A6A22'],
-      ],
-    },
+export const GAME = {
+  type: {
+    mammal: '#C25418',
+    bird: '#7048E8',
+    herp: '#097C73',
+    insect: '#5E7E06',
+    aqua: '#1A73D4',
+    plant: '#238636',
   },
-  dark: {
-    dorozome: '#5A4738',
-    yakougai: {
-      fromDeg: 200,
-      stops: [
-        [0, '#3B4852'],
-        [0.25, '#4A3E4D'],
-        [0.5, '#3A4A41'],
-        [0.75, '#52473A'],
-        [1, '#3B4852'],
-      ],
-    },
-    kinpaku: {
-      deg: 135,
-      stops: [
-        [0, '#6E5520'],
-        [0.45, '#C9AE68'],
-        [0.52, '#DFCA8E'],
-        [0.65, '#A3843F'],
-        [1, '#6E5520'],
-      ],
-    },
-  },
-};
+  rare: { 1: '#66738F', 2: '#1F7FD6', 3: '#9333EA', 4: '#E89A00' },
+  gold: '#FFC12E',
+  goldEdge: '#D99A00',
+  xp: '#22C56E',
+  xpInk: '#0B3D22',
+  capture: '#F0453A',
+  night: '#141B42',
+  frame3: [
+    [0, '#7C3AED'],
+    [0.35, '#38BDF8'],
+    [0.55, '#A78BFA'],
+    [0.8, '#F472B6'],
+    [1, '#7C3AED'],
+  ] as readonly ColorStop[],
+  frame4: [
+    [0, '#8A5A00'],
+    [0.3, '#FFD75E'],
+    [0.45, '#FFF3C4'],
+    [0.62, '#E8A400'],
+    [0.8, '#FFE08A'],
+    [1, '#8A5A00'],
+  ] as readonly ColorStop[],
+} as const;
 
 /** 龍郷柄（§6）の地の色。brand-fill と同じ値 */
 export const TATSUGO_GROUND = { light: LIGHT.brandFill, dark: DARK.brandFill } as const;

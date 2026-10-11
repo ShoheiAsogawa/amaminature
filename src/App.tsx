@@ -79,19 +79,19 @@ function AppToaster() {
       visibleToasts={2}
       duration={2600}
       icons={{
-        success: <IconCheckCircleFill size={20} className="text-success" />,
-        error: <IconWarningCircleFill size={20} className="text-danger" />,
+        success: <IconCheckCircleFill size={22} className="text-xp" />,
+        error: <IconWarningCircleFill size={22} className="text-capture" />,
         info: <IconInfo size={20} className="text-toast-fg/80" />,
       }}
       toastOptions={{
         unstyled: true,
         classNames: {
           toast:
-            'flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 rounded-md bg-toast px-4 py-3 font-sans text-toast-fg shadow-toast dark:border-t dark:border-sep dark:shadow-none',
-          title: 'text-callout',
+            'flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 rounded-full border-2 border-white/15 bg-toast px-5 py-3 font-sans text-toast-fg shadow-toast dark:shadow-none',
+          title: 'text-callout font-bold',
           description: 'text-sub opacity-80',
           icon: 'shrink-0',
-          actionButton: 'ml-auto text-callout font-semibold text-toast-fg underline-offset-2',
+          actionButton: 'ml-auto text-callout font-black text-gold underline-offset-2',
         },
       }}
     />,
@@ -101,8 +101,13 @@ function AppToaster() {
 
 function Shell() {
   const onboarded = useStore((s) => s.settings.onboarded);
+  const markVisit = useStore((s) => s.markVisit);
   const { pathname } = useLocation();
   useRouteTitle();
+  // 連続日数のために、開いた日を記録する
+  useEffect(() => {
+    markVisit();
+  }, [markVisit]);
 
   if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners') {
     return <Navigate to="/onboarding" replace />;

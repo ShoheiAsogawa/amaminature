@@ -2,86 +2,117 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ───────── デザイントークン「瑠璃の野帳」（docs/DESIGN_SYSTEM.md §2.3） ─────────
-   白いページ × 墨の文字 × 瑠璃 1 色。色の値は RGB チャンネルで持ち、Tailwind から
-   rgb(var(--c-x) / <alpha-value>) で参照する。値を変えたら src/styles/palette.ts も直し、
-   `npm run contrast` で確かめる。 */
+/* ───────── デザイントークン「アマミ図鑑クエスト」（docs/DESIGN_SYSTEM.md） ─────────
+   空色のページ × 白いパネル × 押せる厚み。生き物のタイプ（分類）とレア度に色を持たせる。
+   色の値は RGB チャンネルで持ち、Tailwind から rgb(var(--c-x) / <alpha-value>) で参照する。
+   値を変えたら src/styles/palette.ts も直し、`npm run contrast` で確かめる。 */
 :root {
-  --c-page: 255 255 255;      /* #FFFFFF */
+  --c-page: 238 245 255;      /* #EEF5FF */
   --c-surface: 255 255 255;   /* #FFFFFF */
-  --c-fill: 241 243 242;      /* #F1F3F2 */
-  --c-fill-strong: 228 232 230; /* #E4E8E6 */
-  --c-sep: 225 228 226;       /* #E1E4E2 */
-  --c-fg: 22 26 24;           /* #161A18 */
-  --c-fg-2: 74 82 78;         /* #4A524E */
-  --c-fg-3: 101 108 104;      /* #656C68 */
-  --c-brand: 30 80 162;       /* #1E50A2 */
-  --c-brand-fill: 30 80 162;  /* #1E50A2 */
-  --c-brand-pressed: 23 63 130; /* #173F82 */
-  --c-brand-soft: 232 238 247; /* #E8EEF7 */
+  --c-fill: 238 243 250;      /* #EEF3FA */
+  --c-fill-strong: 222 231 243; /* #DEE7F3 */
+  --c-sep: 221 229 241;       /* #DDE5F1 */
+  --c-line: 212 222 237;      /* #D4DEED */
+  --c-edge: 195 207 226;      /* #C3CFE2 */
+  --c-fg: 27 31 59;           /* #1B1F3B */
+  --c-fg-2: 71 81 116;        /* #475174 */
+  --c-fg-3: 95 106 138;       /* #5F6A8A */
+  --c-brand: 31 95 224;       /* #1F5FE0 */
+  --c-brand-fill: 33 96 232;  /* #2160E8 */
+  --c-brand-pressed: 21 70 184; /* #1546B8 */
+  --c-brand-soft: 220 232 255; /* #DCE8FF */
   --c-on-brand: 255 255 255;  /* #FFFFFF */
   --c-on-danger: 255 255 255; /* #FFFFFF */
-  --c-success: 27 122 71;     /* #1B7A47 */
-  --c-warning: 143 92 0;      /* #8F5C00 */
-  --c-danger: 192 50 43;      /* #C0322B */
-  --c-legend: 138 106 30;     /* #8A6A1E */
-  --c-silhouette: 211 216 213; /* #D3D8D5 */
+  --c-success: 11 122 63;     /* #0B7A3F */
+  --c-warning: 168 82 0;      /* #A85200 */
+  --c-danger: 200 38 27;      /* #C8261B */
+  --c-legend: 154 91 0;       /* #9A5B00 */
+  --c-silhouette: 38 48 92;   /* #26305C */
   --c-line-green: 6 199 85;   /* #06C755 */
   --c-thumb: 255 255 255;     /* #FFFFFF */
-  --c-toast: 31 36 34;        /* #1F2422 */
-  --c-toast-fg: 242 244 243;  /* #F2F4F3 */
-  --scrim: rgb(0 0 0 / 0.4);
-  /* 図鑑カードの演出とバッジ獲得の舞台。不透明の瑠璃の夜（両モード共通）。
-     仕様（§2.1）は黒 92% だが、白いページの上では #141414 の「モーダルの幕」に見えるため、
-     ブランドの瑠璃を夜まで落とした不透明の色にしている */
-  --stage: #0b1830;
-  --mat-dorozome: #4b3a2e;
-  --mat-yakougai: conic-gradient(from 200deg, #c9dce6, #e3d3e6, #d2e8dc, #ede1c8, #c9dce6);
-  --mat-kinpaku: linear-gradient(135deg, #8a6a22, #e2c77a 40%, #f3e4b2 50%, #be9845 62%, #8a6a22);
+  --c-toast: 27 31 59;        /* #1B1F3B */
+  --c-toast-fg: 243 245 255;  /* #F3F5FF */
+  --c-gold: 255 193 46;       /* #FFC12E */
+  --c-gold-edge: 217 154 0;   /* #D99A00 */
+  --c-gold-soft: 255 241 199; /* #FFF1C7 */
+  --c-xp: 34 197 110;         /* #22C56E */
+  --c-xp-edge: 21 150 82;     /* #159652 */
+  --c-capture: 240 69 58;     /* #F0453A */
+  --c-capture-edge: 185 42 33; /* #B92A21 */
+  --c-night: 20 27 66;        /* #141B42 */
+  --c-night-2: 38 52 112;     /* #263470 */
+  --c-type-mammal: 194 84 24; /* #C25418 */
+  --c-type-bird: 112 72 232;  /* #7048E8 */
+  --c-type-herp: 9 124 115;   /* #097C73 */
+  --c-type-insect: 94 126 6;  /* #5E7E06 */
+  --c-type-aqua: 26 115 212;  /* #1A73D4 */
+  --c-type-plant: 35 134 54;  /* #238636 */
+  --c-type-mammal-soft: 255 232 214; /* #FFE8D6 */
+  --c-type-bird-soft: 236 230 255;   /* #ECE6FF */
+  --c-type-herp-soft: 214 245 240;   /* #D6F5F0 */
+  --c-type-insect-soft: 238 245 206; /* #EEF5CE */
+  --c-type-aqua-soft: 218 235 255;   /* #DAEBFF */
+  --c-type-plant-soft: 220 245 222;  /* #DCF5DE */
+  --c-rare-1: 102 115 143;    /* #66738F */
+  --c-rare-2: 31 127 214;     /* #1F7FD6 */
+  --c-rare-3: 147 51 234;     /* #9333EA */
+  --c-rare-4: 232 154 0;      /* #E89A00 */
+  --scrim: rgb(10 14 40 / 0.5);
+  /* 記録の演出とバッジ獲得の舞台（両モード共通の夜の空） */
+  --stage: radial-gradient(120% 80% at 50% 30%, #2a3d8f 0%, #141b42 55%, #080b20 100%);
+  --stage-solid: #0d1230;
+  --holo: linear-gradient(115deg, transparent 20%, rgb(255 255 255 / .55) 32%, rgb(255 120 220 / .35) 40%, rgb(120 220 255 / .35) 48%, rgb(255 240 120 / .35) 56%, transparent 68%);
   --chart-1: rgb(var(--c-brand));
-  --chart-2: rgb(var(--c-danger));
+  --chart-2: rgb(var(--c-capture));
   --chart-grid: rgb(var(--c-sep));
-  /* 夜間の帯。グラフはグループ（fill）の上に描くので、1 段濃い fill-strong にする（fill のままでは見えない） */
   --chart-band: rgb(var(--c-fill-strong));
-  --font-ui: "IBM Plex Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
-  --font-num: "IBM Plex Sans", "IBM Plex Sans JP", -apple-system, "Hiragino Sans", Roboto, system-ui, sans-serif;
+  --font-ui: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  --font-num: "Lilita One", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --dot: rgb(var(--c-brand) / 0.07);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
   color-scheme: light;
 }
 
-/* 夜の森：ページは純黒（OLED で消灯）、面と文字は泥染系の暖色（§2.9） */
+/* よるの森：夜空の紺。ナイトツアー中のまぶしさを抑える */
 :root[data-theme='dark'] {
-  --c-page: 0 0 0;            /* #000000 */
-  --c-surface: 26 23 20;      /* #1A1714 */
-  --c-fill: 36 32 28;         /* #24201C */
-  --c-fill-strong: 47 42 37;  /* #2F2A25 */
-  --c-sep: 54 48 42;          /* #36302A */
-  --c-fg: 212 205 194;        /* #D4CDC2 */
-  --c-fg-2: 173 164 152;      /* #ADA498 */
-  --c-fg-3: 144 135 123;      /* #90877B */
-  --c-brand: 157 169 216;     /* #9DA9D8 */
-  --c-brand-fill: 64 87 163;  /* #4057A3 */
-  --c-brand-pressed: 51 71 144; /* #334790 */
-  --c-brand-soft: 26 32 56;   /* #1A2038 */
-  --c-on-brand: 236 234 242;  /* #ECEAF2 */
-  --c-on-danger: 26 23 20;    /* #1A1714 */
-  --c-success: 125 184 148;   /* #7DB894 */
-  --c-warning: 214 163 90;    /* #D6A35A */
-  --c-danger: 226 120 108;    /* #E2786C */
-  --c-legend: 201 166 90;     /* #C9A65A */
-  --c-silhouette: 51 45 39;   /* #332D27 */
-  --c-thumb: 58 51 44;        /* #3A332C */
-  --c-toast: 46 41 36;        /* #2E2924 */
-  --c-toast-fg: 212 205 194;  /* #D4CDC2 */
+  --c-page: 11 16 48;         /* #0B1030 */
+  --c-surface: 22 29 69;      /* #161D45 */
+  --c-fill: 30 39 82;         /* #1E2752 */
+  --c-fill-strong: 41 52 102; /* #293466 */
+  --c-sep: 44 56 108;         /* #2C386C */
+  --c-line: 49 62 118;        /* #313E76 */
+  --c-edge: 8 12 36;          /* #080C24 */
+  --c-fg: 243 245 255;        /* #F3F5FF */
+  --c-fg-2: 187 195 230;      /* #BBC3E6 */
+  --c-fg-3: 146 156 198;      /* #929CC6 */
+  --c-brand: 143 180 255;     /* #8FB4FF */
+  --c-brand-fill: 47 102 238; /* #2F66EE */
+  --c-brand-pressed: 28 70 180; /* #1C46B4 */
+  --c-brand-soft: 30 45 100;  /* #1E2D64 */
+  --c-on-brand: 255 255 255;  /* #FFFFFF */
+  --c-on-danger: 22 29 69;    /* #161D45 */
+  --c-success: 79 213 138;    /* #4FD58A */
+  --c-warning: 255 190 77;    /* #FFBE4D */
+  --c-danger: 255 138 128;    /* #FF8A80 */
+  --c-legend: 255 207 92;     /* #FFCF5C */
+  --c-silhouette: 4 7 26;     /* #04071A */
+  --c-thumb: 41 52 102;       /* #293466 */
+  --c-toast: 41 52 102;       /* #293466 */
+  --c-toast-fg: 243 245 255;  /* #F3F5FF */
+  --c-gold-soft: 66 52 20;    /* #423414 */
+  --c-type-mammal-soft: 70 40 24;  /* #462818 */
+  --c-type-bird-soft: 50 38 100;   /* #322664 */
+  --c-type-herp-soft: 16 64 62;    /* #10403E */
+  --c-type-insect-soft: 48 60 14;  /* #303C0E */
+  --c-type-aqua-soft: 20 52 100;   /* #143464 */
+  --c-type-plant-soft: 22 64 34;   /* #164022 */
   --scrim: rgb(0 0 0 / 0.6);
-  --mat-dorozome: #5a4738;
-  --mat-yakougai: conic-gradient(from 200deg, #3b4852, #4a3e4d, #3a4a41, #52473a, #3b4852);
-  --mat-kinpaku: linear-gradient(135deg, #6e5520, #c9ae68 45%, #dfca8e 52%, #a3843f 65%, #6e5520);
+  --dot: rgb(255 255 255 / 0.05);
   color-scheme: dark;
 }
 
-/* ───────── 書体と基本（§3.2・§4.2・§7.16） ───────── */
+/* ───────── 書体と基本 ───────── */
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
@@ -89,17 +120,19 @@
   }
   body {
     @apply bg-page font-sans text-fg antialiased;
-    font-weight: 400;
+    font-weight: 500;
     font-synthesis: none;
     font-feature-settings: 'palt';
     /* 禁則処理：小さいかな（ょ・ゃ・っ）や句読点を行頭に置かない */
     line-break: strict;
     text-size-adjust: 100%;
     overscroll-behavior-y: none;
+    /* 方眼ノートのような点の地（ゲームの盤面） */
+    background-image: radial-gradient(var(--dot) 1.2px, transparent 1.3px);
+    background-size: 18px 18px;
     /* Base UI Drawer の背面（position: absolute）の基準 */
     position: relative;
   }
-  /* 複数行の本文は詰めない。最終行に 1〜2 文字だけ残る改行を避ける（Chromium 117+ / Safari 26） */
   p,
   .prose {
     font-feature-settings: normal;
@@ -109,7 +142,7 @@
     isolation: isolate;
   }
   :focus-visible {
-    outline: 2px solid rgb(var(--c-brand));
+    outline: 3px solid rgb(var(--c-brand));
     outline-offset: 2px;
   }
   button {
@@ -118,16 +151,19 @@
 }
 
 @layer components {
-  /* 単独で立つ数字（pt、種数、KPI、図鑑番号）。num-* の文字サイズと組み合わせる */
+  /* 単独で立つ数字（pt、種数、レベル、図鑑番号） */
   .num {
     font-family: var(--font-num);
+    font-weight: 400;
     font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: 0.01em;
   }
   /* 学名: <i lang="la" className="sci"> */
   .sci {
-    font-family: var(--font-num);
+    font-family: var(--font-ui);
     font-style: italic;
-    font-weight: 400;
+    font-synthesis: style;
+    font-weight: 500;
     letter-spacing: 0;
     color: rgb(var(--c-fg-2));
   }
@@ -145,7 +181,94 @@
     }
   }
 
-  /* §7.16 ボトムシート（@base-ui/react/drawer） */
+  /* パネル（白い面に 2px の線と 4px の厚み）。ゲームの「カード」 */
+  .panel {
+    background: rgb(var(--c-surface));
+    border: 2px solid rgb(var(--c-line));
+    border-radius: 18px;
+    box-shadow: 0 4px 0 rgb(var(--c-edge));
+  }
+  /* 押せる面。押すと厚みの分だけ沈む */
+  .pressable {
+    transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.15s;
+  }
+  .pressable:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgb(var(--c-edge));
+  }
+
+  /* メッセージウィンドウ（ゲームの会話窓。ドット文字、二重の枠） */
+  .msg-window {
+    position: relative;
+    background: rgb(255 255 255);
+    color: #1b1f3b;
+    border: 3px solid #1b1f3b;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 5px #9fb4e8, 0 6px 0 rgb(0 0 0 / 0.25);
+    font-family: DotGothic16, var(--font-ui);
+    font-weight: 400;
+    font-feature-settings: normal;
+    letter-spacing: 0.04em;
+  }
+
+  /* 進捗バーの流れる斜線 */
+  .stripes {
+    background-image: linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.28) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgb(255 255 255 / 0.28) 50%,
+      rgb(255 255 255 / 0.28) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 20px 20px;
+  }
+
+  /* 光の帯が横切る（ボタン・レアのカード） */
+  .shine {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .shine::after {
+    content: '';
+    position: absolute;
+    inset: -20% auto -20% 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    animation: shine 3.2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ホロ加工（めずらしい・幻のカード）。--mx / --my はポインターの位置（0〜100%） */
+  .holo {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--holo);
+    background-size: 250% 250%;
+    background-position: var(--mx, 50%) var(--my, 50%);
+    mix-blend-mode: color-dodge;
+    opacity: 0.65;
+    transition: background-position 0.1s;
+  }
+  .holo-sparkle {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgb(255 255 255 / 0.9) 0 1px, transparent 1.5px), radial-gradient(circle, rgb(255 255 255 / 0.7) 0 1px, transparent 1.5px);
+    background-size: 23px 23px, 37px 37px;
+    background-position: 0 0, 11px 17px;
+    mix-blend-mode: overlay;
+    opacity: 0.7;
+  }
+
+  /* ボトムシート（@base-ui/react/drawer） */
   .sheet-backdrop {
     position: absolute;
     inset: 0;
@@ -167,8 +290,9 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgb(var(--c-surface));
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.14);
+    border-radius: 28px 28px 0 0;
+    border-top: 3px solid rgb(var(--c-line));
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18);
     padding: 8px 16px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
     transform: translateY(calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px)));
     transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
@@ -182,13 +306,12 @@
   }
   [data-theme='dark'] .sheet-popup {
     box-shadow: none;
-    border-top: 1px solid rgb(var(--c-sep));
   }
   .sheet-grabber {
-    width: 36px;
-    height: 5px;
+    width: 44px;
+    height: 6px;
     border-radius: 3px;
-    background: rgb(var(--c-sep));
+    background: rgb(var(--c-fill-strong));
     margin: 0 auto 12px;
   }
 
@@ -199,43 +322,15 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
-  /* §4.5 タブ画面の下余白（タブバー 56px ＋ 安全領域 ＋ 24px） */
+  /* タブ画面の下余白（浮いたタブバー 64px ＋ 下の余白 10px ＋ 安全領域 ＋ 24px） */
   .pb-tabbar {
-    padding-bottom: calc(56px + var(--safe-bottom) + 24px);
+    padding-bottom: calc(98px + var(--safe-bottom));
   }
   .pt-safe {
     padding-top: var(--safe-top);
   }
 
-  /* 図鑑カードの縁（§7.21）。素材の上に静止した粒子（泥染の染めむら）を重ね、
-     内側に 1px の明るい線を引いて、黒い舞台の上でも縁が「素材」として見えるようにする */
-  .card-rim {
-    position: relative;
-    isolation: isolate;
-  }
-  .card-rim::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border-radius: inherit;
-    background: var(--rim);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
-  }
-  .card-rim[data-material='dorozome']::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border-radius: inherit;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .92 0 0 0 0 .82 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 120px 120px;
-    mix-blend-mode: overlay;
-    opacity: 0.9;
-  }
-
-  /* 伏せた図鑑カード（未発見の種のプレート）。§6 の龍郷柄を、カードの裏面として低いコントラストで敷く。
-     仕様では龍郷柄はカードの裏面だけ。未発見のタイルは「まだ裏返していないカード」なので、裏面と同じ柄にする */
+  /* 図鑑カードの裏面・タイルの「？」の地（龍郷柄のマスク） */
   .face-down {
     -webkit-mask-image: var(--face-down-mask);
     mask-image: var(--face-down-mask);
@@ -246,10 +341,9 @@
   }
 }
 
-/* §2.9 夜の森では写真を少し暗くする（ナイトツアー中のまぶしさ対策）。
-   演出の舞台（.stage）はもともと暗いので、カードの写真は暗くしない */
+/* よるの森では写真を少し暗くする（ナイトツアー中のまぶしさ対策）。演出の舞台（.stage）の写真は暗くしない */
 [data-theme='dark'] .photo {
-  filter: brightness(0.85);
+  filter: brightness(0.88);
 }
 [data-theme='dark'] .stage .photo {
   filter: none;
@@ -262,5 +356,15 @@
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  60%,
+  100% {
+    transform: translateX(260%) skewX(-20deg);
   }
 }

@@ -13,6 +13,9 @@ const DEFAULT_SETTINGS: Settings = {
   plus: null,
   safeDriveDates: [],
   redemptions: [],
+  sound: true,
+  daily: { date: '', viewed: [], celebrated: false },
+  visitDates: [],
 };
 
 function loadSettings(): Settings {
@@ -84,6 +87,12 @@ interface State {
   activatePlus: (plan: PlusPlan) => void;
   declareSafeDrive: () => boolean;
   redeem: (rewardId: string, points: number) => Redemption;
+  /** きょうアプリを開いたことを記録する（連続日数） */
+  markVisit: () => void;
+  /** 図鑑で種を見たことを記録する（きょうのミッション） */
+  markViewed: (speciesId: string) => void;
+  /** きょうのミッションをすべて達成した演出を見せた */
+  markCelebrated: () => void;
   resetAll: () => Promise<void>;
 }
 
@@ -172,6 +181,26 @@ export const useStore = create<State>((set, get) => ({
     const r: Redemption = { id: newId(), rewardId, points, at: new Date().toISOString() };
     get().updateSettings({ redemptions: [...get().settings.redemptions, r] });
     return r;
+  },
+
+  markVisit: () => {
+    const today = localDateKey();
+    const { visitDates } = get().settings;
+    if (visitDates[0] === today) return;
+    get().updateSettings({ visitDates: [today, ...visitDates.filter((d) => d !== today)].slice(0, 60) });
+  },
+
+  markViewed: (speciesId) => {
+    const today = localDateKey();
+    const daily = get().settings.daily.date === today ? get().settings.daily : { date: today, viewed: [], celebrated: false };
+    if (daily.viewed.includes(speciesId)) return;
+    get().updateSettings({ daily: { ...daily, viewed: [...daily.viewed, speciesId] } });
+  },
+
+  markCelebrated: () => {
+    const today = localDateKey();
+    const daily = get().settings.daily.date === today ? get().settings.daily : { date: today, viewed: [], celebrated: false };
+    get().updateSettings({ daily: { ...daily, celebrated: true } });
   },
 
   resetAll: async () => {

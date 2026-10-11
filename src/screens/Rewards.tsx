@@ -1,10 +1,12 @@
 import NumberFlow from '@number-flow/react';
 import { useState } from 'react';
-import { IconDiceFive, IconGift, IconHandHeart, IconTicket } from '../components/icons';
+import { Coin, Sparkles } from '../components/game';
+import { IconDiceFive, IconGift, IconHandHeart, IconLockSimpleFill, IconTicket } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import {
   Button,
   ButtonNote,
+  cn,
   formatDateJa,
   Group,
   ListRow,
@@ -17,12 +19,21 @@ import {
 } from '../components/ui';
 import { REWARDS, type Reward } from '../data/rewards';
 import { api, errorMessage } from '../lib/api';
+import { confettiBurst } from '../lib/confetti';
+import { sfx } from '../lib/sfx';
 import { BADGES } from '../lib/progress';
 import { useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
 
 /** 先頭のアイコンは種類で決める（§8.9）: 寄付 hand-heart、クーポン ticket、品物 gift、抽選 dice-five */
 const KIND_ICON = { donation: IconHandHeart, coupon: IconTicket, goods: IconGift, lottery: IconDiceFive } as const;
+/** 種類ごとのアイコンの地 */
+const KIND_TILE = {
+  donation: 'bg-type-soft-plant text-type-plant',
+  coupon: 'bg-brand-soft text-brand',
+  goods: 'bg-type-soft-bird text-type-bird',
+  lottery: 'bg-gold-soft text-gold-edge',
+} as const;
 
 const pt = (n: number) => <Num value={n.toLocaleString()} unit="pt" />;
 
@@ -49,6 +60,8 @@ export default function Rewards() {
     try {
       if (lineMode) await api.redeem(target.id);
       redeem(target.id, target.points);
+      sfx('coin');
+      void confettiBurst('mission');
       toast.success(lineMode ? '交換しました。LINEでお知らせします' : '交換しました');
       setOpen(false);
     } catch (e) {
@@ -62,56 +75,69 @@ export default function Rewards() {
 
   return (
     <main className="min-h-dvh pb-[calc(40px+var(--safe-bottom))]">
-      <ScreenHeader variant="nav" title="ポイント交換" />
+      <ScreenHeader variant="nav" title="ポイントこうかんじょ" />
 
-      <section className="px-4 pt-2">
-        <p className="flex items-baseline text-fg" aria-label={`交換できるポイント ${balance}pt`}>
+      {/* もっているコイン */}
+      <section className="relative mx-4 mt-1 overflow-hidden rounded-xl border-2 border-gold-edge/60 bg-gradient-to-br from-gold-soft to-gold/60 p-4 shadow-[0_4px_0_rgb(var(--c-gold-edge)/.7)]">
+        <Sparkles count={2} className="opacity-80" />
+        <p className="relative text-sub font-black text-[#5c3d00]">もっているポイント</p>
+        <p className="relative mt-1 flex items-center gap-2 text-[#2b1d00]" aria-label={`交換できるポイント ${balance}pt`}>
+          <Coin size={40} />
           <NumberFlow value={balance} locales="ja-JP" className="num text-num-xl" aria-hidden />
-          <span className="ml-[0.15em] text-sub text-fg-2" aria-hidden>
+          <span className="mt-3 text-sub font-black" aria-hidden>
             pt
           </span>
         </p>
-        <p className="mt-1 text-sub text-fg-2">
+        <p className="relative mt-1 text-caption text-[#5c3d00]">
           これまでに{pt(points)}獲得
           {points - balance > 0 ? <>、{pt(points - balance)}交換しました</> : 'しました'}
         </p>
       </section>
 
-      <SectionHeader title="交換できるもの" />
-      <div>
+      <SectionHeader title="こうかんできるもの" />
+      <div className="grid grid-cols-2 gap-2.5 px-4">
         {REWARDS.map((r) => {
           const Icon = KIND_ICON[r.kind];
           const s = status(r);
           return (
-            <ListRow
+            <button
               key={r.id}
-              icon={Icon}
-              title={r.title}
-              subtitle={
-                r.note || (s.badge && r.requiresBadge) ? (
-                  <>
-                    {r.note && <span className="block">{r.note}</span>}
-                    {s.badge && s.locked && <span className="block">「{s.badge.title}」バッジが必要</span>}
-                  </>
-                ) : undefined
-              }
-              trailing={
-                r.points === 0 ? (
-                  // バッジで受け取る記念品はポイントを使わないので、0 pt とは出さない
-                  s.ok ? <span className="shrink-0 text-sub text-brand">受け取れます</span> : null
-                ) : s.ok ? (
-                  <span className="shrink-0 text-callout font-semibold text-brand">{pt(r.points)}</span>
-                ) : s.short > 0 ? (
-                  <span className="shrink-0 text-sub text-fg-3">あと{pt(s.short)}</span>
-                ) : (
-                  <span className="shrink-0 text-sub text-fg-3">{pt(r.points)}</span>
-                )
-              }
+              type="button"
               onClick={() => {
+                sfx('tap');
                 setTarget(r);
                 setOpen(true);
               }}
-            />
+              className={cn('panel pressable relative flex flex-col p-3 text-left', !s.ok && 'opacity-[.92]')}
+            >
+              <span className={cn('grid h-12 w-12 place-items-center rounded-md', KIND_TILE[r.kind])}>
+                <Icon size={28} />
+              </span>
+              {s.locked && (
+                <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-fill-strong text-fg-3" aria-label="バッジが必要">
+                  <IconLockSimpleFill size={15} />
+                </span>
+              )}
+              <span className="mt-2 line-clamp-2 min-h-10 text-callout font-black leading-5 text-fg">
+                <Phrase text={r.title} />
+              </span>
+              {r.note && <span className="mt-1 line-clamp-2 text-caption text-fg-2">{r.note}</span>}
+              {s.badge && s.locked && <span className="mt-1 text-caption text-fg-3">「{s.badge.title}」バッジが必要</span>}
+              <span className="mt-auto pt-2.5">
+                {r.points === 0 ? (
+                  // バッジで受け取る記念品はポイントを使わないので、0 pt とは出さない
+                  <span className={cn('inline-flex h-8 items-center rounded-full px-3 text-caption', s.ok ? 'bg-xp text-[#0b3d22]' : 'bg-fill-strong text-fg-3')}>
+                    {s.ok ? 'うけとれる！' : 'バッジで解放'}
+                  </span>
+                ) : (
+                  <span className={cn('inline-flex h-8 items-center gap-1 rounded-full pl-1 pr-3', s.ok ? 'bg-gold-soft' : 'bg-fill')}>
+                    <Coin size={22} />
+                    <span className={cn('num text-[17px]', s.ok ? 'text-fg' : 'text-fg-3')}>{r.points.toLocaleString()}</span>
+                  </span>
+                )}
+                {!s.locked && s.short > 0 && r.points > 0 && <span className="mt-1 block text-caption text-fg-3">あと{s.short}pt</span>}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -148,8 +174,8 @@ export default function Rewards() {
               {t.ok ? <ListRow title="交換後の残り" value={pt(balance - target.points)} /> : <ListRow title="いまのポイント" value={pt(balance)} />}
             </Group>
             {!lineMode && <p className="mt-3 text-sub text-fg-2">デモ版のため、実際の景品は届きません</p>}
-            <Button className="mt-5" disabled={busy || !t.ok} onClick={confirm}>
-              交換する
+            <Button variant="gold" className="mt-5" disabled={busy || !t.ok} onClick={confirm}>
+              こうかんする
             </Button>
             {!t.ok && (
               <ButtonNote>

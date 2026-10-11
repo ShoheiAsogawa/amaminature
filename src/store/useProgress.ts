@@ -5,9 +5,11 @@ import {
   computeStats,
   currentMonth,
   earnedBadges,
+  levelFor,
   rankFor,
 } from '../lib/progress';
-import { useStore } from './useStore';
+import { dailyMissions, visitStreak } from '../lib/missions';
+import { localDateKey, useStore } from './useStore';
 
 export function useProgress() {
   const all = useStore((s) => s.sightings);
@@ -27,9 +29,29 @@ export function useProgress() {
       points,
       balance: Math.max(0, points - spent),
       rank: rankFor(points),
+      level: levelFor(points),
       badges,
       quests: allQuestProgress(sightings, month),
       month,
     };
   }, [sightings, settings, month]);
+}
+
+/** きょうのミッションと連続日数 */
+export function useMissions() {
+  const sightings = useStore((s) => s.sightings);
+  const daily = useStore((s) => s.settings.daily);
+  const safeDriveDates = useStore((s) => s.settings.safeDriveDates);
+  const visitDates = useStore((s) => s.settings.visitDates);
+  const today = localDateKey();
+  return useMemo(() => {
+    const missions = dailyMissions({ sightings, daily, safeDriveDates, today });
+    return {
+      missions,
+      done: missions.filter((m) => m.done).length,
+      allDone: missions.every((m) => m.done),
+      celebrated: daily.date === today && daily.celebrated,
+      streak: visitStreak(visitDates, today),
+    };
+  }, [sightings, daily, safeDriveDates, visitDates, today]);
 }

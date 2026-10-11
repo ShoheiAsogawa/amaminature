@@ -209,6 +209,39 @@ export function pointsForNewSighting(s: Sighting, existing: Sighting[]): number 
   return pointsForSighting(s, seenBefore);
 }
 
+// ───────── レベル ─────────
+
+/** レベルの上限 */
+export const MAX_LEVEL = 50;
+
+/** レベル L になるのに必要な累計ポイント（10·L·(L−1)。Lv2 は 20、Lv5 は 200、Lv10 は 900、Lv20 は 3,800） */
+export function pointsForLevel(level: number): number {
+  return 10 * level * (level - 1);
+}
+
+export interface LevelInfo {
+  level: number;
+  /** このレベルになった時の累計ポイント */
+  base: number;
+  /** 次のレベルの累計ポイント（上限なら null） */
+  next: number | null;
+  /** 次のレベルまでのポイント */
+  toNext: number;
+  /** このレベルの中での進み具合（0〜1） */
+  progress: number;
+}
+
+/** 累計ポイントからレベル（はじめは早く上がり、だんだんゆっくりになる） */
+export function levelFor(points: number): LevelInfo {
+  let level = 1;
+  while (level < MAX_LEVEL && points >= pointsForLevel(level + 1)) level++;
+  const base = pointsForLevel(level);
+  const next = level < MAX_LEVEL ? pointsForLevel(level + 1) : null;
+  const progress = next ? (points - base) / (next - base) : 1;
+  return { level, base, next, toNext: next ? next - points : 0, progress: Math.max(0, Math.min(1, progress)) };
+}
+
+/** 称号（レベルの横に出す名前）。累計ポイントで決まる */
 export const RANKS = [
   { min: 0, title: '島のたまご', en: 'Egg' },
   { min: 50, title: '見習い観察者', en: 'Apprentice' },

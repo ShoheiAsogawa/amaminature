@@ -51,14 +51,14 @@ export function DrawerSheet({ open, onClose, title, label, children, keyboard = 
             {/* タイトルがない時は閉じるボタンだけを右上に重ね、中身を上に詰める */}
             <header className={cn('flex items-center gap-3', title ? 'justify-between pb-3' : 'absolute right-4 top-2 z-10')}>
               {title ? (
-                <Drawer.Title className="balance min-w-0 flex-1 text-headline text-fg">
+                <Drawer.Title className="balance min-w-0 flex-1 text-section text-fg">
                   {typeof title === 'string' ? <Phrase text={title} /> : title}
                 </Drawer.Title>
               ) : label ? (
                 <Drawer.Title className="sr-only">{label}</Drawer.Title>
               ) : null}
               <Drawer.Close aria-label="閉じる" className="-mr-1.5 grid h-11 w-11 shrink-0 place-items-center text-fg">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-fill">
+                <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-line bg-surface shadow-pop-sm">
                   <IconX size={16} />
                 </span>
               </Drawer.Close>
@@ -123,8 +123,8 @@ export function AlertDialogImpl({
     >
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="sheet-backdrop" />
-        <AlertDialog.Popup className="fixed left-1/2 top-1/2 w-[min(320px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-surface p-5 text-fg shadow-sheet outline-none transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 dark:border-t dark:border-sep dark:shadow-none">
-          <AlertDialog.Title className="balance text-headline text-fg [font-feature-settings:normal]">
+        <AlertDialog.Popup className="fixed left-1/2 top-1/2 w-[min(320px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-line bg-surface p-5 text-fg shadow-sheet outline-none transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 dark:shadow-none">
+          <AlertDialog.Title className="balance text-headline font-black text-fg [font-feature-settings:normal]">
             <Phrase text={title} />
           </AlertDialog.Title>
           {body && (

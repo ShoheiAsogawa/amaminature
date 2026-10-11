@@ -1,6 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment, useId, type SVGProps } from 'react';
 import { cn } from '../lib/cn';
-import { BADGES, type Badge, type BadgeIcon } from '../lib/progress';
+import { BADGES, type Badge, type BadgeFamily, type BadgeIcon } from '../lib/progress';
 import {
   IconAmamiKayakFill,
   IconBinocularsFill,
@@ -55,32 +55,53 @@ function isText(g: Glyph): g is TextGlyph {
   return typeof g === 'object' && g !== null && 'text' in g;
 }
 
+
+/** 系統ごとの形と色（ジムバッジのような金属のメダル） */
+const FAMILY: Record<BadgeFamily, { from: string; to: string; edge: string }> = {
+  milestone: { from: '#FFE58A', to: '#E09B00', edge: '#9A6400' },
+  creature: { from: '#A99BFF', to: '#5B46E5', edge: '#3524A8' },
+  place: { from: '#5EEAB5', to: '#0E9F6E', edge: '#086447' },
+  protect: { from: '#FF9C8F', to: '#E5484D', edge: '#A3262B' },
+};
+const LEGEND = { from: '#FFF3B0', to: '#F5A400', edge: '#8A5A00' };
+
+function Shape({ family, ...p }: { family: BadgeFamily } & SVGProps<SVGPathElement & SVGCircleElement>) {
+  switch (family) {
+    case 'milestone':
+      return <path d="M32 2.5 57.5 17v30L32 61.5 6.5 47V17z" strokeLinejoin="round" {...p} />;
+    case 'place':
+      return <path d="M32 2.5 61.5 32 32 61.5 2.5 32z" strokeLinejoin="round" {...p} />;
+    case 'protect':
+      return <path d="M32 3 57 11v19c0 15.5-11 25.5-25 31C18 55.5 7 45.5 7 30V11z" strokeLinejoin="round" {...p} />;
+    default:
+      return <circle cx="32" cy="32" r="29.5" {...p} />;
+  }
+}
+
 export type BadgeEmblemProps = {
   /** id と title があればよい（BADGES の要素をそのまま渡せる） */
   badge: Pick<Badge, 'id' | 'title'>;
   earned: boolean;
-  /** 一覧 56、マイページの「最近獲得した」64、獲得画面・説明シート 120 */
+  /** 一覧 56、マイページ 64、獲得画面・説明シート 120〜140 */
   size?: number;
-  /** 渡すとボタンになる（押すとバッジの説明シートを開く。§7.14） */
+  /** 渡すとボタンになる（押すとバッジの説明シートを開く） */
   onClick?: () => void;
   className?: string;
 };
 
 /**
- * バッジの紋章（docs/DESIGN_SYSTEM.md §5.5・§7.14）。印影。
- * すべて同じ丸い印（r=30）に、内側 3.5 の 1px の輪を入れる。§5.5 は系統ごとに ○◇□⬡ の形を変えるが、
- * 4 種の形と 2 種の図柄（アイコンと文字）が混ざって既製のバッジ集に見えたため、外形を丸い印にそろえている。
- * 獲得済み: 形を brand-fill（幻だけ legend）で塗り、図柄を on-brand で白抜き。内側の輪は on-brand の 40%。
- * 未獲得: 形を fill で塗り、1px の sep の縁と内側の輪、図柄は fg-3。図柄は紋章の 44%。
+ * バッジの紋章（ゲームのジムバッジのようなメダル）。系統ごとに形と色が違う
+ * （記録の節目＝金の六角、生き物＝紫の円、島と季節＝緑のひし形、守る＝赤の盾。幻は金）。
+ * 獲得済みは金属の光沢とハイライト。未獲得は灰色で、図柄だけ薄く見せる。
  */
 export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: BadgeEmblemProps) {
   const def = BADGE_BY_ID.get(badge.id);
   const glyph: Glyph = def ? GLYPH[def.icon] : IconSealCheck;
+  const family: BadgeFamily = def?.family ?? 'milestone';
   const legend = badge.id === 'legend';
-  // 夜の森の「幻」は on-brand（明るい）と legend（明るい金）が 1.9:1 しかないので、図柄を page（黒）にする
-  const glyphColor = earned ? (legend ? 'text-on-brand dark:text-page' : 'text-on-brand') : 'text-fg-3';
-  const body = earned ? (legend ? 'text-legend' : 'text-brand-fill') : 'text-fill';
-  const px = 64 / size; // viewBox（64）の中での 1px
+  const c = legend ? LEGEND : FAMILY[family];
+  const id = useId().replace(/:/g, '');
+  const glyphColor = earned ? 'text-white' : 'text-fg-3/60';
   const label = `${badge.title}${earned ? '' : '（未獲得）'}`;
 
   const emblem = (
@@ -91,17 +112,29 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
       aria-label={onClick ? undefined : label}
     >
       <svg viewBox="0 0 64 64" width={size} height={size} className="absolute inset-0 overflow-visible" aria-hidden="true" focusable="false">
-        {!earned && <circle cx="32" cy="32" r={30 + px / 2} fill="none" stroke="currentColor" strokeWidth={px} className="text-sep" />}
-        <circle cx="32" cy="32" r="30" fill="currentColor" className={body} />
-        <circle
-          cx="32"
-          cy="32"
-          r={26.5 - px / 2}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={px}
-          className={earned ? (legend ? 'text-on-brand opacity-50 dark:text-page' : 'text-on-brand opacity-40') : 'text-sep'}
-        />
+        <defs>
+          <linearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={c.from} />
+            <stop offset="1" stopColor={c.to} />
+          </linearGradient>
+        </defs>
+        {earned ? (
+          <>
+            {/* 下の厚み */}
+            <g transform="translate(0 2.5)">
+              <Shape family={family} fill={c.edge} />
+            </g>
+            <Shape family={family} fill={`url(#g${id})`} stroke={c.edge} strokeWidth={1.5} />
+            <circle cx="32" cy="32" r="19.5" fill="none" stroke="white" strokeOpacity={0.45} strokeWidth={1.6} />
+            {/* 光沢 */}
+            <ellipse cx="24" cy="18" rx="13" ry="6" fill="white" opacity={0.35} transform="rotate(-30 24 18)" />
+          </>
+        ) : (
+          <>
+            <Shape family={family} fill="currentColor" className="text-fill-strong" stroke="currentColor" strokeWidth={1.5} />
+            <circle cx="32" cy="32" r="19.5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeDasharray="3 3" className="text-line" />
+          </>
+        )}
         {isText(glyph) && (
           <text
             x="32"
@@ -110,7 +143,8 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
             dominantBaseline="central"
             fill="currentColor"
             fontSize={glyph.size}
-            className={cn('font-semibold', glyph.font === 'num' ? 'font-num' : 'font-sans', glyphColor)}
+            className={cn('font-black', glyph.font === 'num' ? 'font-num' : 'font-sans', glyphColor)}
+            style={earned ? { filter: `drop-shadow(0 1.5px 0 ${c.edge})` } : undefined}
           >
             {glyph.text}
           </text>
@@ -119,14 +153,20 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
       {!isText(glyph) &&
         (() => {
           const G = glyph;
-          return <G size={Math.round(size * 0.44)} className={cn('relative', glyphColor)} />;
+          return (
+            <G
+              size={Math.round(size * 0.42)}
+              className={cn('relative', glyphColor)}
+              style={earned ? { filter: `drop-shadow(0 ${Math.max(1, size / 40)}px 0 ${c.edge})` } : undefined}
+            />
+          );
         })()}
     </span>
   );
 
   if (!onClick) return emblem;
   return (
-    <button type="button" onClick={onClick} aria-label={label} className="inline-grid shrink-0 place-items-center rounded-full active:opacity-[.72]">
+    <button type="button" onClick={onClick} aria-label={label} className="pressable inline-grid shrink-0 place-items-center rounded-full">
       {emblem}
     </button>
   );

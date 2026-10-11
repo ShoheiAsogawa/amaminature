@@ -5,7 +5,12 @@
 // docs/DESIGN_SYSTEM.md §13.2 の「画面の検査」用。390×844 の全画面をライトとダークで撮り、目で確認する。
 // 横スクロールが出た画面は「OVERFLOW」と表示する（撮影は続ける）。
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173/';
 const OUT = process.env.OUT_DIR ?? 'screenshots';
@@ -19,6 +24,25 @@ const ctx = await browser.newContext({
   colorScheme: theme === 'dark' ? 'dark' : 'light',
   locale: 'ja-JP',
   timezoneId: 'Asia/Tokyo',
+});
+// Web フォント（Google Fonts）は curl で取得して渡す（ブラウザから外に出られない環境でも本番と同じ書体で撮る）
+const FONT_CACHE = process.env.FONT_CACHE ?? join(tmpdir(), 'amami-font-cache');
+await mkdir(FONT_CACHE, { recursive: true });
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+await ctx.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, async (route) => {
+  const url = route.request().url();
+  const file = join(FONT_CACHE, createHash('sha1').update(url).digest('hex'));
+  try {
+    if (!existsSync(file)) execFileSync('curl', ['-sSfL', '-A', UA, '-o', file, url]);
+    const css = url.includes('fonts.googleapis.com');
+    await route.fulfill({
+      status: 200,
+      body: readFileSync(file),
+      headers: { 'content-type': css ? 'text/css; charset=utf-8' : 'font/woff2', 'access-control-allow-origin': '*' },
+    });
+  } catch {
+    await route.abort();
+  }
 });
 const page = await ctx.newPage();
 let problems = 0;
@@ -142,8 +166,8 @@ await shot('10b-manner', true);
 // マイページ（全体 → バッジのシート）
 await go('/me');
 await shot('11-me', true);
-await page.getByRole('button', { name: 'すべて見る' }).first().click();
-await shot('11b-me-badges');
+await page.getByRole('button', { name: '森との約束' }).click();
+await shot('11b-me-badge');
 await closeSheet();
 
 await go('/plus');
@@ -177,9 +201,26 @@ await page.getByRole('button', { name: /リュウキュウアカショウビン/
 await page.getByText('ニックネーム', { exact: true }).waitFor();
 await shot('18-capture-details');
 await page.getByRole('button', { name: '図鑑に記録する' }).click();
-await page.getByText('図鑑に登録しました').waitFor();
-await page.waitForTimeout(1200);
-await shot('19-reveal');
+// ゲット！の演出（落ちる → 3 回ゆれる → 光って表 → メッセージ → ポイントと XP）
+await page.getByRole('button', { name: 'スキップ ›' }).waitFor();
+await page.waitForTimeout(700);
+await shot('19-reveal-shake');
+await page.waitForTimeout(1700);
+await shot('19b-reveal-get');
+await page.getByText('図鑑に とうろく！').waitFor({ timeout: 15000 });
+await page.waitForTimeout(2200);
+await shot('19c-reveal-reward');
+// 共有画像（ダウンロードに落ちる）
+const dl = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);
+await page.getByRole('button', { name: 'カード画像をシェア' }).click();
+const file = await dl;
+if (file) {
+  await file.saveAs(`${OUT}/${theme}-20-share-card.jpg`);
+  console.log('shot 20-share-card');
+} else {
+  problems++;
+  console.error('SHARE: 共有画像を保存できませんでした');
+}
 
 await browser.close();
 if (problems) {

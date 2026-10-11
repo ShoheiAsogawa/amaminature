@@ -1,22 +1,33 @@
 import { AREA_BY_ID } from '../data/areas';
-import type { Rarity, Species } from '../data/types';
-import { LIGHT, MATERIALS, type ColorStop } from '../styles/palette';
+import type { Category, Rarity, Species } from '../data/types';
+import { GAME, LIGHT, type ColorStop } from '../styles/palette';
 import { api } from './api';
 import { shareToLine } from './liff';
 import type { Sighting } from './types';
 
-// 共有画像（docs/DESIGN_SYSTEM.md §8.15）。1080×1350、白地、テーマに関係なく常にライトの色。
+// 共有画像（トレーディングカード風）。1080×1350。テーマに関係なく常にひるの島の色。
+// アプリの図鑑カード（CollectibleCard）と同じ作り：タイプの色の枠、名前と番号、写真の窓、タイプと星、GET! のシール。
 // canvas は CSS 変数を読めないので、色は src/styles/palette.ts の値を使う。
 
 const W = 1080;
 const H = 1350;
-/** 写真の位置と大きさ（60, 60 に 960×960、角丸 24） */
-const PHOTO = { x: 60, y: 60, size: 960, radius: 24 } as const;
-/** レア度 2〜4 の外周の素材の幅 */
-const EDGE = 16;
+/** 枠の太さと、白い面の角丸 */
+const FRAME = 40;
+const INNER_R = 44;
+/** 写真の窓（5:4） */
+const PHOTO = { x: 84, y: 200, w: 912, h: 730, radius: 30, border: 12 } as const;
 
-const FONT_JP = '"IBM Plex Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif';
-const FONT_NUM = '"IBM Plex Sans", "IBM Plex Sans JP", "Hiragino Sans", sans-serif';
+const FONT_JP = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
+const FONT_NUM = '"Lilita One", "M PLUS Rounded 1c", "Hiragino Sans", sans-serif';
+
+const TYPE_LABEL: Record<Category, string> = {
+  mammal: 'けもの',
+  bird: 'とり',
+  herp: 'は虫・両生',
+  insect: 'むし',
+  aqua: 'うみ・みず',
+  plant: 'しょくぶつ',
+};
 
 // 種のシルエット（src/art/sil/{species.id}.svg）。SpeciesTile.tsx と同じ置き場所を読む
 const SILHOUETTES = import.meta.glob<string>('../art/sil/*.svg', { eager: true, query: '?url', import: 'default' });
@@ -45,120 +56,135 @@ async function loadFonts(specs: [font: string, text: string][]) {
   await document.fonts.ready;
 }
 
-function applyStops(g: CanvasGradient, stops: readonly ColorStop[]) {
+function linear(ctx: CanvasRenderingContext2D, stops: readonly ColorStop[]) {
+  const g = ctx.createLinearGradient(0, 0, W, H);
   for (const [o, c] of stops) g.addColorStop(o, c);
   return g;
 }
 
-/** CSS の linear-gradient(<deg>) と同じ向きの、W×H 全体にかかるグラデーション */
-function cssLinearGradient(ctx: CanvasRenderingContext2D, deg: number, stops: readonly ColorStop[]) {
-  const a = (deg * Math.PI) / 180;
-  const dx = Math.sin(a);
-  const dy = -Math.cos(a);
-  const half = (Math.abs(W * dx) + Math.abs(H * dy)) / 2;
-  const cx = W / 2;
-  const cy = H / 2;
-  return applyStops(ctx.createLinearGradient(cx - dx * half, cy - dy * half, cx + dx * half, cy + dy * half), stops);
+/** 枠の地（よく見る・ときどきはタイプの色、めずらしいは虹、幻は金） */
+function frameFill(ctx: CanvasRenderingContext2D, species: Species | null): string | CanvasGradient {
+  if (!species) return LIGHT.fg3;
+  if (species.rarity === 3) return linear(ctx, GAME.frame3);
+  if (species.rarity === 4) return linear(ctx, GAME.frame4);
+  return GAME.type[species.category];
 }
 
-/** 外周の素材（§2.1 のライト）。泥染は単色、夜光貝は createConicGradient、金箔は createLinearGradient */
-function materialFill(ctx: CanvasRenderingContext2D, rarity: Rarity): string | CanvasGradient | null {
-  const m = MATERIALS.light;
-  if (rarity === 2) return m.dorozome;
-  if (rarity === 3) {
-    // CSS の conic-gradient は 12 時の方向が 0deg、canvas は 3 時の方向が 0 なので 90deg ずらす
-    if (typeof ctx.createConicGradient === 'function') {
-      const start = ((m.yakougai.fromDeg - 90) * Math.PI) / 180;
-      return applyStops(ctx.createConicGradient(start, W / 2, H / 2), m.yakougai.stops);
-    }
-    return cssLinearGradient(ctx, m.yakougai.fromDeg, m.yakougai.stops);
-  }
-  if (rarity === 4) return cssLinearGradient(ctx, m.kinpaku.deg, m.kinpaku.stops);
-  return null;
-}
-
-/** 写真がない時のプレート: fill の上にシルエット（幅 64%、silhouette 色）、なければ番号 */
+/** 写真がない時のプレート: 淡い地にシルエット（タイプの色）、なければ「？」 */
 async function drawPlate(ctx: CanvasRenderingContext2D, species: Species | null) {
-  const { x, y, size } = PHOTO;
+  const { x, y, w, h } = PHOTO;
   ctx.fillStyle = LIGHT.fill;
-  ctx.fillRect(x, y, size, size);
+  ctx.fillRect(x, y, w, h);
   if (!species) return;
-
   const silUrl = SILHOUETTES[`../art/sil/${species.id}.svg`];
   if (silUrl) {
     try {
       const img = await loadImage(silUrl);
-      const s = Math.round(size * 0.64);
-      // シルエットは currentColor の 1 色。別の canvas で silhouette 色に塗り替えてから重ねる
+      const s = Math.round(h * 0.8);
       const tmp = document.createElement('canvas');
       tmp.width = s;
       tmp.height = s;
       const t = tmp.getContext('2d')!;
       t.drawImage(img, 0, 0, s, s);
       t.globalCompositeOperation = 'source-in';
-      t.fillStyle = LIGHT.silhouette;
+      t.fillStyle = GAME.type[species.category];
       t.fillRect(0, 0, s, s);
-      ctx.drawImage(tmp, x + (size - s) / 2, y + (size - s) / 2);
+      ctx.drawImage(tmp, x + (w - s) / 2, y + (h - s) / 2);
       return;
     } catch {
-      // 読めなければ番号にする
+      // 読めなければ「？」にする
     }
   }
   ctx.save();
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = LIGHT.fg3;
-  ctx.font = `600 240px ${FONT_NUM}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `400 360px ${FONT_NUM}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(species.no).padStart(3, '0'), x + size / 2, y + size / 2);
+  ctx.fillText('?', x + w / 2, y + h / 2 + 20);
   ctx.restore();
 }
 
-/** レア度ジェム（菱形 4 つ）。塗りは fg-2（幻は legend）、空きは sep の輪郭 */
-function drawGems(ctx: CanvasRenderingContext2D, rarity: Rarity, x: number, cy: number) {
-  const side = 14; // 正方形の一辺（45° 回して菱形にする）
-  const half = (side * Math.SQRT2) / 2;
-  const step = half * 2 + 7;
+/** 5 つの角の星 */
+function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 === 0 ? r : r * 0.48;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const px = cx + Math.cos(a) * rr;
+    const py = cy + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/** レア度の星 4 つ（右端を x にそろえる） */
+function drawStars(ctx: CanvasRenderingContext2D, rarity: Rarity, right: number, cy: number) {
+  const r = 26;
+  const step = 58;
   for (let i = 0; i < 4; i++) {
-    const cx = x + half + i * step;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - half);
-    ctx.lineTo(cx + half, cy);
-    ctx.lineTo(cx, cy + half);
-    ctx.lineTo(cx - half, cy);
-    ctx.closePath();
-    if (i < rarity) {
-      ctx.fillStyle = rarity === 4 ? LIGHT.legend : LIGHT.fg2;
-      ctx.fill();
-    } else {
-      ctx.strokeStyle = LIGHT.sep;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
+    const cx = right - r - (3 - i) * step;
+    star(ctx, cx, cy, r);
+    ctx.fillStyle = i < rarity ? GAME.rare[rarity] : LIGHT.fillStrong;
+    ctx.fill();
   }
 }
 
-/** 和名は 64px、入らなければ 52px。図鑑にない生き物の名前はさらに縮め、それでも入らなければ末尾を省く */
-function fitName(ctx: CanvasRenderingContext2D, name: string, isSpecies: boolean): string {
-  const max = W - 120;
-  for (const px of isSpecies ? [64, 52] : [64, 52, 44, 40]) {
-    ctx.font = `600 ${px}px ${FONT_JP}`;
+/** 角丸の札（タイプ・ニックネーム）を描いて、幅を返す */
+function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, h: number, bg: string, fg: string, font: string, padX = 30) {
+  ctx.font = font;
+  const w = ctx.measureText(text).width + padX * 2;
+  roundRect(ctx, x, y, w, h, h / 2);
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + padX, y + h / 2 + 2);
+  ctx.textBaseline = 'alphabetic';
+  return w;
+}
+
+/** 文章を max 幅で折り返す（文字単位。句読点を行頭に置かない）。maxLines を超えたら末尾を … にする */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number, maxLines: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const ch of Array.from(text)) {
+    if (ctx.measureText(line + ch).width > max && line && !/[、。」）！？]/.test(ch)) {
+      lines.push(line);
+      line = ch;
+      if (lines.length === maxLines) break;
+    } else {
+      line += ch;
+    }
+  }
+  if (lines.length < maxLines && line) lines.push(line);
+  else if (lines.length === maxLines) {
+    let last = lines[maxLines - 1];
+    while (last.length > 1 && ctx.measureText(`${last}…`).width > max) last = last.slice(0, -1);
+    lines[maxLines - 1] = `${last}…`;
+  }
+  return lines;
+}
+
+/** 名前は 64px、入らなければ縮める。図鑑にない生き物の名前は最後に末尾を省く */
+function fitName(ctx: CanvasRenderingContext2D, name: string, max: number): string {
+  for (const px of [64, 56, 48, 42]) {
+    ctx.font = `900 ${px}px ${FONT_JP}`;
     if (ctx.measureText(name).width <= max) return name;
   }
-  if (isSpecies) return name; // 和名は省略記号で切らない（62 種はすべて 52px で収まる）
   let s = name;
   while (s.length > 1 && ctx.measureText(`${s}…`).width > max) s = s.slice(0, -1);
   return `${s}…`;
 }
 
-/** 2026年10月10日 */
-function dateJa(iso: string): string {
+/** 2026.10.10 */
+function dotDate(iso: string): string {
   const d = new Date(iso);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /**
- * SNS・LINE 共有用の図鑑カード画像を作る（§8.15）。
+ * SNS・LINE 共有用の図鑑カード画像を作る。
  * 位置情報（座標）は載せない。希少種は市町村名も載せない。ハッシュタグは画像に入れず、共有テキストに入れる。
  */
 export async function renderShareCard(opts: {
@@ -167,19 +193,21 @@ export async function renderShareCard(opts: {
   photoUrl: string | null;
 }): Promise<Blob> {
   const { sighting, species, photoUrl } = opts;
-  const rarity: Rarity = species?.rarity ?? 1;
   const name = species?.name ?? (sighting.customName?.trim() || 'なぞの生き物');
   const no = species ? `No.${String(species.no).padStart(3, '0')}` : '';
   const nickname = sighting.nickname?.trim() ? `「${sighting.nickname.trim()}」` : '';
   const area = sighting.areaId && !species?.sensitive ? AREA_BY_ID[sighting.areaId]?.name : null;
-  const meta = `${area ?? '奄美群島'}　${dateJa(sighting.observedAt)}`;
+  const date = dotDate(sighting.observedAt);
   const brand = 'AMAMI NATURE';
+  const typeColor = species ? GAME.type[species.category] : LIGHT.fg3;
+  const typeLabel = species ? TYPE_LABEL[species.category] : '図鑑にない生き物';
 
   await loadFonts([
-    [`600 30px ${FONT_NUM}`, `${no}${brand}`],
-    [`600 64px ${FONT_JP}`, name],
-    [`400 36px ${FONT_JP}`, nickname],
-    [`400 28px ${FONT_JP}`, meta],
+    [`400 56px ${FONT_NUM}`, `${no}${brand}${date}GET!`],
+    [`900 64px ${FONT_JP}`, name],
+    [`900 40px ${FONT_JP}`, `${nickname}${typeLabel}`],
+    [`800 32px ${FONT_JP}`, area ?? '奄美群島'],
+    [`800 31px ${FONT_JP}`, species?.description ?? ''],
   ]);
 
   const canvas = document.createElement('canvas');
@@ -187,27 +215,44 @@ export async function renderShareCard(opts: {
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // 地は白。レア度 2〜4 は外周 16px を素材で塗る
-  const material = materialFill(ctx, rarity);
-  if (material) {
-    ctx.fillStyle = material;
-    ctx.fillRect(0, 0, W, H);
-  }
-  ctx.fillStyle = LIGHT.page;
-  ctx.fillRect(material ? EDGE : 0, material ? EDGE : 0, material ? W - EDGE * 2 : W, material ? H - EDGE * 2 : H);
+  // 枠と白い面
+  ctx.fillStyle = frameFill(ctx, species);
+  ctx.fillRect(0, 0, W, H);
+  roundRect(ctx, FRAME, FRAME, W - FRAME * 2, H - FRAME * 2, INNER_R);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
 
-  // 写真（1:1 に切り抜く）。なければシルエット、それもなければ番号
+  // 名前と番号
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.font = `400 56px ${FONT_NUM}`;
+  const noWidth = no ? ctx.measureText(no).width : 0;
+  ctx.fillStyle = LIGHT.fg;
+  const shown = fitName(ctx, name, W - 84 * 2 - noWidth - 30);
+  ctx.fillText(shown, 84, 160);
+  if (no) {
+    ctx.fillStyle = typeColor;
+    ctx.font = `400 56px ${FONT_NUM}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(no, W - 84, 158);
+    ctx.textAlign = 'left';
+  }
+
+  // 写真の窓（タイプの色の枠）
+  roundRect(ctx, PHOTO.x - PHOTO.border, PHOTO.y - PHOTO.border, PHOTO.w + PHOTO.border * 2, PHOTO.h + PHOTO.border * 2, PHOTO.radius + PHOTO.border);
+  ctx.fillStyle = typeColor;
+  ctx.fill();
   ctx.save();
-  roundRect(ctx, PHOTO.x, PHOTO.y, PHOTO.size, PHOTO.size, PHOTO.radius);
+  roundRect(ctx, PHOTO.x, PHOTO.y, PHOTO.w, PHOTO.h, PHOTO.radius);
   ctx.clip();
   let drewPhoto = false;
   if (photoUrl) {
     try {
       const img = await loadImage(photoUrl);
-      const scale = Math.max(PHOTO.size / img.naturalWidth, PHOTO.size / img.naturalHeight);
+      const scale = Math.max(PHOTO.w / img.naturalWidth, PHOTO.h / img.naturalHeight);
       const dw = img.naturalWidth * scale;
       const dh = img.naturalHeight * scale;
-      ctx.drawImage(img, PHOTO.x + (PHOTO.size - dw) / 2, PHOTO.y + (PHOTO.size - dh) / 2, dw, dh);
+      ctx.drawImage(img, PHOTO.x + (PHOTO.w - dw) / 2, PHOTO.y + (PHOTO.h - dh) / 2, dw, dh);
       drewPhoto = true;
     } catch {
       // 読めなければプレートにする
@@ -216,39 +261,73 @@ export async function renderShareCard(opts: {
   if (!drewPhoto) await drawPlate(ctx, species);
   ctx.restore();
 
-  ctx.textBaseline = 'alphabetic';
+  // GET! のシール（写真の右上、少し傾ける）
+  ctx.save();
+  ctx.translate(W - 150, PHOTO.y + 20);
+  ctx.rotate((10 * Math.PI) / 180);
+  roundRect(ctx, -110, -46, 220, 92, 46);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  roundRect(ctx, -100, -36, 200, 72, 36);
+  ctx.fillStyle = GAME.xp;
+  ctx.fill();
+  ctx.fillStyle = GAME.xpInk;
+  ctx.font = `400 52px ${FONT_NUM}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('GET!', 0, 4);
+  ctx.restore();
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 
-  // No.005 とジェム
-  if (species) {
-    ctx.fillStyle = LIGHT.fg3;
-    ctx.font = `600 30px ${FONT_NUM}`;
-    ctx.fillText(no, 60, 1080);
-    drawGems(ctx, species.rarity, 60 + ctx.measureText(no).width + 20, 1080 - 11);
-  }
-
-  // 和名
-  ctx.fillStyle = LIGHT.fg;
-  const shownName = fitName(ctx, name, !!species);
-  ctx.fillText(shownName, 60, 1160);
+  // タイプと星
+  const rowY = PHOTO.y + PHOTO.h + 52;
+  pill(ctx, typeLabel, 84, rowY, 64, typeColor, '#FFFFFF', `900 34px ${FONT_JP}`);
+  if (species) drawStars(ctx, species.rarity, W - 84, rowY + 32);
 
   // ニックネーム
   if (nickname) {
-    ctx.fillStyle = LIGHT.fg2;
-    ctx.font = `400 36px ${FONT_JP}`;
-    ctx.fillText(nickname, 60, 1220);
+    ctx.font = `900 40px ${FONT_JP}`;
+    roundRect(ctx, 84, rowY + 90, W - 168, 76, 38);
+    ctx.fillStyle = LIGHT.fill;
+    ctx.fill();
+    ctx.fillStyle = LIGHT.fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(nickname, W / 2, rowY + 130);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
-  // 市町村と日付（希少種は市町村名を出さない）
-  ctx.fillStyle = LIGHT.fg3;
-  ctx.font = `400 28px ${FONT_JP}`;
-  ctx.fillText(meta, 60, 1290);
+  // 図鑑の説明（カードのフレーバーテキスト）
+  if (species) {
+    const top = rowY + (nickname ? 196 : 104);
+    const lines = nickname ? 1 : 3;
+    ctx.strokeStyle = LIGHT.sep;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([12, 10]);
+    ctx.beginPath();
+    ctx.moveTo(84, top);
+    ctx.lineTo(W - 84, top);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = `800 31px ${FONT_JP}`;
+    ctx.fillStyle = LIGHT.fg2;
+    wrapText(ctx, species.description, W - 168, lines).forEach((l, i) => ctx.fillText(l, 84, top + 52 + i * 46));
+  }
 
-  // ワードマーク（右下）
+  // 日付と市町村（希少種は市町村名を出さない）、右下にブランド
+  const footY = H - FRAME - 44;
+  ctx.fillStyle = LIGHT.fg3;
+  ctx.font = `400 34px ${FONT_NUM}`;
+  ctx.fillText(date, 84, footY);
+  const dw = ctx.measureText(date).width;
+  ctx.font = `800 32px ${FONT_JP}`;
+  ctx.fillText(area ?? '奄美群島', 84 + dw + 24, footY);
   ctx.fillStyle = LIGHT.brand;
-  ctx.font = `600 28px ${FONT_NUM}`;
+  ctx.font = `400 34px ${FONT_NUM}`;
   ctx.textAlign = 'right';
-  ctx.fillText(brand, W - 60, 1290);
+  ctx.fillText(brand, W - 84, footY);
   ctx.textAlign = 'left';
 
   return new Promise((resolve, reject) =>

@@ -1,52 +1,54 @@
 /** @type {import('tailwindcss').Config} */
-// デザインシステム「瑠璃の野帳」（docs/DESIGN_SYSTEM.md §2.4・§3.2・§3.3・§4.1・§4.3）
+// ゲームUI「アマミ図鑑クエスト」（docs/DESIGN_SYSTEM.md）
 const v = (n) => `rgb(var(--c-${n}) / <alpha-value>)`;
 
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
-    // §3.2 書体は IBM Plex の 1 ファミリー（serif・latin は持たない）
+    // 本文は丸ゴシック（M PLUS Rounded 1c）、数字とラベルはゲームの数字（Lilita One）、メッセージ窓はドット文字（DotGothic16）
     fontFamily: {
-      sans: ['"IBM Plex Sans JP"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
-      num: ['"IBM Plex Sans"', '"IBM Plex Sans JP"', '-apple-system', '"Hiragino Sans"', 'Roboto', 'system-ui', 'sans-serif'],
+      sans: ['"M PLUS Rounded 1c"', '"Hiragino Maru Gothic ProN"', '"Hiragino Sans"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
+      num: ['"Lilita One"', '"M PLUS Rounded 1c"', '"Hiragino Maru Gothic ProN"', 'system-ui', 'sans-serif'],
+      pixel: ['DotGothic16', '"M PLUS Rounded 1c"', 'monospace'],
     },
-    // §3.4 太さは 400 と 600 だけ
-    fontWeight: { normal: '400', semibold: '600' },
-    // §3.3 文字サイズ（text-xs〜text-9xl は使わない）
+    fontWeight: { normal: '500', semibold: '700', bold: '800', black: '900' },
     fontSize: {
-      display: ['28px', { lineHeight: '36px', fontWeight: '600' }],
-      title: ['22px', { lineHeight: '30px', fontWeight: '600' }],
-      section: ['18px', { lineHeight: '26px', fontWeight: '600' }],
-      headline: ['16px', { lineHeight: '22px', fontWeight: '600' }],
-      body: ['15px', { lineHeight: '26px' }],
+      display: ['30px', { lineHeight: '38px', fontWeight: '900' }],
+      title: ['24px', { lineHeight: '32px', fontWeight: '800' }],
+      section: ['19px', { lineHeight: '26px', fontWeight: '800' }],
+      headline: ['17px', { lineHeight: '24px', fontWeight: '700' }],
+      body: ['15px', { lineHeight: '25px' }],
       callout: ['15px', { lineHeight: '22px' }],
       input: ['16px', { lineHeight: '24px' }],
-      sub: ['13px', { lineHeight: '20px' }],
-      tile: ['13px', { lineHeight: '18px', fontWeight: '600' }],
-      caption: ['12px', { lineHeight: '16px', letterSpacing: '0.02em' }],
-      tab: ['11px', { lineHeight: '14px', letterSpacing: '0.02em' }],
-      'num-xl': ['40px', { lineHeight: '44px', letterSpacing: '-0.02em', fontWeight: '600' }],
-      'num-kpi': ['28px', { lineHeight: '32px', letterSpacing: '-0.02em', fontWeight: '600' }],
-      'num-l': ['22px', { lineHeight: '26px', letterSpacing: '-0.01em', fontWeight: '600' }],
+      sub: ['13px', { lineHeight: '19px' }],
+      tile: ['12px', { lineHeight: '16px', fontWeight: '800' }],
+      caption: ['11px', { lineHeight: '15px', letterSpacing: '0.02em', fontWeight: '700' }],
+      tab: ['11px', { lineHeight: '13px', letterSpacing: '0.02em', fontWeight: '800' }],
+      'num-xl': ['48px', { lineHeight: '52px', letterSpacing: '0.01em' }],
+      'num-kpi': ['30px', { lineHeight: '34px', letterSpacing: '0.01em' }],
+      'num-l': ['24px', { lineHeight: '28px', letterSpacing: '0.01em' }],
     },
-    // §4.1 角丸
-    borderRadius: { none: '0', bar: '2px', xs: '6px', thumb: '8px', sm: '10px', md: '12px', lg: '16px', full: '9999px' },
-    // §4.3 影は浮いている層だけ（none はダークで影を消すため）
+    borderRadius: { none: '0', bar: '999px', xs: '10px', thumb: '12px', sm: '14px', md: '18px', lg: '24px', xl: '28px', full: '9999px' },
     boxShadow: {
       none: 'none',
-      sheet: '0 -8px 32px rgb(0 0 0 / .14)',
-      toast: '0 8px 24px rgb(0 0 0 / .18)',
-      thumb: '0 1px 2px rgb(0 0 0 / .12)',
+      // 押せる面の「厚み」（下に 4px の縁）。押すと縁がなくなって沈む
+      pop: '0 4px 0 rgb(var(--c-edge))',
+      'pop-sm': '0 3px 0 rgb(var(--c-edge))',
+      sheet: '0 -8px 32px rgb(0 0 0 / .18)',
+      toast: '0 8px 24px rgb(0 0 0 / .22)',
+      thumb: '0 1px 2px rgb(0 0 0 / .14)',
       object: '0 24px 48px rgb(0 0 0 / .45)',
+      glow: '0 0 0 4px rgb(var(--c-brand) / .18)',
     },
     extend: {
-      // §2.4 色（値は src/styles/index.css の --c-*）
       colors: {
         page: v('page'),
         surface: v('surface'),
         fill: { DEFAULT: v('fill'), strong: v('fill-strong') },
         sep: v('sep'),
+        line: v('line'),
+        edge: v('edge'),
         fg: { DEFAULT: v('fg'), 2: v('fg-2'), 3: v('fg-3') },
         brand: { DEFAULT: v('brand'), fill: v('brand-fill'), pressed: v('brand-pressed'), soft: v('brand-soft') },
         'on-brand': v('on-brand'),
@@ -59,6 +61,49 @@ export default {
         'line-green': v('line-green'),
         thumb: v('thumb'),
         toast: { DEFAULT: v('toast'), fg: v('toast-fg') },
+        gold: { DEFAULT: v('gold'), edge: v('gold-edge'), soft: v('gold-soft') },
+        xp: { DEFAULT: v('xp'), edge: v('xp-edge') },
+        capture: { DEFAULT: v('capture'), edge: v('capture-edge') },
+        night: { DEFAULT: v('night'), 2: v('night-2') },
+        // 生き物のタイプ（分類）の色。チップの地（白い文字 4.5:1）と、淡い地
+        type: {
+          mammal: v('type-mammal'),
+          bird: v('type-bird'),
+          herp: v('type-herp'),
+          insect: v('type-insect'),
+          aqua: v('type-aqua'),
+          plant: v('type-plant'),
+        },
+        'type-soft': {
+          mammal: v('type-mammal-soft'),
+          bird: v('type-bird-soft'),
+          herp: v('type-herp-soft'),
+          insect: v('type-insect-soft'),
+          aqua: v('type-aqua-soft'),
+          plant: v('type-plant-soft'),
+        },
+        // レア度の色（星の色）
+        rare: { 1: v('rare-1'), 2: v('rare-2'), 3: v('rare-3'), 4: v('rare-4') },
+      },
+      keyframes: {
+        'pop-in': { '0%': { transform: 'scale(.6)', opacity: '0' }, '60%': { transform: 'scale(1.08)', opacity: '1' }, '100%': { transform: 'scale(1)' } },
+        float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
+        'ring-pulse': { '0%': { transform: 'scale(1)', opacity: '.55' }, '100%': { transform: 'scale(1.55)', opacity: '0' } },
+        wiggle: { '0%,100%': { transform: 'rotate(0)' }, '25%': { transform: 'rotate(-8deg)' }, '75%': { transform: 'rotate(8deg)' } },
+        shine: { '0%': { transform: 'translateX(-120%) skewX(-20deg)' }, '60%,100%': { transform: 'translateX(220%) skewX(-20deg)' } },
+        stripes: { '0%': { backgroundPosition: '0 0' }, '100%': { backgroundPosition: '20px 0' } },
+        'spin-slow': { to: { transform: 'rotate(360deg)' } },
+        twinkle: { '0%,100%': { opacity: '.2', transform: 'scale(.6)' }, '50%': { opacity: '1', transform: 'scale(1)' } },
+      },
+      animation: {
+        'pop-in': 'pop-in .45s cubic-bezier(.2,.9,.3,1.3) both',
+        float: 'float 3s ease-in-out infinite',
+        'ring-pulse': 'ring-pulse 1.8s ease-out infinite',
+        wiggle: 'wiggle .5s ease-in-out',
+        shine: 'shine 3.2s ease-in-out infinite',
+        stripes: 'stripes 1s linear infinite',
+        'spin-slow': 'spin-slow 12s linear infinite',
+        twinkle: 'twinkle 1.6s ease-in-out infinite',
       },
     },
   },
