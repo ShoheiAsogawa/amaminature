@@ -19,7 +19,7 @@ import {
   Segmented,
   Sheet,
 } from '../components/ui';
-import { CATEGORY_META, CATEGORY_ORDER, SPECIES, searchSpecies } from '../data/species';
+import { CATEGORY_META, CATEGORY_ORDER, normalize, SPECIES, searchSpecies } from '../data/species';
 import type { Category } from '../data/types';
 import { useCollection, type CollectionEntry } from '../store/useCollection';
 
@@ -78,7 +78,12 @@ export default function Zukan() {
   }, [collection]);
 
   const list = useMemo(() => {
-    const filtered = searchSpecies(query).filter((s) => {
+    // 名前で探せるのはゲットした種だけ（まだ見つけていない種は「？？？」なので、No. の番号で探す）
+    const q = normalize(query);
+    const no = /^(?:no\.?)?0*(\d{1,3})$/.exec(q)?.[1];
+    const named = new Set(searchSpecies(query).map((s) => s.id));
+    const filtered = SPECIES.filter((s) => {
+      if (q && !((collection.has(s.id) && named.has(s.id)) || (no != null && s.no === Number(no)))) return false;
       if (category && s.category !== category) return false;
       if (status === 'found' && !collection.has(s.id)) return false;
       if (status === 'missing' && collection.has(s.id)) return false;
@@ -153,7 +158,7 @@ export default function Zukan() {
       </div>
 
       <div className="mt-4 flex items-center gap-2 pl-4 pr-2">
-        <SearchField value={query} onChange={setQuery} aria-label="図鑑を検索" className="flex-1" />
+        <SearchField value={query} onChange={setQuery} placeholder="名前・No.で探す" aria-label="図鑑を検索" className="flex-1" />
         <HeaderButton
           icon={IconSlidersHorizontal}
           label={conditioned ? '表示の条件（変更あり）' : '表示の条件'}
@@ -198,7 +203,7 @@ export default function Zukan() {
         <EmptyState
           className="mt-2"
           title="該当する生き物はいません"
-          body={query ? 'ひらがな、カタカナ、学名でも探せます' : undefined}
+          body={query ? 'ゲットした生き物は名前で、まだの生き物は No. の番号で探せます' : undefined}
           actionLabel="条件を解除"
           onAction={clearAll}
         />

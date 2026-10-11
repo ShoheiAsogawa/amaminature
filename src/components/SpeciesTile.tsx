@@ -5,7 +5,7 @@ import { cn } from '../lib/cn';
 import { sfx } from '../lib/sfx';
 import { Stars, TYPE_META } from './game';
 import { usePhotoUrl } from './PhotoImg';
-import { SpeciesName } from './SpeciesName';
+import { HIDDEN_NAME_LABEL, SpeciesName } from './SpeciesName';
 
 // ───────── 図像（§6） ─────────
 
@@ -224,7 +224,10 @@ export type SpeciesTileProps = {
 export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = false }: SpeciesTileProps) {
   const legendary = species.rarity === 4;
   const t = TYPE_META[species.category];
-  const label = `No.${speciesNo(species)} ${species.name}${legendary ? '（幻）' : ''}${discovered ? (count > 0 ? ` 記録${count}回` : ' 記録済み') : ' 未発見'}`;
+  // まだ見つけていない種は名前を「？？？」にする（記録すると名前がわかる）
+  const label = discovered
+    ? `No.${speciesNo(species)} ${species.name}${legendary ? '（幻）' : ''}${count > 0 ? ` 記録${count}回` : ' 記録済み'}`
+    : `No.${speciesNo(species)} ${HIDDEN_NAME_LABEL}${legendary ? '（幻）' : ''}`;
   return (
     <Link
       to={`/species/${species.id}`}
@@ -252,7 +255,7 @@ export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = f
         <Stars rarity={species.rarity} size={10} />
       </div>
       <div aria-hidden className={cn('line-clamp-2 min-h-8 px-0.5 text-tile', discovered ? 'text-fg' : 'font-bold text-fg-3')}>
-        <SpeciesName species={species} clamp={false} />
+        <SpeciesName species={species} hidden={!discovered} clamp={false} />
       </div>
     </Link>
   );

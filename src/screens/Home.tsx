@@ -20,7 +20,7 @@ import {
 import { Phrase } from '../components/Phrase';
 import { usePhotoUrl } from '../components/PhotoImg';
 import { PlayerHud } from '../components/Player';
-import { SpeciesName } from '../components/SpeciesName';
+import { HIDDEN_NAME_LABEL, SpeciesName } from '../components/SpeciesName';
 import { SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
 import { button, cn, Group, InfoRow, ListRow, Num, Page, RarityGems, SectionHeader, Sheet, toast } from '../components/ui';
 import { EXPERIENCES } from '../data/experiences';
@@ -411,9 +411,10 @@ function SeasonCard({ species, entry, featured }: { species: Species; entry?: Co
       to={`/species/${species.id}`}
       onClick={() => sfx('tap')}
       className={cn('pressable relative block w-[132px] shrink-0 rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', found ? t.border : 'border-line')}
-      aria-label={`${species.name}${found ? '（ゲット済み）' : ''}`}
+      aria-label={found ? `${species.name}（ゲット済み）` : `${HIDDEN_NAME_LABEL}（${TYPE_META[species.category].label}）`}
     >
-      <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference className="aspect-square w-full rounded-[10px]">
+      {/* まだ見つけていない種は参考写真も出さない（名前と同じく、ゲットするまでのお楽しみ） */}
+      <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference={found} className="aspect-square w-full rounded-[10px]">
         {featured && (
           <span className="absolute left-1 top-1 rounded-full bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">PICK UP</span>
         )}
@@ -425,8 +426,8 @@ function SeasonCard({ species, entry, featured }: { species: Species; entry?: Co
         <TypeBadge category={species.category} size="sm" />
         <Stars rarity={species.rarity} size={10} />
       </span>
-      <span className="mt-1 line-clamp-2 min-h-8 px-0.5 text-tile text-fg">
-        <SpeciesName species={species} clamp={false} />
+      <span className={cn('mt-1 line-clamp-2 min-h-8 px-0.5 text-tile', found ? 'text-fg' : 'text-fg-3')}>
+        <SpeciesName species={species} hidden={!found} clamp={false} />
       </span>
     </Link>
   );
@@ -461,15 +462,15 @@ function SyncStatus() {
 
 // ───────── 種の行 ─────────
 
-/** 季節の種の行。サムネイルは利用者の写真 → 参考写真 → シルエット → 番号 */
+/** 季節の種の行。サムネイルは利用者の写真 → 参考写真 → シルエット →「？」。まだ見つけていない種は名前を「？？？」にする */
 function SpeciesRow({ species, entry }: { species: Species; entry?: CollectionEntry }) {
   const found = !!entry;
   return (
     <ListRow
       to={`/species/${species.id}`}
-      leading={<SpeciesThumb species={species} photoId={entry?.photoId} discovered={found} showReference size={56} />}
+      leading={<SpeciesThumb species={species} photoId={entry?.photoId} discovered={found} showReference={found} size={56} />}
       thumbSize={56}
-      title={<SpeciesName species={species} />}
+      title={found ? <SpeciesName species={species} /> : <SpeciesName species={species} hidden className="text-fg-3" />}
       subtitle={<RarityGems rarity={species.rarity} withLabel />}
       checked={found}
     />

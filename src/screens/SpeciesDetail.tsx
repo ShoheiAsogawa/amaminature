@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ExperienceMeta, ExperienceSheet } from '../components/ExperienceCard';
 import { Stars, TYPE_META, TypeBadge } from '../components/game';
-import { IconCameraFill, IconEyeSlash, IconLightbulb, IconMoonStarsFill } from '../components/icons';
+import { IconCameraFill, IconEyeSlash, IconLightbulb, IconLockSimpleFill, IconMoonStarsFill } from '../components/icons';
 import { Prose } from '../components/Prose';
 import { MonthBar, referencePhoto, SciName, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
-import { SpeciesName } from '../components/SpeciesName';
+import { HIDDEN_NAME, HIDDEN_NAME_LABEL, SpeciesName } from '../components/SpeciesName';
 import {
   button,
   cn,
@@ -64,13 +64,16 @@ function SpeciesDetail({ id }: { id: string }) {
   const navigate = useNavigate();
   const sp: Species | undefined = SPECIES_BY_ID[id];
   const collection = useCollection();
-  useDocumentTitle(sp?.name);
-
   const nameRef = useRef<HTMLHeadingElement>(null);
   const entry = sp ? collection.get(sp.id) : undefined;
-  const ref = sp ? referencePhoto(sp) : null;
-  const userPhoto = entry?.photoId ?? null;
   const found = !!entry;
+  // まだ見つけていない種は、名前・学名・英名・図鑑の説明・シマの話を「？？？」にする（記録すると読める）。
+  // 安全と保全の情報（危険、観察マナー、位置をぼかす注意）と、探すためのヒントは隠さない
+  const shownName = sp ? (found ? sp.name : `No.${speciesNo(sp)} ${HIDDEN_NAME}`) : null;
+  useDocumentTitle(shownName);
+  // 参考写真もゲットするまでは出さない（「？」かシルエット）
+  const ref = sp && found ? referencePhoto(sp) : null;
+  const userPhoto = entry?.photoId ?? null;
   // 名前がヘッダーの下に隠れたら、ヘッダーに名前を出す
   const navTitleShown = useScrolledPast(nameRef, !!sp);
   const markViewed = useStore((s) => s.markViewed);
@@ -108,7 +111,7 @@ function SpeciesDetail({ id }: { id: string }) {
         onBack={back}
         title={
           <span aria-hidden={!navTitleShown} className={cn('transition-opacity duration-150', navTitleShown ? 'opacity-100' : 'opacity-0')}>
-            {sp.name}
+            {found ? sp.name : HIDDEN_NAME}
           </span>
         }
       />
@@ -122,10 +125,10 @@ function SpeciesDetail({ id }: { id: string }) {
               species={sp}
               photoId={userPhoto}
               discovered={found}
-              showReference
+              showReference={found}
               photoSize="full"
               patternSize="large"
-              alt={sp.name}
+              alt={found ? sp.name : HIDDEN_NAME_LABEL}
               className={cn('aspect-square w-full rounded-[18px]', found && sp.rarity >= 3 && 'shine')}
             />
           </div>
@@ -148,11 +151,15 @@ function SpeciesDetail({ id }: { id: string }) {
           <span className={cn('num text-[20px] leading-6', t.text)}>No.{speciesNo(sp)}</span>
           <Stars rarity={sp.rarity} size={18} withLabel />
         </div>
-        <h1 ref={nameRef} className="mt-1 text-display text-fg">
-          <SpeciesName species={sp} />
+        <h1 ref={nameRef} className={cn('mt-1 text-display', found ? 'text-fg' : 'text-fg-3')}>
+          <SpeciesName species={sp} hidden={!found} />
         </h1>
         <p className="mt-0.5">
-          <SciName sci={sp.sci} className="text-callout" />
+          {found ? (
+            <SciName sci={sp.sci} className="text-callout" />
+          ) : (
+            <span className="text-callout font-bold text-fg-3">ゲットすると、名前と説明がわかるよ</span>
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <TypeBadge category={sp.category} />
@@ -210,11 +217,15 @@ function SpeciesDetail({ id }: { id: string }) {
           </>
         }
       />
-      <div className="panel mx-4 px-4 py-3.5">
-        <p className="text-body font-bold text-fg">
-          <Prose text={sp.description} />
-        </p>
-      </div>
+      {found ? (
+        <div className="panel mx-4 px-4 py-3.5">
+          <p className="text-body font-bold text-fg">
+            <Prose text={sp.description} />
+          </p>
+        </div>
+      ) : (
+        <LockedEntry />
+      )}
 
       <SectionHeader title="見られる季節" />
       <div className="panel mx-4 px-3 pb-2.5 pt-3">
@@ -252,7 +263,7 @@ function SpeciesDetail({ id }: { id: string }) {
           </span>
         </InfoRow>
         <InfoRow label="分布">{sp.range}</InfoRow>
-        <InfoRow label="英名">{sp.en}</InfoRow>
+        <InfoRow label="英名">{found ? sp.en : HIDDEN_NAME}</InfoRow>
       </Group>
 
       {sp.manner && (
@@ -266,7 +277,7 @@ function SpeciesDetail({ id }: { id: string }) {
         </>
       )}
 
-      {sp.culture && (
+      {sp.culture && found && (
         <>
           <SectionHeader title="シマの話" />
           <div className="panel mx-4 px-4 py-3.5">
@@ -327,6 +338,25 @@ function SpeciesDetail({ id }: { id: string }) {
         </div>
       </Sheet>
     </main>
+  );
+}
+
+/** まだ見つけていない種の図鑑の説明（鍵のかかったパネル）。説明の長さに合わせた伏せ字の帯を 3 本 */
+function LockedEntry() {
+  return (
+    <div className="panel relative mx-4 overflow-hidden px-4 py-3.5">
+      <div aria-hidden className="space-y-2.5 py-1 blur-[1px]">
+        <span className="block h-3.5 w-[92%] rounded-full bg-fill-strong" />
+        <span className="block h-3.5 w-[78%] rounded-full bg-fill-strong" />
+        <span className="block h-3.5 w-[56%] rounded-full bg-fill-strong" />
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center gap-2 bg-surface/60">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-night text-gold">
+          <IconLockSimpleFill size={18} />
+        </span>
+        <span className="text-sub font-black text-fg-2">ゲットすると読めるよ</span>
+      </div>
+    </div>
   );
 }
 
