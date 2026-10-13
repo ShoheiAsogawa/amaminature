@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { LogoMark } from '../components/Brand';
 import { Coin, LevelBadge, Ring, Sparkles, Stars, TYPE_META, TypeBadge } from '../components/game';
 import {
@@ -130,9 +130,21 @@ export default function Admin() {
     document.title = '運営ダッシュボード';
   }, []);
 
+  /** キーを消してデモ表示に戻す（ログアウト・キーが無効になった時） */
+  function signOut() {
+    loadSeq.current++;
+    setAdminKey(null);
+    setKey(null);
+    setData(demoAdmin());
+  }
+
   /** いま開いているタブに要るものを読み込む（デモは最初に全部ある） */
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
     if (!key) return;
+    // タブや絞り込みを続けて切り替えた時、遅れて届いた前の結果で上書きしない
+    const seq = ++loadSeq.current;
+    const latest = () => seq === loadSeq.current;
     setLoading(true);
     setError(null);
     try {
@@ -142,36 +154,33 @@ export default function Admin() {
           adminApi.redemptions(key, 'requested'),
           adminApi.roadReports(key, 'new'),
         ]);
-        setData((d) => ({ ...d, summary, redemptions: redemptions.redemptions, roadReports: roadReports.roadReports }));
+        if (latest()) setData((d) => ({ ...d, summary, redemptions: redemptions.redemptions, roadReports: roadReports.roadReports }));
       } else if (tab === 'redemptions') {
         const r = await adminApi.redemptions(key, redemptionStatus);
-        setData((d) => ({ ...d, redemptions: r.redemptions }));
+        if (latest()) setData((d) => ({ ...d, redemptions: r.redemptions }));
       } else if (tab === 'sightings') {
         const r = await adminApi.sightings(key, sightingFilter);
-        setData((d) => ({ ...d, sightings: r.sightings }));
+        if (latest()) setData((d) => ({ ...d, sightings: r.sightings }));
       } else if (tab === 'road') {
         const r = await adminApi.roadReports(key, roadStatus);
-        setData((d) => ({ ...d, roadReports: r.roadReports }));
+        if (latest()) setData((d) => ({ ...d, roadReports: r.roadReports }));
       } else if (tab === 'partners') {
         const r = await adminApi.partners(key);
-        setData((d) => ({ ...d, partners: r.partners }));
+        if (latest()) setData((d) => ({ ...d, partners: r.partners }));
       } else if (tab === 'users') {
         const r = await adminApi.users(key, userQuery);
-        setData((d) => ({ ...d, users: r.users }));
+        if (latest()) setData((d) => ({ ...d, users: r.users }));
       } else if (tab === 'log') {
         const r = await adminApi.actions(key);
-        setData((d) => ({ ...d, actions: r.actions }));
+        if (latest()) setData((d) => ({ ...d, actions: r.actions }));
       }
     } catch (e) {
+      if (!latest()) return;
       const err = e as AdminError;
       setError(err.message);
-      if (err.code === 'unauthorized') {
-        setAdminKey(null);
-        setKey(null);
-        setData(demoAdmin());
-      }
+      if (err.code === 'unauthorized') signOut();
     } finally {
-      setLoading(false);
+      if (latest()) setLoading(false);
     }
   }, [key, tab, redemptionStatus, roadStatus, sightingFilter, userQuery]);
 
@@ -180,9 +189,7 @@ export default function Admin() {
   }, [load]);
 
   const logout = () => {
-    setAdminKey(null);
-    setKey(null);
-    setData(demoAdmin());
+    signOut();
     toast('ログアウトしました（デモデータを表示しています）');
   };
 
@@ -196,6 +203,8 @@ export default function Admin() {
     } catch (e) {
       sfx('error');
       toast.error((e as Error).message);
+      // 操作の途中でキーが無効になった（差し替えた）時は、デモ表示に戻してログインし直してもらう
+      if ((e as AdminError).code === 'unauthorized') signOut();
     }
   };
 
@@ -278,7 +287,8 @@ export default function Admin() {
         {tab === 'home' && <HomeTab data={data} demo={demo} go={setTab} openRare={() => (setSightingFilter('rare'), setTab('sightings'))} />}
         {tab === 'redemptions' && (
           <RedemptionsTab
-            items={demo ? data.redemptions.filter((r) => redemptionStatus === 'all' || r.status === redemptionStatus) : data.redemptions}
+            // 対応した申請は状態を書き換え、いまの絞り込みに合わなくなったものは一覧から外す（「すべて」では状態だけ変わる）
+            items={data.redemptions.filter((r) => redemptionStatus === 'all' || r.status === redemptionStatus)}
             status={redemptionStatus}
             onStatus={setRedemptionStatus}
             onUpdate={(r, status) =>
@@ -286,9 +296,7 @@ export default function Admin() {
                 (k) => adminApi.updateRedemption(k, r.id, { status }),
                 (d) => ({
                   ...d,
-                  redemptions: demo
-                    ? d.redemptions.map((x) => (x.id === r.id ? { ...x, status, updatedAt: new Date().toISOString() } : x))
-                    : d.redemptions.filter((x) => redemptionStatus === 'all' || x.id !== r.id),
+                  redemptions: d.redemptions.map((x) => (x.id === r.id ? { ...x, status, updatedAt: new Date().toISOString() } : x)),
                 }),
                 status === 'fulfilled' ? '発送済みにしました' : status === 'cancelled' ? '取り消して、ポイントを戻しました' : '申請中に戻しました',
               )
@@ -319,7 +327,7 @@ export default function Admin() {
         )}
         {tab === 'road' && (
           <RoadTab
-            items={demo ? data.roadReports.filter((r) => roadStatus === 'all' || r.status === roadStatus) : data.roadReports}
+            items={data.roadReports.filter((r) => roadStatus === 'all' || r.status === roadStatus)}
             status={roadStatus}
             onStatus={setRoadStatus}
             onUpdate={(r, status) =>
@@ -327,9 +335,7 @@ export default function Admin() {
                 (k) => adminApi.updateRoadReport(k, r.id, status),
                 (d) => ({
                   ...d,
-                  roadReports: demo
-                    ? d.roadReports.map((x) => (x.id === r.id ? { ...x, status, updatedAt: new Date().toISOString() } : x))
-                    : d.roadReports.filter((x) => roadStatus === 'all' || x.id !== r.id),
+                  roadReports: d.roadReports.map((x) => (x.id === r.id ? { ...x, status, updatedAt: new Date().toISOString() } : x)),
                 }),
                 `「${ROAD_STATUS_LABEL[status]}」にしました`,
               )
@@ -829,9 +835,15 @@ function SightingCard({ s, adminKey, onRevoke, onRestore }: { s: AdminSighting; 
 
 // ───────── 路上レポート ─────────
 
+/**
+ * CSV の1つのセル。利用者が書いたメモが表計算ソフトで数式として動かないよう、
+ * = + - @ タブ 改行 で始まる文字は先頭に ' を付ける（数値はそのまま）
+ */
 function csvCell(v: unknown): string {
-  const s = v == null ? '' : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  if (typeof v === 'number') return String(v);
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function RoadTab({
@@ -1021,7 +1033,7 @@ function PartnersTab({
           <>
             <div className="relative overflow-hidden rounded-lg border-2 border-gold-edge/60 bg-gold-soft p-4">
               <Sparkles count={3} />
-              <p className="text-sub font-black text-[#5c3d00]">このキーは、この画面でしか表示されません</p>
+              <p className="text-sub font-black text-fg">このキーは、この画面でしか表示されません</p>
               <p className="mt-2 break-all rounded-sm bg-surface px-3 py-2 font-mono text-[14px] font-bold text-fg">{issued}</p>
             </div>
             <Button

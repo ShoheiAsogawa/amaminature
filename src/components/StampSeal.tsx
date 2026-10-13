@@ -23,7 +23,7 @@ export type StampSealProps = {
 };
 
 /**
- * スタンプ（docs/DESIGN_SYSTEM.md §7.15）。80px の円（日付を印の中に入れるため、仕様の 72px より大きくしている）。
+ * スタンプ（docs/DESIGN_SYSTEM.md §7.15）。80px の円（日付を印の中に入れるため、仕様の 72px より大きくしている。360px 未満の幅では 68px）。
  * 訪問済み: 押した印影。page の地に brand の二重の輪（外 2px、内 1px）、市町村名は brand の 600、
  * 日付は印の中の下側に caption で入れる。塗りの円はボタンやアバターに見えるので使わない（仕様からの変更）。
  * 未訪問: 1px の sep の輪、名前は fg-3 の 400。回転・かすれ・押印の動きは付けない。
@@ -37,14 +37,15 @@ export function StampSeal({ name, visited, date, caption, className }: StampSeal
         role="img"
         aria-label={`${name} ${visited ? `訪問済み${day ? ` ${day}` : ''}` : '未訪問'}`}
         className={cn(
-          'relative grid h-20 w-20 shrink-0 place-items-center rounded-full',
+          // 4 列に並べるので、320px 幅の端末では 68px にして隣の印と重ならないようにする
+          'relative grid h-[68px] w-[68px] shrink-0 place-items-center rounded-full min-[360px]:h-20 min-[360px]:w-20',
           visited ? 'border-2 border-brand text-brand' : 'border border-sep text-fg-3',
         )}
       >
         {visited && <span aria-hidden className="absolute inset-[3px] rounded-full border border-brand" />}
         <span aria-hidden className="relative flex flex-col items-center">
-          <span className={cn('whitespace-nowrap pt-[2px] text-callout leading-5', visited ? 'font-semibold' : 'font-normal')}>{label}</span>
-          {day && <span className="num whitespace-nowrap text-caption leading-[14px] tracking-normal">{day}</span>}
+          <span className={cn('whitespace-nowrap pt-[2px] text-[14px] leading-5 min-[360px]:text-callout', visited ? 'font-semibold' : 'font-normal')}>{label}</span>
+          {day && <span className="num whitespace-nowrap text-[11px] leading-[14px] tracking-normal min-[360px]:text-caption">{day}</span>}
         </span>
       </div>
       {caption && <span className="mt-1.5 whitespace-nowrap text-caption text-fg-3">{caption}</span>}

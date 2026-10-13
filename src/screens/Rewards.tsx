@@ -91,8 +91,8 @@ export default function Rewards() {
     <main className="min-h-dvh pb-[calc(40px+var(--safe-bottom))]">
       <ScreenHeader variant="nav" title="ポイントこうかんじょ" />
 
-      {/* もっているコイン */}
-      <section className="relative mx-4 mt-1 overflow-hidden rounded-xl border-2 border-gold-edge/60 bg-gradient-to-br from-gold-soft to-gold/60 p-4 shadow-[0_4px_0_rgb(var(--c-gold-edge)/.7)]">
+      {/* もっているコイン（金貨の札。夜の森でも明るい金色のままにして、茶色の文字を読めるようにする） */}
+      <section className="relative mx-4 mt-1 overflow-hidden rounded-xl border-2 border-gold-edge/60 bg-gradient-to-br from-[#FFF1C7] to-[#FFD866] p-4 shadow-[0_4px_0_rgb(var(--c-gold-edge)/.7)]">
         <Sparkles count={2} className="opacity-80" />
         <p className="relative text-sub font-black text-[#5c3d00]">もっているポイント</p>
         <p className="relative mt-1 flex items-center gap-2 text-[#2b1d00]" aria-label={`交換できるポイント ${balance}pt`}>

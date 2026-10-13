@@ -16,6 +16,7 @@ import {
   toast,
 } from '../components/ui';
 import { api, errorMessage } from '../lib/api';
+import { countsForCollection } from '../lib/progress';
 import type { PlusPlan } from '../lib/types';
 import { SPECIES_BY_ID } from '../data/species';
 import { isPlusActive, useStore } from '../store/useStore';
@@ -41,7 +42,10 @@ const SOON = [{ icon: IconMicrophone, title: '鳴き声から調べる' }];
  * 記録がなければ、図鑑の種ではない見本（図鑑の「？？？」の種の名前や説明を見せないため）
  */
 function FramePreview() {
-  const latest = useStore((s) => s.sightings.find((x) => x.speciesId && x.photoId && SPECIES_BY_ID[x.speciesId]));
+  // 交通事故・けがの路上レポートや対象外になった記録の写真は見本にしない
+  const latest = useStore((s) =>
+    s.sightings.find((x) => x.speciesId && x.photoId && SPECIES_BY_ID[x.speciesId] && countsForCollection(x) && x.syncState !== 'rejected'),
+  );
   const sp = latest?.speciesId ? (SPECIES_BY_ID[latest.speciesId] ?? null) : null;
   return (
     <figure className="bg-fill px-4 pb-5 pt-6">

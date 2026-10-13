@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/cn';
+import { countsForCollection } from '../lib/progress';
 import { useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
 import { CoinCount, LevelBadge, XPBar } from './game';
@@ -15,7 +16,8 @@ export function usePlayerName(): string {
 export function PlayerAvatar({ size = 64, className }: { size?: number; className?: string }) {
   const sightings = useStore((s) => s.sightings);
   const pictureUrl = useStore((s) => s.account.pictureUrl);
-  const firstPhotoId = [...sightings].reverse().find((s) => s.photoId)?.photoId ?? null;
+  // 交通事故・けがの路上レポートや対象外になった記録の写真は、アバターにしない
+  const firstPhotoId = [...sightings].reverse().find((s) => s.photoId && countsForCollection(s) && s.syncState !== 'rejected')?.photoId ?? null;
   const url = usePhotoUrl(firstPhotoId, 'thumb');
   const src = url ?? (firstPhotoId ? null : pictureUrl);
   const box = cn('shrink-0 rounded-full border-[3px] border-white bg-brand-soft shadow-[0_0_0_2px_rgb(var(--c-line))]', className);

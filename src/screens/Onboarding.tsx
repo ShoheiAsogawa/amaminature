@@ -166,6 +166,21 @@ function Intro({ onDone }: { onDone: () => void }) {
     setIndex(Math.max(0, Math.min(SLIDES.length - 1, Math.round(pos))));
   };
 
+  // 送っている途中で指で動かした時、スクロールが止まった時は、見えているページに合わせ直す（ページ番号が固まらないように）
+  const release = () => {
+    target.current = null;
+  };
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const settle = () => {
+      target.current = null;
+      if (el.clientWidth) setIndex(Math.max(0, Math.min(SLIDES.length - 1, Math.round(el.scrollLeft / el.clientWidth))));
+    };
+    el.addEventListener('scrollend', settle);
+    return () => el.removeEventListener('scrollend', settle);
+  }, []);
+
   const next = () => {
     const el = scroller.current;
     const current = target.current ?? index;
@@ -197,6 +212,9 @@ function Intro({ onDone }: { onDone: () => void }) {
       <div
         ref={scroller}
         onScroll={onScroll}
+        onPointerDown={release}
+        onTouchStart={release}
+        onWheel={release}
         aria-roledescription="カルーセル"
         className="no-scrollbar flex h-dvh snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain"
       >

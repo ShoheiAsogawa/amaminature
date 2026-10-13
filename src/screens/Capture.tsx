@@ -1,6 +1,6 @@
 import { AnimatePresence, m, type Variants } from 'framer-motion';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useBlocker, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   IconCameraFill,
   IconCaretLeft,
@@ -46,6 +46,7 @@ import {
   SectionHeader,
   Sheet,
   toast,
+  useCanGoBack,
 } from '../components/ui';
 import { AREA_BY_ID, AREAS, ISLAND_ORDER } from '../data/areas';
 import { QUESTS } from '../data/quests';
@@ -138,6 +139,7 @@ export default function Capture() {
 
 function CaptureFlow() {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const [params] = useSearchParams();
   const roadMode = params.get('mode') === 'road';
   const preset = params.get('species');
@@ -230,13 +232,23 @@ function CaptureFlow() {
     setStep(next);
   }
 
+  // 端末の「戻る」（Android の戻るボタン・iOS のスワイプ）では記録画面を出ずに1つ前の段階へ戻る（写真や入力を失わない）
+  const prevStep: Step | null = step === 'details' ? 'identify' : step === 'identify' ? 'photo' : step === 'photo' && roadMode ? 'road' : null;
+  const blocker = useBlocker(({ historyAction }) => historyAction === 'POP' && prevStep !== null && !result);
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (prevStep) go(prevStep);
+    blocker.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
+
   /** 写真の後の段階（図鑑から来た時は名前を飛ばす） */
   function afterPhoto() {
     go(speciesId !== undefined ? 'details' : 'identify');
   }
 
   function leave() {
-    if (window.history.length > 1) navigate(-1);
+    if (canGoBack) navigate(-1);
     else navigate('/', { replace: true });
   }
 

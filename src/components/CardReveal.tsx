@@ -18,7 +18,7 @@ import { Coin, LevelBadge, MessageWindow, Sparkles, XPBar } from './game';
 import { IconArrowSquareOut, IconX } from './icons';
 import { Phrase } from './Phrase';
 import { loadPhotoUrl } from './PhotoImg';
-import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, Num, SectionHeader, toast } from './ui';
+import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, Num, SectionHeader, toast, useCanGoBack } from './ui';
 
 // 記録の演出（ゲームの「ゲット！」）。docs/DESIGN_SYSTEM.md
 // 夜空の舞台にカードの裏面が落ちてきて、3 回ゆれ、光ってから表に返る。
@@ -71,6 +71,7 @@ function Reveal({
   onAgain,
 }: Parameters<typeof CardReveal>[0]) {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const lineMode = useStore((s) => s.account.mode === 'line');
   const reduce = useReducedMotion() ?? false;
   const rarity = species?.rarity ?? 1;
@@ -182,7 +183,7 @@ function Reveal({
   };
 
   const leave = () => {
-    if (window.history.length > 1) navigate(-1);
+    if (canGoBack) navigate(-1);
     else navigate('/', { replace: true });
   };
   const openZukan = () => navigate(species ? `/species/${species.id}` : `/sighting/${encodeURIComponent(sighting.id)}`, { replace: true });

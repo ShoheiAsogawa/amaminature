@@ -19,7 +19,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Category, Rarity } from '../data/types';
 import { cn } from '../lib/cn';
 import type { Badge } from '../lib/progress';
@@ -112,11 +112,20 @@ export function Page({ children, className }: { children: ReactNode; className?:
   return <main className={cn('pb-tabbar', className)}>{children}</main>;
 }
 
+/**
+ * アプリの中に戻れる画面があるか。window.history.length はアプリより前のページ（検索結果・LINE ログインの画面など）も
+ * 数えるので使わない。最初に開いた画面の location.key は 'default'
+ */
+export function useCanGoBack(): boolean {
+  return useLocation().key !== 'default';
+}
+
 function useBack(onBack?: () => void) {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   return () => {
     if (onBack) onBack();
-    else if (window.history.length > 1) navigate(-1);
+    else if (canGoBack) navigate(-1);
     else navigate('/');
   };
 }

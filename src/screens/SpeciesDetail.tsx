@@ -18,6 +18,7 @@ import {
   ScreenHeader,
   SectionHeader,
   Sheet,
+  useCanGoBack,
   useDocumentTitle,
 } from '../components/ui';
 import { AREA_BY_ID } from '../data/areas';
@@ -85,7 +86,8 @@ function SpeciesDetail({ id }: { id: string }) {
   const [exp, setExp] = useState<Experience | null>(null);
   const [recordsOpen, setRecordsOpen] = useState(false);
 
-  const back = () => (window.history.length > 1 ? navigate(-1) : navigate('/zukan'));
+  const canGoBack = useCanGoBack();
+  const back = () => (canGoBack ? navigate(-1) : navigate('/zukan'));
 
   if (!sp) {
     return (

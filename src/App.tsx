@@ -1,5 +1,5 @@
 import { LazyMotion, MotionConfig } from 'framer-motion';
-import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
 import {
   createBrowserRouter,
@@ -9,11 +9,14 @@ import {
   RouterProvider,
   ScrollRestoration,
   useLocation,
+  useRouteError,
 } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { IconCheckCircleFill, IconInfo, IconWarningCircleFill } from './components/icons';
 import { TabBar } from './components/TabBar';
+import { Button } from './components/ui';
 import { cn } from './lib/cn';
+import { LIFF_ID } from './lib/liff';
 import Explore from './screens/Explore';
 import Home from './screens/Home';
 import Me from './screens/Me';
@@ -24,24 +27,74 @@ import { useStore } from './store/useStore';
 // framer-motion の機能は起動後に読み込む（それまでは m.* は止まった状態で描画される）
 const loadMotionFeatures = () => import('./lib/motionFeatures').then((r) => r.default);
 
+/** 分割した画面の読み込み。電波が一瞬切れた時のために1回だけやり直す */
+function retry<T>(load: () => Promise<T>): () => Promise<T> {
+  return () => load().catch(() => new Promise<T>((resolve, reject) => setTimeout(() => load().then(resolve, reject), 1200)));
+}
+
 // 利用頻度の低い画面は分割して読み込み、初回表示を軽くする
-const Onboarding = lazy(() => import('./screens/Onboarding'));
-const Partners = lazy(() => import('./screens/Partners'));
-const Admin = lazy(() => import('./screens/Admin'));
-const Plus = lazy(() => import('./screens/Plus'));
-const Rewards = lazy(() => import('./screens/Rewards'));
-const SafeDrive = lazy(() => import('./screens/SafeDrive'));
-// 記録と記録の詳細は起動後の空き時間に先読みする（タブの［きろく］を押した時に待たせない）
-const loadCapture = () => import('./screens/Capture');
-const loadSightingDetail = () => import('./screens/SightingDetail');
+const loadOnboarding = retry(() => import('./screens/Onboarding'));
+const loadPlus = retry(() => import('./screens/Plus'));
+const loadRewards = retry(() => import('./screens/Rewards'));
+const loadSafeDrive = retry(() => import('./screens/SafeDrive'));
+const loadCapture = retry(() => import('./screens/Capture'));
+const loadSightingDetail = retry(() => import('./screens/SightingDetail'));
+const Onboarding = lazy(loadOnboarding);
+const Partners = lazy(retry(() => import('./screens/Partners')));
+const Admin = lazy(retry(() => import('./screens/Admin')));
+const Plus = lazy(loadPlus);
+const Rewards = lazy(loadRewards);
+const SafeDrive = lazy(loadSafeDrive);
 const Capture = lazy(loadCapture);
 const SightingDetail = lazy(loadSightingDetail);
+// 利用者の画面は起動後の空き時間に先読みする（タブの［きろく］で待たせない。森の中で圏外になっても開けるように）
 if (typeof window !== 'undefined') {
   const idle: (cb: () => void) => void = window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 1200));
   idle(() => {
-    void loadCapture().catch(() => {});
-    void loadSightingDetail().catch(() => {});
+    for (const load of [loadCapture, loadSightingDetail, loadSafeDrive, loadRewards, loadPlus, loadOnboarding] as (() => Promise<{ default: ComponentType }>)[]) {
+      void load().catch(() => {});
+    }
   });
+}
+
+const RELOADED_KEY = 'amami-nature:reloaded-at';
+
+/**
+ * 画面を表示できなかった時（分割した画面の読み込みに失敗した・描画中のエラー）。
+ * 新しい版を公開した直後は古いファイルが消えているので、1回だけ自動で読み込み直す。
+ */
+function RouteError() {
+  const error = useRouteError();
+  const chunk = error instanceof Error && /dynamically imported module|Importing a module script failed|Failed to fetch|Loading chunk/i.test(error.message);
+  useEffect(() => {
+    console.error(error);
+    if (!chunk || !navigator.onLine) return;
+    try {
+      const last = Number(sessionStorage.getItem(RELOADED_KEY) ?? 0);
+      if (Date.now() - last < 30000) return;
+      sessionStorage.setItem(RELOADED_KEY, String(Date.now()));
+    } catch {
+      return;
+    }
+    window.location.reload();
+  }, [error, chunk]);
+  return (
+    <main className="mx-auto grid min-h-dvh max-w-[480px] place-items-center bg-page px-6 text-center">
+      <div className="panel w-full p-6">
+        <IconWarningCircleFill size={40} className="mx-auto text-warning" />
+        <h1 className="mt-3 text-title font-black text-fg">画面を表示できませんでした</h1>
+        <p className="mt-2 text-body text-fg-2">
+          {chunk ? '電波の良い場所で、読み込み直してください。記録はこの端末に残っています。' : 'もう一度読み込み直してください。記録はこの端末に残っています。'}
+        </p>
+        <Button className="mt-5" onClick={() => window.location.reload()}>
+          読み込み直す
+        </Button>
+        <Button variant="text" size="hit" className="mt-2 w-full" onClick={() => window.location.assign('/')}>
+          ホームへ
+        </Button>
+      </div>
+    </main>
+  );
 }
 
 /** 読み込み中は静止した page の地だけ（スピナーやシマーは出さない。§9） */
@@ -113,8 +166,16 @@ function AppToaster() {
 
 function Shell() {
   const onboarded = useStore((s) => s.settings.onboarded);
+  const liffReady = useStore((s) => s.account.liffReady);
   const markVisit = useStore((s) => s.markVisit);
   const { pathname, search } = useLocation();
+  // LIFF の初期化が URL のログイン情報（#access_token など）を読み終えるまで、オンボーディングへ移らない（長くても数秒）
+  const [liffWaited, setLiffWaited] = useState(!LIFF_ID);
+  useEffect(() => {
+    if (liffWaited) return;
+    const t = window.setTimeout(() => setLiffWaited(true), 5000);
+    return () => window.clearTimeout(t);
+  }, [liffWaited]);
   useRouteTitle();
   // 連続日数のために、開いた日を記録する（バックグラウンドから戻った時も。同じ日は何度呼んでも1回）
   useEffect(() => {
@@ -128,6 +189,7 @@ function Shell() {
 
   // 提携先と運営の画面は、アプリのオンボーディングを経ずに開ける
   if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners' && pathname !== '/admin') {
+    if (!liffReady && !liffWaited) return <Blank />;
     // LINE のトークから開いた記録画面（?inbox= など）を、オンボーディングの後に開き直す
     return <Navigate to="/onboarding" replace state={{ from: pathname + search }} />;
   }
@@ -147,6 +209,7 @@ function Shell() {
 const routes = [
   {
     element: <Shell />,
+    errorElement: <RouteError />,
     children: [
       { path: '/', element: <Home /> },
       { path: '/zukan', element: <Zukan /> },
