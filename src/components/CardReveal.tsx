@@ -88,7 +88,8 @@ function Reveal({
   const [xp, setXp] = useState(reduce ? after.progress : before.progress);
   const [shownLevel, setShownLevel] = useState(reduce ? after.level : before.level);
   const [shownPoints, setShownPoints] = useState(reduce ? points : 0);
-  const [levelPop, setLevelPop] = useState(false);
+  // 動きを減らす設定でも、レベルが上がったことは結果として見せる（演出を飛ばすだけ）
+  const [levelPop, setLevelPop] = useState(reduce && leveledUp);
   const front = phase === 'front' || phase === 'message' || phase === 'reward';
 
   const clearTimers = () => {

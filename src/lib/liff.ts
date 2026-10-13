@@ -27,6 +27,8 @@ export function initLiff(): Promise<Liff | null> {
         return liff;
       } catch (e) {
         console.warn('LIFF init failed', e);
+        // 圏外などで失敗した時は、次に呼んだ時にやり直す
+        liffPromise = null;
         return null;
       }
     })();
@@ -72,12 +74,14 @@ export function liffUrl(path = '/'): string {
 
 /**
  * 友だちに図鑑カードを送る（LINEのシェアターゲットピッカー）。
+ * ピッカーを開けたら true（送った・閉じたのどちらでも。閉じた時に別の共有や保存へ切り替えない）。
  * 使えない環境では false を返すので、Web Share API などにフォールバックする。
  */
 export async function shareToLine(imageUrl: string, altText: string, linkPath: string): Promise<boolean> {
   const liff = await initLiff();
   if (!liff?.isLoggedIn() || !liff.isApiAvailable('shareTargetPicker')) return false;
-  const res = await liff.shareTargetPicker([
+  // 閉じた時（キャンセル）も、古い LINE で結果を待てない時も undefined が返る
+  await liff.shareTargetPicker([
     {
       type: 'flex',
       altText,
@@ -100,7 +104,7 @@ export async function shareToLine(imageUrl: string, altText: string, linkPath: s
       },
     },
   ]);
-  return !!res;
+  return true;
 }
 
 export async function closeLiffWindow(): Promise<void> {

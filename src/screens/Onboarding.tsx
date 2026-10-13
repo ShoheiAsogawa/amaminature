@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LogoMark } from '../components/Brand';
 import { TATSUGO_STYLE } from '../components/CollectibleCard';
 import { Coin, MessageWindow, Sparkles } from '../components/game';
@@ -319,19 +319,28 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const location = useLocation();
   const updateSettings = useStore((s) => s.updateSettings);
+  const onboarded = useStore((s) => s.settings.onboarded);
   const lineMode = useStore((s) => s.account.mode === 'line');
   const [step, setStep] = useState<'intro' | 'pledge'>('intro');
+  // オンボーディングの前に開こうとしていた画面（LINE のトークの「記録する」など）。アプリ内のパスだけ
+  const from = (location.state as { from?: unknown } | null)?.from;
+  const next = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/onboarding') ? from : '/';
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [step]);
 
+  // 終えた時、または LINE で前に誓いを済ませていた（別の端末・データを消した後）とわかった時に先へ進む
+  useEffect(() => {
+    if (onboarded) navigate(next, { replace: true });
+  }, [onboarded, next, navigate]);
+
   const finish = (raw: string) => {
     const name = raw.trim();
     updateSettings({ onboarded: true, pledged: true, name });
     if (lineMode) void api.updateMe({ pledged: true, nickname: name }).catch(() => undefined);
-    navigate('/', { replace: true });
   };
 
   return step === 'intro' ? <Intro onDone={() => setStep('pledge')} /> : <Pledge onFinish={finish} />;

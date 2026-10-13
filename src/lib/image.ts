@@ -55,7 +55,11 @@ function drawScaled(src: ImageBitmap | HTMLImageElement, max: number, quality: n
 async function readExif(file: Blob): Promise<{ takenAt: Date | null; lat: number | null; lng: number | null }> {
   try {
     const { default: exifr } = await import('exifr');
-    const data = await exifr.parse(file, { gps: true, pick: ['DateTimeOriginal', 'CreateDate', 'latitude', 'longitude'] });
+    // latitude / longitude は exifr が GPS の生のタグから計算する値なので、pick には生のタグを書く（書かないと GPS を読まない）
+    const data = await exifr.parse(file, {
+      gps: true,
+      pick: ['DateTimeOriginal', 'CreateDate', 'GPSLatitude', 'GPSLatitudeRef', 'GPSLongitude', 'GPSLongitudeRef'],
+    });
     const takenAt = data?.DateTimeOriginal ?? data?.CreateDate ?? null;
     return {
       takenAt: takenAt instanceof Date && !isNaN(takenAt.getTime()) ? takenAt : null,

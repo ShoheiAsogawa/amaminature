@@ -4,7 +4,7 @@
  * 森の中は圏外になりやすいので、記録はまず端末（IndexedDB）に保存し、
  * 電波が戻ったら Cloudflare Workers へ送る。
  */
-import { api, type Me, type ServerRedemption, type ServerSighting } from '../lib/api';
+import { api, ApiError, type Me, type ServerRedemption, type ServerSighting } from '../lib/api';
 import * as db from '../lib/db';
 import { getIdToken, getLineProfile, initLiff, LIFF_ID } from '../lib/liff';
 import type { Sighting } from '../lib/types';
@@ -46,7 +46,11 @@ export const REMOTE_PREFIX = 'remote:';
 
 function fromServer(s: ServerSighting): Sighting {
   const { hasPhoto, revoked, ...rest } = s;
-  return { ...rest, photoId: hasPhoto ? `${REMOTE_PREFIX}${s.id}` : null, syncState: revoked ? 'rejected' : 'synced' };
+  return {
+    ...rest,
+    photoId: hasPhoto ? `${REMOTE_PREFIX}${s.id}` : null,
+    ...(revoked ? { syncState: 'rejected' as const, rejectReason: 'revoked' as const } : { syncState: 'synced' as const }),
+  };
 }
 
 let syncing: Promise<void> | null = null;
@@ -135,7 +139,7 @@ async function doSync() {
           if (cur) await useStore.getState().removeSighting(cur);
         } else if (code === 'duplicate_photo' || code === 'invalid_request') {
           // サーバーが受け付けない記録は再送しない（端末には残し、ポイント対象外にする）
-          await useStore.getState().markSynced(id, 'rejected', s);
+          await useStore.getState().markSynced(id, 'rejected', s, code === 'duplicate_photo' ? 'duplicate' : 'invalid');
           toast(
             code === 'duplicate_photo'
               ? '同じ写真の記録があるため、クラウドには保存されませんでした'
@@ -162,9 +166,10 @@ async function doSync() {
       const mine = localById.get(x.id);
       if (!mine) continue;
       if (x.revoked && mine.syncState !== 'rejected') {
-        await useStore.getState().markSynced(x.id, 'rejected');
+        await useStore.getState().markSynced(x.id, 'rejected', undefined, 'revoked');
         revokedNow++;
-      } else if (!x.revoked && mine.syncState === 'rejected') {
+      } else if (!x.revoked && mine.syncState === 'rejected' && (mine.rejectReason ?? 'revoked') === 'revoked') {
+        // 運営が取り消しを戻した（日時が正しくなくて送れなかった記録は、直して送り直すまでそのまま）
         await useStore.getState().markSynced(x.id, 'synced');
       }
     }
@@ -202,7 +207,21 @@ function hydrateFromServer(me: Me, history: { redemptions: ServerRedemption[]; s
  * 起動時：LIFFでログイン済み、または有効なセッションがあれば同期モードにする。
  * どちらもなければデモモード（端末内保存のみ）のまま。
  */
-export async function initAccount(): Promise<void> {
+let initializing: Promise<void> | null = null;
+
+export function initAccount(): Promise<void> {
+  if (!initializing) {
+    initializing = doInitAccount().finally(() => {
+      initializing = null;
+    });
+  }
+  return initializing;
+}
+
+/** 圏外・サーバーの不調（ログインが切れたわけではない） */
+const isTransient = (e: unknown) => e instanceof ApiError && (e.code === 'offline' || e.status >= 500);
+
+async function doInitAccount(): Promise<void> {
   const liff = LIFF_ID ? await initLiff() : null;
   if (!liff?.isLoggedIn() && !api.hasSession()) {
     useStore.getState().setAccount({ liffReady: true });
@@ -210,11 +229,30 @@ export async function initAccount(): Promise<void> {
   }
   try {
     const profile = liff?.isLoggedIn() ? await getLineProfile() : null;
-    let me = api.hasSession() ? await api.me().catch(() => null) : null;
-    if (!me && liff?.isLoggedIn()) {
+    let me: Me | null = null;
+    let transient = false;
+    if (api.hasSession()) {
+      try {
+        me = await api.me();
+      } catch (e) {
+        transient = isTransient(e);
+      }
+    }
+    if (!me && !transient && liff?.isLoggedIn()) {
       const idToken = await getIdToken();
       if (!idToken) throw new Error('no id token');
-      me = await api.loginWithLine(idToken);
+      try {
+        me = await api.loginWithLine(idToken);
+      } catch (e) {
+        if (!isTransient(e)) throw e;
+        transient = true;
+      }
+    }
+    if (!me && transient && api.hasSession()) {
+      // 森の中など圏外で開いた時も、ログインは有効なまま同期モードにする（記録は送れるようになったら送る。me は同期の 4) で入る）
+      useStore.getState().setAccount({ mode: 'line', liffReady: true, pictureUrl: profile?.pictureUrl ?? null });
+      await useStore.getState().markAllLocalPending();
+      return;
     }
     if (!me) {
       useStore.getState().setAccount({ liffReady: true });
@@ -223,6 +261,8 @@ export async function initAccount(): Promise<void> {
     const settings = useStore.getState().settings;
     const name = me.nickname || profile?.displayName || me.displayName;
     if (!settings.name && name) useStore.getState().updateSettings({ name });
+    // 別の端末で誓いを済ませた人には、オンボーディングをもう一度させない
+    if (me.pledged && !settings.onboarded) useStore.getState().updateSettings({ onboarded: true, pledged: true });
     useStore.getState().setAccount({
       mode: 'line',
       me,
@@ -241,7 +281,11 @@ export async function initAccount(): Promise<void> {
 setAfterWrite(() => void syncNow());
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => void syncNow());
+  window.addEventListener('online', () => {
+    // 圏外で開いてログインできなかった時は、電波が戻ったらログインからやり直す
+    if (useStore.getState().account.mode === 'line') void syncNow();
+    else if (api.hasSession() || LIFF_ID) void initAccount();
+  });
 }
 
 /**
@@ -250,7 +294,9 @@ if (typeof window !== 'undefined') {
  */
 export async function deleteEverywhere(s: Sighting): Promise<void> {
   await useStore.getState().removeSighting(s);
-  if (useStore.getState().account.mode !== 'line' || !s.syncState) return;
+  // クラウドに送ったことのない（デモモードの）記録は端末から消すだけ。
+  // 送ったことのある記録は、いまデモモードでも消したことを覚えておき、ログインした後に送る
+  if (!s.syncState) return;
   queueDelete(s.id);
   void syncNow();
 }

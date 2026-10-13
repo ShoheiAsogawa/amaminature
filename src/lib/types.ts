@@ -32,6 +32,8 @@ export interface Sighting {
    * rejected：サーバーが受け付けなかった（同じ写真の重複など）。再送せず、ポイント対象外
    */
   syncState?: 'pending' | 'synced' | 'rejected';
+  /** rejected の理由（duplicate: 同じ写真 / invalid: 日時などが正しくない / revoked: 運営が取り消した） */
+  rejectReason?: 'duplicate' | 'invalid' | 'revoked';
 }
 
 export type RoadReport = 'roadkill' | 'injured' | 'on-road';

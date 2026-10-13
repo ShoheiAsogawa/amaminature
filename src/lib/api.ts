@@ -109,7 +109,7 @@ export const api = {
 
   upsertSighting(s: Sighting, photo?: { full: Blob; thumb: Blob }) {
     const form = new FormData();
-    const { photoId: _p, syncState: _s, ...meta } = s;
+    const { photoId: _p, syncState: _s, rejectReason: _r, ...meta } = s;
     form.set('meta', JSON.stringify(meta));
     if (photo) {
       form.set('photo', photo.full, `${s.id}.jpg`);

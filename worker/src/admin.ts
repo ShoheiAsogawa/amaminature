@@ -205,8 +205,16 @@ adminApp.post('/sightings/:id/revoke', async (c) => {
 
 adminApp.post('/sightings/:id/restore', async (c) => {
   const id = c.req.param('id');
-  const r = await c.env.DB.prepare('UPDATE sightings SET revoked_at = NULL, revoke_reason = NULL WHERE id = ?').bind(id).run();
-  if (r.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
+  // 取り消した後に利用者が消した記録は戻さない（利用者にはもう見えない記録にポイントを付けない）
+  const r = await c.env.DB.prepare(
+    'UPDATE sightings SET revoked_at = NULL, revoke_reason = NULL WHERE id = ?1 AND id NOT IN (SELECT id FROM sighting_tombstones WHERE id = ?1)',
+  )
+    .bind(id)
+    .run();
+  if (r.meta.changes === 0) {
+    const gone = await c.env.DB.prepare('SELECT 1 AS x FROM sighting_tombstones WHERE id = ?').bind(id).first();
+    return gone ? c.json({ error: 'deleted_by_user' }, 409) : c.json({ error: 'not_found' }, 404);
+  }
   await logAction(c.env, 'sighting.restore', id);
   return c.json({ ok: true });
 });

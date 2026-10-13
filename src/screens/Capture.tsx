@@ -191,6 +191,11 @@ function CaptureFlow() {
   const fromPhoto = useRef({ time: false, place: false });
   /** Plus の AI 判定を自動で走らせた写真 */
   const aiTriedFor = useRef<ProcessedPhoto | null>(null);
+  /** いまの写真（AI の結果が届いた時に、撮り直した後の写真か確かめる） */
+  const photoRef = useRef<ProcessedPhoto | null>(null);
+  photoRef.current = photo;
+  /** 現在地の取得の世代。保存・つづけて記録した後に届いた位置は使わない */
+  const locateGen = useRef(0);
   const month = new Date(observedAt).getMonth() + 1;
   const species = speciesId ? SPECIES_BY_ID[speciesId] : null;
   const rescue = roadType === 'roadkill' || roadType === 'injured';
@@ -281,9 +286,11 @@ function CaptureFlow() {
   }
 
   async function locate() {
+    const gen = ++locateGen.current;
     setLocating(true);
     try {
       const pos = await getCurrentPosition();
+      if (gen !== locateGen.current) return;
       setCoords(pos);
       const near = nearestArea(pos.lat, pos.lng);
       if (near) {
@@ -293,9 +300,9 @@ function CaptureFlow() {
         toast('奄美群島の外のようです。地域を選んでください');
       }
     } catch (e) {
-      toast(errorMessage(e));
+      if (gen === locateGen.current) toast(errorMessage(e));
     } finally {
-      setLocating(false);
+      if (gen === locateGen.current) setLocating(false);
     }
   }
 
@@ -305,11 +312,15 @@ function CaptureFlow() {
       setAiSheet(true);
       return;
     }
+    const forPhoto = photo;
     setAi({ loading: true, candidates: null });
     try {
       const r = await api.identify(await toAiPayload(photo.full), month, areaId);
+      // 待っている間に撮り直していたら、前の写真の候補は出さない
+      if (photoRef.current !== forPhoto) return;
       setAi({ loading: false, candidates: r.candidates });
     } catch (e) {
+      if (photoRef.current !== forPhoto) return;
       setAi({ loading: false, candidates: null });
       if ((e as { code?: string }).code === 'ai_quota_exceeded') setAiSheet(true);
       else toast(errorMessage(e));
@@ -339,6 +350,10 @@ function CaptureFlow() {
 
   async function save() {
     if (speciesId === undefined || saving) return;
+    if (locating) {
+      toast('現在地を調べています。少し待ってから送ってください');
+      return;
+    }
     setSaving(true);
     try {
       const now = new Date();
@@ -407,6 +422,10 @@ function CaptureFlow() {
     setMemo('');
     setAi({ loading: false, candidates: null });
     setObservedAt(toLocalInput(new Date()));
+    // 前の記録の正確な位置を次の記録（路上レポート）に持ち越さない
+    setCoords(null);
+    locateGen.current++;
+    setLocating(false);
     fromPhoto.current = { time: false, place: false };
     setDir(-1);
     setStep('photo');

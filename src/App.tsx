@@ -114,16 +114,22 @@ function AppToaster() {
 function Shell() {
   const onboarded = useStore((s) => s.settings.onboarded);
   const markVisit = useStore((s) => s.markVisit);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   useRouteTitle();
-  // 連続日数のために、開いた日を記録する
+  // 連続日数のために、開いた日を記録する（バックグラウンドから戻った時も。同じ日は何度呼んでも1回）
   useEffect(() => {
     markVisit();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') markVisit();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [markVisit]);
 
   // 提携先と運営の画面は、アプリのオンボーディングを経ずに開ける
   if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners' && pathname !== '/admin') {
-    return <Navigate to="/onboarding" replace />;
+    // LINE のトークから開いた記録画面（?inbox= など）を、オンボーディングの後に開き直す
+    return <Navigate to="/onboarding" replace state={{ from: pathname + search }} />;
   }
   const showTabs = TAB_ROUTES.includes(pathname);
   return (

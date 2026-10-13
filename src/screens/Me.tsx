@@ -36,6 +36,7 @@ import { lineLogin, LIFF_ID } from '../lib/liff';
 import { BADGES, computeStats, earnedBadges, type Badge } from '../lib/progress';
 import type { Settings, Sighting, ThemePref } from '../lib/types';
 import { useProgress } from '../store/useProgress';
+import { syncNow } from '../store/sync';
 import { isPlusActive, dayKey, useStore } from '../store/useStore';
 
 const ADD_FRIEND_URL = (import.meta.env.VITE_LINE_ADD_FRIEND_URL as string | undefined) ?? '';
@@ -143,6 +144,11 @@ export default function Me() {
     try {
       const n = await importBackup(file);
       await load();
+      // LINE モードでは、読み込んだ端末だけの記録もクラウドへ送る
+      if (useStore.getState().account.mode === 'line') {
+        await useStore.getState().markAllLocalPending();
+        void syncNow();
+      }
       toast.success(`${n}件の記録を読み込みました`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '読み込めませんでした');

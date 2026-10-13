@@ -57,8 +57,10 @@ async function ensureUser(env: Env, userId: string, profile?: { displayName?: st
  * includeRevoked: 端末との同期用（取り消した記録も revoked: true で返し、端末側でポイントの対象外にする）
  */
 async function userSightings(env: Env, userId: string, opts: { includeRevoked?: boolean } = {}): Promise<(Sighting & { hasPhoto: boolean; revoked: boolean })[]> {
+  // 取り消した後に利用者が消した記録は、行は残るが利用者には見せない（tombstone あり）
   const { results } = await env.DB.prepare(
-    `SELECT * FROM sightings WHERE user_id = ? ${opts.includeRevoked ? '' : 'AND revoked_at IS NULL'} ORDER BY observed_at DESC`,
+    `SELECT * FROM sightings WHERE user_id = ?1 ${opts.includeRevoked ? 'AND id NOT IN (SELECT id FROM sighting_tombstones WHERE user_id = ?1)' : 'AND revoked_at IS NULL'}
+     ORDER BY observed_at DESC`,
   )
     .bind(userId)
     .all();
@@ -220,15 +222,15 @@ app.post('/api/sightings', auth, async (c) => {
     .first<{ user_id: string; photo_key: string | null; photo_hash: string | null }>();
   if (existing && existing.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
 
-  if (!existing) {
-    // 消した記録が古い端末から送り直されても生き返らせない
-    const [tomb, today] = await c.env.DB.batch([
-      c.env.DB.prepare('SELECT 1 AS x FROM sighting_tombstones WHERE id = ? AND user_id = ?').bind(s.id, userId),
-      // 1日の上限はサーバーが受け取った日時で数える（端末の申告する created_at は過去にずらせるため）
-      c.env.DB.prepare('SELECT COUNT(*) AS n FROM sightings WHERE user_id = ? AND received_at >= ?').bind(userId, jstMidnightIso()),
-    ]);
-    if (tomb.results.length) return c.json({ error: 'deleted' }, 410);
-    if (((today.results[0] as { n?: number } | undefined)?.n ?? 0) >= LIMITS.sightingsPerDay) return c.json({ error: 'rate_limited' }, 429);
+  const [tomb, today] = await c.env.DB.batch([
+    c.env.DB.prepare('SELECT 1 AS x FROM sighting_tombstones WHERE id = ? AND user_id = ?').bind(s.id, userId),
+    // 1日の上限はサーバーが受け取った日時で数える（端末の申告する created_at は過去にずらせるため）
+    c.env.DB.prepare('SELECT COUNT(*) AS n FROM sightings WHERE user_id = ? AND received_at >= ?').bind(userId, jstMidnightIso()),
+  ]);
+  // 消した記録が古い端末から送り直されても生き返らせない
+  if (tomb.results.length) return c.json({ error: 'deleted' }, 410);
+  if (!existing && ((today.results[0] as { n?: number } | undefined)?.n ?? 0) >= LIMITS.sightingsPerDay) {
+    return c.json({ error: 'rate_limited' }, 429);
   }
 
   let photoKey = existing?.photo_key ?? null;
@@ -304,7 +306,9 @@ app.post('/api/sightings', auth, async (c) => {
 app.delete('/api/sightings/:id', auth, async (c) => {
   const userId = c.get('userId');
   const id = c.req.param('id');
-  const row = await c.env.DB.prepare('SELECT user_id, photo_key FROM sightings WHERE id = ?').bind(id).first<{ user_id: string; photo_key: string | null }>();
+  const row = await c.env.DB.prepare('SELECT user_id, photo_key, revoked_at FROM sightings WHERE id = ?')
+    .bind(id)
+    .first<{ user_id: string; photo_key: string | null; revoked_at: string | null }>();
   if (row && row.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
   // まだ届いていない記録でも印を残す（このあとアップロードが届いても生き返らせない）
   const tombstone = c.env.DB.prepare('INSERT OR IGNORE INTO sighting_tombstones (id, user_id, deleted_at) VALUES (?, ?, ?)').bind(id, userId, nowIso());
@@ -312,11 +316,17 @@ app.delete('/api/sightings/:id', auth, async (c) => {
     if (/^[A-Za-z0-9-]{8,64}$/.test(id)) await tombstone.run();
     return c.json({ ok: true });
   }
-  await c.env.DB.batch([
-    c.env.DB.prepare('DELETE FROM road_reports WHERE sighting_id = ?').bind(id),
-    c.env.DB.prepare('DELETE FROM sightings WHERE id = ?').bind(id),
-    tombstone,
-  ]);
+  if (row.revoked_at) {
+    // 運営が取り消した記録は行を残す（写真のハッシュで同じ写真の使い回しを防ぎ続け、取り消した記録として運営が確かめられる）。
+    // 利用者からは消えたことにして、写真は消す
+    await c.env.DB.batch([c.env.DB.prepare('UPDATE sightings SET photo_key = NULL WHERE id = ?').bind(id), tombstone]);
+  } else {
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM road_reports WHERE sighting_id = ?').bind(id),
+      c.env.DB.prepare('DELETE FROM sightings WHERE id = ?').bind(id),
+      tombstone,
+    ]);
+  }
   if (row.photo_key) await c.env.PHOTOS.delete([`${row.photo_key}.jpg`, `${row.photo_key}_thumb.jpg`]);
   return c.json({ ok: true });
 });

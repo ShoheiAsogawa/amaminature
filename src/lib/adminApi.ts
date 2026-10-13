@@ -38,6 +38,7 @@ const MESSAGES: Record<string, string> = {
   unauthorized: '管理キーが違います。',
   admin_not_configured: '管理画面はまだ設定されていません（サーバーに ADMIN_KEY_SHA256 がありません）。',
   not_found: '見つかりませんでした。ほかの人が先に対応したかもしれません。',
+  deleted_by_user: '利用者がこの記録を消したため、戻せません。',
   invalid_status: '状態の指定が正しくありません。',
   name_required: '名前を入れてください。',
   scope_required: '市町村を1つ以上選んでください。',

@@ -37,7 +37,13 @@ function locationText(s: Sighting): string {
 }
 
 /** 同期の行。LINE 連携していない（端末だけに保存した）記録は出さない */
-function SyncValue({ state }: { state: NonNullable<Sighting['syncState']> }) {
+const REJECT_TEXT: Record<NonNullable<Sighting['rejectReason']>, { title: string; note: string }> = {
+  duplicate: { title: '保存されていません', note: '同じ写真の記録があるため、クラウドに保存していません。ポイントの対象外です' },
+  invalid: { title: '保存されていません', note: '日時などが正しくないため、クラウドに保存できませんでした。直すと送り直します' },
+  revoked: { title: 'ポイントの対象外', note: '運営の確認により、この記録はポイントの対象外になりました' },
+};
+
+function SyncValue({ state, reason }: { state: NonNullable<Sighting['syncState']>; reason?: Sighting['rejectReason'] }) {
   if (state === 'synced') {
     return (
       <span className="inline-flex items-center gap-1.5">
@@ -57,13 +63,14 @@ function SyncValue({ state }: { state: NonNullable<Sighting['syncState']> }) {
       </>
     );
   }
+  const text = REJECT_TEXT[reason ?? 'duplicate'];
   return (
     <>
       <span className="inline-flex items-center gap-1.5">
-        保存されていません
+        {text.title}
         <IconWarningCircleFill size={16} className="shrink-0 text-danger" />
       </span>
-      <span className="mt-0.5 block text-sub text-fg-2">同じ写真の記録があるため、クラウドに保存していません。ポイントの対象外です</span>
+      <span className="mt-0.5 block text-sub text-fg-2">{text.note}</span>
     </>
   );
 }
@@ -161,7 +168,7 @@ function Detail({ sighting }: { sighting: Sighting }) {
         <InfoRow label="位置">{locationText(sighting)}</InfoRow>
         {sighting.syncState && (
           <InfoRow label="同期">
-            <SyncValue state={sighting.syncState} />
+            <SyncValue state={sighting.syncState} reason={sighting.rejectReason} />
           </InfoRow>
         )}
       </Group>

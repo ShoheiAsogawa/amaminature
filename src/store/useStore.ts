@@ -76,7 +76,7 @@ interface State {
   setAccount: (patch: Partial<AccountState>) => void;
   load: () => Promise<void>;
   /** expected: 送った時の記録。送っている間に直されていたら印を付けない（直した内容を次の回で送る） */
-  markSynced: (id: string, state?: 'synced' | 'rejected', expected?: Sighting) => Promise<void>;
+  markSynced: (id: string, state?: 'synced' | 'rejected', expected?: Sighting, reason?: Sighting['rejectReason']) => Promise<void>;
   markAllLocalPending: () => Promise<void>;
   mergeSightings: (incoming: Sighting[]) => Promise<void>;
   addSighting: (s: Sighting, photo?: PhotoRecord) => Promise<void>;
@@ -122,7 +122,8 @@ export const useStore = create<State>((set, get) => ({
   },
 
   updateSighting: async (input) => {
-    const s: Sighting = get().account.mode === 'line' ? { ...input, syncState: 'pending' } : input;
+    // クラウドに送ったことのある記録は、いまデモモード（圏外で開いた等）でも送り直す印を付ける
+    const s: Sighting = get().account.mode === 'line' || input.syncState ? { ...input, syncState: 'pending' } : input;
     await db.putSighting(s);
     set({ sightings: get().sightings.map((x) => (x.id === s.id ? s : x)) });
     afterWrite();
@@ -133,10 +134,13 @@ export const useStore = create<State>((set, get) => ({
     set({ sightings: get().sightings.filter((x) => x.id !== s.id) });
   },
 
-  markSynced: async (id, state = 'synced', expected) => {
+  markSynced: async (id, state = 'synced', expected, reason) => {
     const target = get().sightings.find((x) => x.id === id);
     if (!target || (expected && target !== expected)) return;
-    const s: Sighting = { ...target, syncState: state };
+    // 送り終えたら、路上レポートの正確な位置は端末に残さない（サーバーが行政・保護機関のために持つ）
+    const { reportLat: _lat, reportLng: _lng, rejectReason: _r, ...rest } = target;
+    const s: Sighting =
+      state === 'synced' ? { ...rest, syncState: 'synced' } : { ...target, syncState: 'rejected', rejectReason: reason ?? target.rejectReason };
     await db.putSighting(s);
     set({ sightings: get().sightings.map((x) => (x.id === id ? s : x)) });
   },

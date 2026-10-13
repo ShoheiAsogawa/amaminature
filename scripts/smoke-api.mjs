@@ -181,6 +181,17 @@ const a10 = await admin('GET', `/users?q=`);
 check('admin users list computes points', a10.status === 200 && a10.data.users?.some((u) => u.id === user && u.points === before.points), JSON.stringify(a10.data.users?.find((u) => u.id === user)));
 const a11 = await admin('GET', '/actions');
 check('admin actions are logged', a11.status === 200 && a11.data.actions?.length >= 4);
+// 取り消された記録を利用者が消しても、同じ写真の使い回しは防ぎ続ける
+const s6 = randomUUID();
+await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: s6, speciesId: 'mejiro' }, 50) });
+await admin('POST', `/sightings/${s6}/revoke`, { reason: '同じ写真・他人の写真の使い回し' });
+const del6 = await call('DELETE', `/api/sightings/${s6}`);
+const list6 = (await call('GET', '/api/sightings')).data;
+check('deleting a revoked sighting hides it from the owner', del6.status === 200 && !list6.sightings.some((x) => x.id === s6) && list6.deleted.includes(s6));
+const reuse = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: randomUUID(), speciesId: 'mejiro' }, 50) });
+check('…but the same photo still cannot be reused → 409', reuse.status === 409 && reuse.data.error === 'duplicate_photo', `${reuse.status}`);
+const restore6 = await admin('POST', `/sightings/${s6}/restore`);
+check('…and the admin cannot restore what the owner deleted → 409', restore6.status === 409 && restore6.data.error === 'deleted_by_user', `${restore6.status}`);
 const a12 = await admin('GET', '/sightings?filter=all');
 check('admin sightings carry the server receive time', a12.status === 200 && !!a12.data.sightings?.[0]?.receivedAt);
 
