@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as db from '../lib/db';
-import { dayKey } from '../lib/missions';
+import { dayKey, visitStreak } from '../lib/missions';
 import type { Me } from '../lib/api';
 import type { PhotoRecord, PlusPlan, Redemption, Settings, Sighting } from '../lib/types';
 
@@ -122,8 +122,10 @@ export const useStore = create<State>((set, get) => ({
   },
 
   updateSighting: async (input) => {
-    // クラウドに送ったことのある記録は、いまデモモード（圏外で開いた等）でも送り直す印を付ける
-    const s: Sighting = get().account.mode === 'line' || input.syncState ? { ...input, syncState: 'pending' } : input;
+    // クラウドに送ったことのある記録は、いまデモモード（圏外で開いた等）でも送り直す印を付ける。
+    // ポイントの対象外になった記録（同じ写真・運営の取り消し）は、メモを直しても対象外のまま（端末にだけ残す）
+    const s: Sighting =
+      input.syncState === 'rejected' ? input : get().account.mode === 'line' || input.syncState ? { ...input, syncState: 'pending' } : input;
     await db.putSighting(s);
     set({ sightings: get().sightings.map((x) => (x.id === s.id ? s : x)) });
     afterWrite();
@@ -191,7 +193,9 @@ export const useStore = create<State>((set, get) => ({
     const today = dayKey();
     const { visitDates } = get().settings;
     if (visitDates[0] === today) return;
-    get().updateSettings({ visitDates: [today, ...visitDates.filter((d) => d !== today)].slice(0, 60) });
+    // 直近60日に加えて、続いている日はすべて残す（60日で連続日数が止まらないように）
+    const next = [today, ...visitDates.filter((d) => d !== today)];
+    get().updateSettings({ visitDates: next.slice(0, Math.max(60, visitStreak(next, today))) });
   },
 
   markViewed: (speciesId) => {

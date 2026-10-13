@@ -100,7 +100,8 @@ function Stamps() {
   // 市町村ごとに、最初に記録した日（スタンプの日付）
   const firstAt = new Map<string, string>();
   for (const s of sightings) {
-    if (!s.areaId) continue;
+    // 12市町村制覇のバッジと同じく、サーバーが受け付けなかった・運営が取り消した記録は数えない
+    if (!s.areaId || s.syncState === 'rejected') continue;
     const cur = firstAt.get(s.areaId);
     if (!cur || s.observedAt < cur) firstAt.set(s.areaId, s.observedAt);
   }

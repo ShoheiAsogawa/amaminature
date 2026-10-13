@@ -213,8 +213,9 @@ export default function Admin() {
             <LogoMark size={24} className="text-white" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="num text-[13px] tracking-[0.1em] text-gold">AMAMI NATURE · ADMIN</p>
-            <h1 className="text-title font-black leading-8">運営ダッシュボード</h1>
+            <p className="num truncate text-[11px] tracking-[0.1em] text-gold sm:text-[13px]">AMAMI NATURE · ADMIN</p>
+            {/* スマホ幅でも1行に収める */}
+            <h1 className="truncate text-headline font-black leading-7 sm:text-title sm:leading-8">運営ダッシュボード</h1>
           </div>
           <span className={cn('hidden rounded-full px-3 py-1 text-caption sm:inline-flex', demo ? 'bg-white/15 text-white' : 'bg-xp text-[#0b3d22]')}>
             {demo ? 'デモデータ' : '本番データ'}
@@ -656,6 +657,7 @@ function RedemptionsTab({
 
 // ───────── 記録チェック ─────────
 
+/** 管理キーで写真を読み込む。null は読み込み中（または写真なし）、'failed' は読めなかった */
 function useAdminPhoto(adminKey: string | null, id: string, enabled: boolean) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -669,7 +671,7 @@ function useAdminPhoto(adminKey: string | null, id: string, enabled: boolean) {
         made = URL.createObjectURL(blob);
         setUrl(made);
       })
-      .catch(() => undefined);
+      .catch(() => alive && setUrl('failed'));
     return () => {
       alive = false;
       if (made) URL.revokeObjectURL(made);
@@ -769,12 +771,18 @@ function SightingCard({ s, adminKey, onRevoke, onRestore }: { s: AdminSighting; 
   return (
     <div className={cn('panel flex flex-col overflow-hidden p-2', s.revokedAt && 'border-danger/50')}>
       <div className="relative">
-        {photo ? (
+        {photo === 'failed' ? (
+          <div className="grid aspect-[4/3] w-full place-items-center rounded-[12px] bg-fill text-sub font-bold text-fg-3">写真を読み込めませんでした</div>
+        ) : photo ? (
           <img src={photo} alt="" className="aspect-[4/3] w-full rounded-[12px] object-cover" />
+        ) : s.hasPhoto && adminKey ? (
+          // 写真を読み込んでいる間は、写真と同じ大きさの枠を出す（あとから縦にずれない）
+          <div className="aspect-[4/3] w-full animate-pulse rounded-[12px] bg-fill" />
         ) : sp ? (
-          <SpeciesPlate species={sp} discovered className="aspect-[4/3] w-full rounded-[12px]" />
+          // 写真のない記録は確かめる写真がないので、低い帯にする
+          <SpeciesPlate species={sp} discovered className="h-24 w-full rounded-[12px]" />
         ) : (
-          <div className="grid aspect-[4/3] w-full place-items-center rounded-[12px] bg-fill text-sub font-bold text-fg-3">写真なし</div>
+          <div className="h-24 w-full rounded-[12px] bg-fill" />
         )}
         <span className="absolute left-2 top-2 flex flex-wrap gap-1">
           {sp && sp.rarity >= 3 && <span className="num rounded-full bg-rare-3 px-2 text-[11px] leading-5 text-white">{sp.rarity === 4 ? 'LEGEND' : 'RARE'}</span>}

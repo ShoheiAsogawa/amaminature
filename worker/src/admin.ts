@@ -11,7 +11,7 @@ import { createMiddleware } from 'hono/factory';
 import { AREA_BY_ID, AREAS } from '../../src/data/areas';
 import { REWARDS } from '../../src/data/rewards';
 import { SPECIES_BY_ID } from '../../src/data/species';
-import { computePoints, currentMonth, levelFor } from '../../src/lib/progress';
+import { computePoints, computeStats, currentMonth, levelFor } from '../../src/lib/progress';
 import { isAdminKey, newPartnerKey } from './adminKey';
 import { jstDate, jstMidnightIso, sha256Hex } from './crypto';
 import type { AppEnv, Env } from './env';
@@ -325,7 +325,8 @@ adminApp.get('/users', async (c) => {
         isFriend: !!u.isFriend,
         plus: !!u.plusUntil && Date.parse(u.plusUntil as string) > Date.now(),
         sightings: list.length,
-        species: new Set(list.map((s) => s.speciesId).filter(Boolean)).size,
+        // 図鑑と同じ数え方（交通事故・けがの路上レポートは発見に数えない）
+        species: computeStats(list).discovered,
         points,
         balance: Math.max(0, points - (spentMap.get(u.id as string) ?? 0)),
         level: levelFor(points).level,

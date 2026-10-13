@@ -142,3 +142,22 @@ describe('まだ見つけていない種（？？？）', () => {
     expect(searchZukan('', none)).toHaveLength(SPECIES.length);
   });
 });
+
+describe('連続日数の記録', () => {
+  it('60日を超えても連続日数が止まらない', async () => {
+    const { vi } = await import('vitest');
+    const { useStore } = await import('../src/store/useStore');
+    vi.useFakeTimers();
+    try {
+      const start = Date.parse('2026-01-01T12:00:00+09:00');
+      for (let i = 0; i < 100; i++) {
+        vi.setSystemTime(start + i * 86400000);
+        useStore.getState().markVisit();
+      }
+      const { visitDates } = useStore.getState().settings;
+      expect(visitStreak(visitDates, dayKey())).toBe(100);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

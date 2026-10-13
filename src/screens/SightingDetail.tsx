@@ -39,7 +39,7 @@ function locationText(s: Sighting): string {
 /** 同期の行。LINE 連携していない（端末だけに保存した）記録は出さない */
 const REJECT_TEXT: Record<NonNullable<Sighting['rejectReason']>, { title: string; note: string }> = {
   duplicate: { title: '保存されていません', note: '同じ写真の記録があるため、クラウドに保存していません。ポイントの対象外です' },
-  invalid: { title: '保存されていません', note: '日時などが正しくないため、クラウドに保存できませんでした。直すと送り直します' },
+  invalid: { title: '保存されていません', note: '日時などが正しくないため、クラウドに保存できませんでした。ポイントの対象外です' },
   revoked: { title: 'ポイントの対象外', note: '運営の確認により、この記録はポイントの対象外になりました' },
 };
 
