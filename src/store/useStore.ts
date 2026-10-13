@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import * as db from '../lib/db';
+import { dayKey } from '../lib/missions';
 import type { Me } from '../lib/api';
 import type { PhotoRecord, PlusPlan, Redemption, Settings, Sighting } from '../lib/types';
+
+export { dayKey };
 
 const SETTINGS_KEY = 'amami-nature:settings';
 
@@ -41,11 +44,6 @@ export function applyTheme(pref: Settings['theme']) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 }
 
-export function localDateKey(d = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 export function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -77,7 +75,8 @@ interface State {
   account: AccountState;
   setAccount: (patch: Partial<AccountState>) => void;
   load: () => Promise<void>;
-  markSynced: (id: string, state?: 'synced' | 'rejected') => Promise<void>;
+  /** expected: 送った時の記録。送っている間に直されていたら印を付けない（直した内容を次の回で送る） */
+  markSynced: (id: string, state?: 'synced' | 'rejected', expected?: Sighting) => Promise<void>;
   markAllLocalPending: () => Promise<void>;
   mergeSightings: (incoming: Sighting[]) => Promise<void>;
   addSighting: (s: Sighting, photo?: PhotoRecord) => Promise<void>;
@@ -85,7 +84,8 @@ interface State {
   removeSighting: (s: Sighting) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => void;
   activatePlus: (plan: PlusPlan) => void;
-  declareSafeDrive: () => boolean;
+  /** 宣言した日を記録する（その日にまだ宣言していなければ true） */
+  declareSafeDrive: (date?: string) => boolean;
   redeem: (rewardId: string, points: number) => Redemption;
   /** きょうアプリを開いたことを記録する（連続日数） */
   markVisit: () => void;
@@ -133,9 +133,9 @@ export const useStore = create<State>((set, get) => ({
     set({ sightings: get().sightings.filter((x) => x.id !== s.id) });
   },
 
-  markSynced: async (id, state = 'synced') => {
+  markSynced: async (id, state = 'synced', expected) => {
     const target = get().sightings.find((x) => x.id === id);
-    if (!target) return;
+    if (!target || (expected && target !== expected)) return;
     const s: Sighting = { ...target, syncState: state };
     await db.putSighting(s);
     set({ sightings: get().sightings.map((x) => (x.id === id ? s : x)) });
@@ -169,8 +169,8 @@ export const useStore = create<State>((set, get) => ({
     get().updateSettings({ plus: { plan, since: since.toISOString(), until: until.toISOString() } });
   },
 
-  declareSafeDrive: () => {
-    const today = localDateKey();
+  declareSafeDrive: (date) => {
+    const today = date ?? dayKey();
     const { safeDriveDates } = get().settings;
     if (safeDriveDates.includes(today)) return false;
     get().updateSettings({ safeDriveDates: [...safeDriveDates, today] });
@@ -184,21 +184,21 @@ export const useStore = create<State>((set, get) => ({
   },
 
   markVisit: () => {
-    const today = localDateKey();
+    const today = dayKey();
     const { visitDates } = get().settings;
     if (visitDates[0] === today) return;
     get().updateSettings({ visitDates: [today, ...visitDates.filter((d) => d !== today)].slice(0, 60) });
   },
 
   markViewed: (speciesId) => {
-    const today = localDateKey();
+    const today = dayKey();
     const daily = get().settings.daily.date === today ? get().settings.daily : { date: today, viewed: [], celebrated: false };
     if (daily.viewed.includes(speciesId)) return;
     get().updateSettings({ daily: { ...daily, viewed: [...daily.viewed, speciesId] } });
   },
 
   markCelebrated: () => {
-    const today = localDateKey();
+    const today = dayKey();
     const daily = get().settings.daily.date === today ? get().settings.daily : { date: today, viewed: [], celebrated: false };
     get().updateSettings({ daily: { ...daily, celebrated: true } });
   },

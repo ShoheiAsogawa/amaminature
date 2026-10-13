@@ -18,11 +18,12 @@ import {
   toast,
 } from '../components/ui';
 import { REWARDS, type Reward } from '../data/rewards';
-import { api, errorMessage } from '../lib/api';
+import { api, ApiError, errorMessage } from '../lib/api';
 import { confettiBurst } from '../lib/confetti';
 import { sfx } from '../lib/sfx';
 import { BADGES } from '../lib/progress';
 import { useProgress } from '../store/useProgress';
+import { syncNow } from '../store/sync';
 import { useStore } from '../store/useStore';
 
 /** 先頭のアイコンは種類で決める（§8.9）: 寄付 hand-heart、クーポン ticket、品物 gift、抽選 dice-five */
@@ -42,6 +43,7 @@ export default function Rewards() {
   const redeem = useStore((s) => s.redeem);
   const redemptions = useStore((s) => s.settings.redemptions);
   const lineMode = useStore((s) => s.account.mode === 'line');
+  const pending = useStore((s) => s.sightings.filter((x) => x.syncState === 'pending').length);
   const [open, setOpen] = useState(false);
   // 閉じるアニメーションの間も中身を残すため、選んだ景品は閉じても消さない
   const [target, setTarget] = useState<Reward | null>(null);
@@ -51,7 +53,9 @@ export default function Rewards() {
     const badge = r.requiresBadge ? BADGES.find((b) => b.id === r.requiresBadge) : undefined;
     const locked = !!r.requiresBadge && !badges.has(r.requiresBadge);
     const short = Math.max(0, r.points - balance);
-    return { badge, locked, short, ok: !locked && short === 0 };
+    // 記念品などは1人1回まで
+    const done = !!r.once && redemptions.some((x) => x.rewardId === r.id);
+    return { badge, locked, short, done, ok: !locked && !done && short === 0 };
   };
 
   const confirm = async () => {
@@ -64,8 +68,18 @@ export default function Rewards() {
       void confettiBurst('mission');
       toast.success(lineMode ? '交換しました。LINEでお知らせします' : '交換しました');
       setOpen(false);
+      // サーバーの交換履歴と残高に揃える
+      if (lineMode) void syncNow();
     } catch (e) {
-      toast.error(errorMessage(e));
+      const code = e instanceof ApiError ? e.code : undefined;
+      // 端末にまだ送っていない記録があると、サーバーのポイントは端末の表示より少ない
+      if (code === 'insufficient_points' && pending > 0) {
+        toast.error('まだ送っていない記録があります。電波の良い場所で、送り終えてからお試しください');
+        void syncNow();
+      } else {
+        toast.error(errorMessage(e));
+        if (code === 'already_redeemed' || code === 'insufficient_points') void syncNow();
+      }
     } finally {
       setBusy(false);
     }
@@ -124,7 +138,9 @@ export default function Rewards() {
               {r.note && <span className="mt-1 line-clamp-2 text-caption text-fg-2">{r.note}</span>}
               {s.badge && s.locked && <span className="mt-1 text-caption text-fg-3">「{s.badge.title}」バッジが必要</span>}
               <span className="mt-auto pt-2.5">
-                {r.points === 0 ? (
+                {s.done ? (
+                  <span className="inline-flex h-8 items-center rounded-full bg-fill-strong px-3 text-caption text-fg-3">交換済み</span>
+                ) : r.points === 0 ? (
                   // バッジで受け取る記念品はポイントを使わないので、0 pt とは出さない
                   <span className={cn('inline-flex h-8 items-center rounded-full px-3 text-caption', s.ok ? 'bg-xp text-[#0b3d22]' : 'bg-fill-strong text-fg-3')}>
                     {s.ok ? 'うけとれる！' : 'バッジで解放'}
@@ -135,7 +151,7 @@ export default function Rewards() {
                     <span className={cn('num text-[17px]', s.ok ? 'text-fg' : 'text-fg-3')}>{r.points.toLocaleString()}</span>
                   </span>
                 )}
-                {!s.locked && s.short > 0 && r.points > 0 && <span className="mt-1 block text-caption text-fg-3">あと{s.short}pt</span>}
+                {!s.locked && !s.done && s.short > 0 && r.points > 0 && <span className="mt-1 block text-caption text-fg-3">あと{s.short}pt</span>}
               </span>
             </button>
           );
@@ -179,7 +195,7 @@ export default function Rewards() {
             </Button>
             {!t.ok && (
               <ButtonNote>
-                {t.locked && t.badge ? `「${t.badge.title}」バッジを獲得すると交換できます` : <>あと{pt(t.short)}</>}
+                {t.done ? '交換済みです（1人1回まで）' : t.locked && t.badge ? `「${t.badge.title}」バッジを獲得すると交換できます` : <>あと{pt(t.short)}</>}
               </ButtonNote>
             )}
             <Button variant="text" size="hit" className="mt-2 w-full" onClick={() => setOpen(false)}>

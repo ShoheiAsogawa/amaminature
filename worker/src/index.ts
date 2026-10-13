@@ -25,6 +25,7 @@ export const LIMITS = {
   photoBytes: 4 * 1024 * 1024,
   thumbBytes: 1024 * 1024,
   shareBytes: 2 * 1024 * 1024,
+  sharesPerDay: 30,
 };
 
 const app = new Hono<AppEnv>();
@@ -73,13 +74,37 @@ async function aiUsedToday(env: Env, userId: string): Promise<number> {
   return row?.count ?? 0;
 }
 
-async function addAiUsage(env: Env, userId: string) {
-  await env.DB.prepare(
-    `INSERT INTO ai_usage (user_id, date, count) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, date) DO UPDATE SET count = count + 1`,
+/**
+ * AI判定の1回分を、呼び出す前に1つの文で確保する（同時に何枚送られても上限を超えない）。
+ * 確保できたら { date, used }（used は確保後の回数）、上限に達していたら null。
+ * 判定に失敗したら releaseAi で返す。
+ */
+async function reserveAi(env: Env, userId: string, limit: number): Promise<{ date: string; used: number } | null> {
+  const date = jstDate();
+  const row = await env.DB.prepare(
+    `INSERT INTO ai_usage (user_id, date, count) VALUES (?1, ?2, 1)
+     ON CONFLICT(user_id, date) DO UPDATE SET count = ai_usage.count + 1 WHERE ai_usage.count < ?3
+     RETURNING count`,
   )
-    .bind(userId, jstDate())
-    .run();
+    .bind(userId, date, limit)
+    .first<{ count: number }>();
+  return row ? { date, used: row.count } : null;
+}
+
+async function releaseAi(env: Env, userId: string, date: string) {
+  await env.DB.prepare('UPDATE ai_usage SET count = MAX(0, count - 1) WHERE user_id = ? AND date = ?').bind(userId, date).run();
+}
+
+async function aiLimitFor(env: Env, userId: string): Promise<number> {
+  const user = await env.DB.prepare('SELECT plus_until FROM users WHERE id = ?').bind(userId).first<Record<string, unknown>>();
+  return isPlus(user) ? LIMITS.aiPlusPerDay : LIMITS.aiFreePerDay;
+}
+
+async function spentPoints(env: Env, userId: string): Promise<number> {
+  const row = await env.DB.prepare(`SELECT COALESCE(SUM(points), 0) AS n FROM redemptions WHERE user_id = ? AND status <> 'cancelled'`)
+    .bind(userId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /** サーバー側で計算したポイント・残高（不正対策のため景品交換はこちらを正とする） */
@@ -88,7 +113,7 @@ async function buildMe(env: Env, userId: string) {
     env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first<Record<string, unknown>>(),
     userSightings(env, userId),
     env.DB.prepare('SELECT COUNT(*) AS n FROM safe_drives WHERE user_id = ?').bind(userId).first<{ n: number }>(),
-    env.DB.prepare(`SELECT COALESCE(SUM(points), 0) AS n FROM redemptions WHERE user_id = ? AND status <> 'cancelled'`).bind(userId).first<{ n: number }>(),
+    spentPoints(env, userId),
     aiUsedToday(env, userId),
   ]);
   const safeDriveDays = drives?.n ?? 0;
@@ -103,8 +128,9 @@ async function buildMe(env: Env, userId: string) {
       nickname: (user?.nickname as string) ?? '',
       pledged: !!user?.pledged,
       plusUntil: plus ? (user!.plus_until as string) : null,
+      plusPlan: plus ? ((user!.plus_plan as string | null) ?? null) : null,
       points,
-      balance: Math.max(0, points - (spent?.n ?? 0)),
+      balance: Math.max(0, points - spent),
       aiRemainingToday: Math.max(0, (plus ? LIMITS.aiPlusPerDay : LIMITS.aiFreePerDay) - used),
     },
     badges: earnedBadges(stats, { pledged: !!user?.pledged, safeDriveDays }),
@@ -157,9 +183,30 @@ app.patch('/api/me', auth, async (c) => {
   return c.json((await buildMe(c.env, userId)).me);
 });
 
+/** 交換とセーフドライブ宣言の履歴（別の端末・データを消した端末でも、ポイントの使い道と宣言を戻せるように） */
+app.get('/api/me/history', auth, async (c) => {
+  const userId = c.get('userId');
+  const [redemptions, drives] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT id, reward_id AS rewardId, points, status, created_at AS at FROM redemptions
+       WHERE user_id = ? AND status <> 'cancelled' ORDER BY created_at`,
+    ).bind(userId),
+    c.env.DB.prepare('SELECT date FROM safe_drives WHERE user_id = ? ORDER BY date').bind(userId),
+  ]);
+  return c.json({ redemptions: redemptions.results, safeDriveDates: (drives.results as { date: string }[]).map((d) => d.date) });
+});
+
 // ───────── 観察記録 ─────────
 
-app.get('/api/sightings', auth, async (c) => c.json({ sightings: await userSightings(c.env, c.get('userId'), { includeRevoked: true }) }));
+app.get('/api/sightings', auth, async (c) => {
+  const userId = c.get('userId');
+  const [sightings, tombstones] = await Promise.all([
+    userSightings(c.env, userId, { includeRevoked: true }),
+    c.env.DB.prepare('SELECT id FROM sighting_tombstones WHERE user_id = ?').bind(userId).all<{ id: string }>(),
+  ]);
+  // deleted: ほかの端末で消した記録（この端末からも消す）
+  return c.json({ sightings, deleted: tombstones.results.map((t) => t.id) });
+});
 
 app.post('/api/sightings', auth, async (c) => {
   const userId = c.get('userId');
@@ -174,10 +221,14 @@ app.post('/api/sightings', auth, async (c) => {
   if (existing && existing.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
 
   if (!existing) {
-    const today = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM sightings WHERE user_id = ? AND created_at >= ?')
-      .bind(userId, jstMidnightIso())
-      .first<{ n: number }>();
-    if ((today?.n ?? 0) >= LIMITS.sightingsPerDay) return c.json({ error: 'rate_limited' }, 429);
+    // 消した記録が古い端末から送り直されても生き返らせない
+    const [tomb, today] = await c.env.DB.batch([
+      c.env.DB.prepare('SELECT 1 AS x FROM sighting_tombstones WHERE id = ? AND user_id = ?').bind(s.id, userId),
+      // 1日の上限はサーバーが受け取った日時で数える（端末の申告する created_at は過去にずらせるため）
+      c.env.DB.prepare('SELECT COUNT(*) AS n FROM sightings WHERE user_id = ? AND received_at >= ?').bind(userId, jstMidnightIso()),
+    ]);
+    if (tomb.results.length) return c.json({ error: 'deleted' }, 410);
+    if (((today.results[0] as { n?: number } | undefined)?.n ?? 0) >= LIMITS.sightingsPerDay) return c.json({ error: 'rate_limited' }, 429);
   }
 
   let photoKey = existing?.photo_key ?? null;
@@ -205,8 +256,8 @@ app.post('/api/sightings', auth, async (c) => {
     c.env.DB.prepare('INSERT OR IGNORE INTO users (id, created_at, last_seen_at) VALUES (?1, ?2, ?2)').bind(userId, now),
     c.env.DB.prepare(
       `INSERT INTO sightings (id, user_id, species_id, custom_name, nickname, memo, observed_at, created_at, updated_at,
-         area_id, lat, lng, location_protected, kind, road_report, photo_key, photo_hash)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+         area_id, lat, lng, location_protected, kind, road_report, photo_key, photo_hash, received_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?9)
        ON CONFLICT(id) DO UPDATE SET
          species_id = ?3, custom_name = ?4, nickname = ?5, memo = ?6, observed_at = ?7, updated_at = ?9,
          area_id = ?10, lat = ?11, lng = ?12, location_protected = ?13, kind = ?14, road_report = ?15,
@@ -254,11 +305,17 @@ app.delete('/api/sightings/:id', auth, async (c) => {
   const userId = c.get('userId');
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT user_id, photo_key FROM sightings WHERE id = ?').bind(id).first<{ user_id: string; photo_key: string | null }>();
-  if (!row) return c.json({ ok: true });
-  if (row.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
+  if (row && row.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
+  // まだ届いていない記録でも印を残す（このあとアップロードが届いても生き返らせない）
+  const tombstone = c.env.DB.prepare('INSERT OR IGNORE INTO sighting_tombstones (id, user_id, deleted_at) VALUES (?, ?, ?)').bind(id, userId, nowIso());
+  if (!row) {
+    if (/^[A-Za-z0-9-]{8,64}$/.test(id)) await tombstone.run();
+    return c.json({ ok: true });
+  }
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM road_reports WHERE sighting_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM sightings WHERE id = ?').bind(id),
+    tombstone,
   ]);
   if (row.photo_key) await c.env.PHOTOS.delete([`${row.photo_key}.jpg`, `${row.photo_key}_thumb.jpg`]);
   return c.json({ ok: true });
@@ -268,7 +325,12 @@ async function streamObject(c: Context<AppEnv>, key: string, cache: string) {
   const obj = await c.env.PHOTOS.get(key);
   if (!obj) return c.json({ error: 'not_found' }, 404);
   return new Response(obj.body, {
-    headers: { 'Content-Type': obj.httpMetadata?.contentType ?? 'image/jpeg', 'Cache-Control': cache, ETag: obj.httpEtag },
+    headers: {
+      'Content-Type': obj.httpMetadata?.contentType ?? 'image/jpeg',
+      'Cache-Control': cache,
+      ETag: obj.httpEtag,
+      'X-Content-Type-Options': 'nosniff',
+    },
   });
 }
 
@@ -295,21 +357,21 @@ app.post('/api/identify', auth, async (c) => {
   if (body.image.length > MAX_IMAGE_BASE64_LENGTH) return c.json({ error: 'image_too_large' }, 413);
   if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: 'ai_unavailable' }, 503);
 
-  const user = await c.env.DB.prepare('SELECT plus_until FROM users WHERE id = ?').bind(userId).first<Record<string, unknown>>();
-  const limit = isPlus(user) ? LIMITS.aiPlusPerDay : LIMITS.aiFreePerDay;
-  const used = await aiUsedToday(c.env, userId);
-  if (used >= limit) return c.json({ error: 'ai_quota_exceeded' }, 429);
+  const limit = await aiLimitFor(c.env, userId);
+  const slot = await reserveAi(c.env, userId, limit);
+  if (!slot) return c.json({ error: 'ai_quota_exceeded' }, 429);
 
   try {
     const candidates = await identifySpecies({
       apiKey: c.env.ANTHROPIC_API_KEY,
       imageBase64: body.image,
       month: body.month,
-      areaId: body.areaId && AREA_BY_ID[body.areaId] ? body.areaId : null,
+      areaId: typeof body.areaId === 'string' && AREA_BY_ID[body.areaId] ? body.areaId : null,
     });
-    await addAiUsage(c.env, userId);
-    return c.json({ candidates, remainingToday: Math.max(0, limit - used - 1) });
+    return c.json({ candidates, remainingToday: Math.max(0, limit - slot.used) });
   } catch (e) {
+    // 判定できなかった分は回数に数えない
+    await releaseAi(c.env, userId, slot.date);
     if (e instanceof IdentifyError) return c.json({ error: e.code }, e.code === 'rate_limited' ? 429 : e.code === 'refused' ? 422 : 502);
     throw e;
   }
@@ -319,8 +381,13 @@ app.post('/api/identify', auth, async (c) => {
 
 app.post('/api/safe-drive', auth, async (c) => {
   const userId = c.get('userId');
+  // 圏外で宣言した分はあとから送られてくるので、日本時間のきょうときのうの日付まで受け付ける
+  const { date } = await c.req.json<{ date?: unknown }>().catch(() => ({ date: undefined }));
+  const today = jstDate();
+  const allowed = [today, jstDate(Date.now() - 86400000)];
+  if (date !== undefined && !allowed.includes(date as string)) return c.json({ error: 'invalid_date' }, 400);
   const r = await c.env.DB.prepare('INSERT OR IGNORE INTO safe_drives (user_id, date, created_at) VALUES (?, ?, ?)')
-    .bind(userId, jstDate(), nowIso())
+    .bind(userId, (date as string | undefined) ?? today, nowIso())
     .run();
   const { me } = await buildMe(c.env, userId);
   return c.json({ ok: true, alreadyDeclared: r.meta.changes === 0, points: me.points, balance: me.balance });
@@ -333,11 +400,25 @@ app.post('/api/redeem', auth, async (c) => {
   if (!reward) return c.json({ error: 'unknown_reward' }, 400);
   const { me, badges } = await buildMe(c.env, userId);
   if (reward.requiresBadge && !badges.has(reward.requiresBadge)) return c.json({ error: 'badge_required' }, 403);
-  if (me.balance < reward.points) return c.json({ error: 'insufficient_points' }, 409);
-  await c.env.DB.prepare('INSERT INTO redemptions (id, user_id, reward_id, points, created_at) VALUES (?, ?, ?, ?, ?)')
-    .bind(crypto.randomUUID(), userId, reward.id, reward.points, nowIso())
+  // 残高の確認と書き込みを1つの文で行う（同時に何回押されても、持っているポイントを超えて交換できない）
+  const r = await c.env.DB.prepare(
+    `INSERT INTO redemptions (id, user_id, reward_id, points, created_at)
+     SELECT ?1, ?2, ?3, ?4, ?5
+     WHERE (SELECT COALESCE(SUM(points), 0) FROM redemptions WHERE user_id = ?2 AND status <> 'cancelled') + ?4 <= ?6
+       AND (?7 = 0 OR NOT EXISTS (SELECT 1 FROM redemptions WHERE user_id = ?2 AND reward_id = ?3 AND status <> 'cancelled'))`,
+  )
+    .bind(crypto.randomUUID(), userId, reward.id, reward.points, nowIso(), me.points, reward.once ? 1 : 0)
     .run();
-  return c.json({ ok: true, balance: me.balance - reward.points });
+  if (r.meta.changes === 0) {
+    if (reward.once) {
+      const done = await c.env.DB.prepare(`SELECT 1 AS x FROM redemptions WHERE user_id = ? AND reward_id = ? AND status <> 'cancelled'`)
+        .bind(userId, reward.id)
+        .first();
+      if (done) return c.json({ error: 'already_redeemed' }, 409);
+    }
+    return c.json({ error: 'insufficient_points' }, 409);
+  }
+  return c.json({ ok: true, balance: Math.max(0, me.points - (await spentPoints(c.env, userId))) });
 });
 
 app.post('/api/plus/demo', auth, async (c) => {
@@ -353,13 +434,21 @@ app.post('/api/plus/demo', auth, async (c) => {
 // ───────── 共有カード（公開画像） ─────────
 
 app.post('/api/shares', auth, async (c) => {
+  const userId = c.get('userId');
   const form = await c.req.formData();
   const image = form.get('image');
   if (!(image instanceof File) || !image.type.startsWith('image/')) return c.json({ error: 'invalid_image' }, 400);
   if (image.size > LIMITS.shareBytes) return c.json({ error: 'image_too_large' }, 413);
+  // 公開URLで配るので、アプリが作るカード（JPEG）以外は受け付けない
+  const bytes = new Uint8Array(await image.arrayBuffer());
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) return c.json({ error: 'invalid_image' }, 400);
+  const today = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM shares WHERE user_id = ? AND created_at >= ?')
+    .bind(userId, jstMidnightIso())
+    .first<{ n: number }>();
+  if ((today?.n ?? 0) >= LIMITS.sharesPerDay) return c.json({ error: 'rate_limited' }, 429);
   const id = crypto.randomUUID();
-  await c.env.PHOTOS.put(`shares/${id}.jpg`, await image.arrayBuffer(), { httpMetadata: { contentType: 'image/jpeg' } });
-  await c.env.DB.prepare('INSERT INTO shares (id, user_id, created_at) VALUES (?, ?, ?)').bind(id, c.get('userId'), nowIso()).run();
+  await c.env.PHOTOS.put(`shares/${id}.jpg`, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+  await c.env.DB.prepare('INSERT INTO shares (id, user_id, created_at) VALUES (?, ?, ?)').bind(id, userId, nowIso()).run();
   const base = c.env.PUBLIC_BASE_URL || new URL(c.req.url).origin;
   return c.json({ url: `${base.replace(/\/$/, '')}/s/${id}.jpg` });
 });
@@ -491,12 +580,16 @@ async function handleEvent(env: Env, event: line.WebhookEvent) {
     // LIFFの記録画面から読み込めるよう一時保存（R2のライフサイクルで7日後に自動削除する想定）
     await env.PHOTOS.put(`inbox/${userId}/${messageId}`, content.body, { httpMetadata: { contentType: content.type } });
 
-    const user = await env.DB.prepare('SELECT plus_until FROM users WHERE id = ?').bind(userId).first<Record<string, unknown>>();
-    const limit = isPlus(user) ? LIMITS.aiPlusPerDay : LIMITS.aiFreePerDay;
-    const used = await aiUsedToday(env, userId);
     const recordOnly = line.menuMessage(env.LIFF_ID, 'この写真を図鑑に記録しますか？', '記録する', `/capture?inbox=${messageId}`);
-
-    if (used >= limit) {
+    const base64 = toBase64(content.body);
+    if (!env.ANTHROPIC_API_KEY || base64.length > MAX_IMAGE_BASE64_LENGTH) {
+      await line.reply(event.replyToken, [line.textMessage('この写真はAI判定できませんでした。図鑑から選んで記録できます。'), recordOnly], token);
+      return;
+    }
+    // 何枚まとめて送られても、1日の回数を超えないよう判定の前に1回分を確保する
+    const limit = await aiLimitFor(env, userId);
+    const slot = await reserveAi(env, userId, limit);
+    if (!slot) {
       await line.reply(
         event.replyToken,
         [line.textMessage('今日のAI判定の回数を使い切りました。AMAMI NATURE+ なら1日30回まで調べられます。'), recordOnly],
@@ -504,20 +597,17 @@ async function handleEvent(env: Env, event: line.WebhookEvent) {
       );
       return;
     }
-    const base64 = toBase64(content.body);
-    if (!env.ANTHROPIC_API_KEY || base64.length > MAX_IMAGE_BASE64_LENGTH) {
-      await line.reply(event.replyToken, [line.textMessage('この写真はAI判定できませんでした。図鑑から選んで記録できます。'), recordOnly], token);
-      return;
-    }
+    let candidates;
     try {
       const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(content.type) ? content.type : 'image/jpeg') as ImageMediaType;
-      const candidates = await identifySpecies({ apiKey: env.ANTHROPIC_API_KEY, imageBase64: base64, mediaType, month: currentMonth() });
-      await addAiUsage(env, userId);
-      await line.reply(event.replyToken, [line.identifyResultMessage(env.LIFF_ID, messageId, candidates, Math.max(0, limit - used - 1))], token);
+      candidates = await identifySpecies({ apiKey: env.ANTHROPIC_API_KEY, imageBase64: base64, mediaType, month: currentMonth() });
     } catch (e) {
       console.warn('identify failed', e);
+      await releaseAi(env, userId, slot.date);
       await line.reply(event.replyToken, [line.textMessage('AI判定に失敗しました。図鑑から選んで記録できます。'), recordOnly], token);
+      return;
     }
+    await line.reply(event.replyToken, [line.identifyResultMessage(env.LIFF_ID, messageId, candidates, Math.max(0, limit - slot.used))], token);
     return;
   }
 

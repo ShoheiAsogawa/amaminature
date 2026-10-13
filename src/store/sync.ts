@@ -4,7 +4,7 @@
  * 森の中は圏外になりやすいので、記録はまず端末（IndexedDB）に保存し、
  * 電波が戻ったら Cloudflare Workers へ送る。
  */
-import { api, type ServerSighting } from '../lib/api';
+import { api, type Me, type ServerRedemption, type ServerSighting } from '../lib/api';
 import * as db from '../lib/db';
 import { getIdToken, getLineProfile, initLiff, LIFF_ID } from '../lib/liff';
 import type { Sighting } from '../lib/types';
@@ -12,25 +12,34 @@ import { toast } from '../components/ui';
 import { setAfterWrite, useStore } from './useStore';
 
 const PENDING_DELETES_KEY = 'amami-nature:pending-deletes';
+const PENDING_SAFE_DRIVES_KEY = 'amami-nature:pending-safe-drives';
 
-function readPendingDeletes(): string[] {
+function readList(key: string): string[] {
   try {
-    return JSON.parse(localStorage.getItem(PENDING_DELETES_KEY) ?? '[]') as string[];
+    const v = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
   } catch {
     return [];
   }
 }
 
-function writePendingDeletes(ids: string[]) {
+function writeList(key: string, ids: string[]) {
   try {
-    localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(ids));
+    localStorage.setItem(key, JSON.stringify(ids));
   } catch {
     // noop
   }
 }
 
+const readPendingDeletes = () => readList(PENDING_DELETES_KEY);
+
 export function queueDelete(id: string) {
-  writePendingDeletes([...new Set([...readPendingDeletes(), id])]);
+  writeList(PENDING_DELETES_KEY, [...new Set([...readPendingDeletes(), id])]);
+}
+
+/** 圏外で宣言したセーフドライブ（日本時間の日付）。電波が戻ったら送る */
+export function queueSafeDrive(date: string) {
+  writeList(PENDING_SAFE_DRIVES_KEY, [...new Set([...readList(PENDING_SAFE_DRIVES_KEY), date])]);
 }
 
 export const REMOTE_PREFIX = 'remote:';
@@ -41,35 +50,73 @@ function fromServer(s: ServerSighting): Sighting {
 }
 
 let syncing: Promise<void> | null = null;
+/** 同期の途中で書き込みがあった（終わったらもう一度回す） */
+let dirty = false;
 
 export function syncNow(): Promise<void> {
   if (useStore.getState().account.mode !== 'line' || !api.hasSession()) return Promise.resolve();
-  if (!syncing) {
-    syncing = doSync().finally(() => {
-      syncing = null;
-    });
+  if (syncing) {
+    dirty = true;
+    return syncing;
   }
+  syncing = (async () => {
+    try {
+      do {
+        dirty = false;
+        await doSync();
+      } while (dirty && api.hasSession());
+    } finally {
+      syncing = null;
+    }
+  })();
   return syncing;
 }
+
+const codeOf = (e: unknown) => (e as { code?: string }).code;
 
 async function doSync() {
   const store = useStore.getState();
   store.setAccount({ syncing: true });
   try {
-    // 1) オフライン中に削除した記録
-    const deletes = readPendingDeletes();
+    // 0) 圏外で宣言したセーフドライブ
+    const drives = readList(PENDING_SAFE_DRIVES_KEY);
+    if (drives.length) {
+      const keep: string[] = [];
+      let expired = 0;
+      for (const date of drives) {
+        try {
+          await api.safeDrive(date);
+        } catch (e) {
+          if (codeOf(e) === 'invalid_date') expired++;
+          else keep.push(date);
+        }
+      }
+      writeList(PENDING_SAFE_DRIVES_KEY, keep);
+      if (expired) toast('圏外で宣言したセーフドライブのうち、日がたったものは送れませんでした');
+    }
+
+    // 1) 削除した記録（アップロードより先に送る。消した記録は 2) で送らない）
+    const sent = readPendingDeletes();
     const remaining: string[] = [];
-    for (const id of deletes) {
+    for (const id of sent) {
       try {
         await api.deleteSighting(id);
       } catch {
         remaining.push(id);
       }
     }
-    writePendingDeletes(remaining);
+    // 送っている間に増えた分は残す（次の回で送る）
+    const added = readPendingDeletes().filter((id) => !sent.includes(id));
+    writeList(PENDING_DELETES_KEY, [...remaining, ...added]);
 
-    // 2) 未送信の記録をアップロード
-    for (const s of useStore.getState().sightings.filter((x) => x.syncState === 'pending')) {
+    // 2) 未送信の記録をアップロード（送る直前に最新の内容を読み直す。途中で消した・直した記録を古い内容で送らない）
+    const ids = useStore
+      .getState()
+      .sightings.filter((x) => x.syncState === 'pending')
+      .map((x) => x.id);
+    for (const id of ids) {
+      const s = useStore.getState().sightings.find((x) => x.id === id);
+      if (!s || s.syncState !== 'pending') continue;
       let photo: { full: Blob; thumb: Blob } | undefined;
       if (s.photoId && !s.photoId.startsWith(REMOTE_PREFIX)) {
         const rec = await db.getPhoto(s.photoId);
@@ -77,24 +124,36 @@ async function doSync() {
       }
       try {
         await api.upsertSighting(s, photo);
-        await useStore.getState().markSynced(s.id);
+        // 送っている間に直された記録は pending のまま残し、次の回で送る
+        await useStore.getState().markSynced(id, 'synced', s);
       } catch (e) {
-        const code = (e as { code?: string }).code;
+        const code = codeOf(e);
         if (code === 'offline') break;
-        if (code === 'duplicate_photo' || code === 'invalid_request') {
+        if (code === 'deleted') {
+          // ほかの端末で消した記録
+          const cur = useStore.getState().sightings.find((x) => x.id === id);
+          if (cur) await useStore.getState().removeSighting(cur);
+        } else if (code === 'duplicate_photo' || code === 'invalid_request') {
           // サーバーが受け付けない記録は再送しない（端末には残し、ポイント対象外にする）
-          await useStore.getState().markSynced(s.id, 'rejected');
-          if (code === 'duplicate_photo') toast('同じ写真の記録があるため、クラウドには保存されませんでした');
+          await useStore.getState().markSynced(id, 'rejected', s);
+          toast(
+            code === 'duplicate_photo'
+              ? '同じ写真の記録があるため、クラウドには保存されませんでした'
+              : '日時などが正しくない記録があり、クラウドに保存できませんでした。日時を直すと送り直します',
+          );
         } else {
-          console.warn('sync failed', s.id, e);
+          console.warn('sync failed', id, e);
         }
       }
     }
 
-    // 3) 他の端末で記録したものを取り込む
-    const { sightings } = await api.listSightings();
+    // 3) 他の端末で記録したものを取り込み、他の端末で消したものを消す
+    const { sightings, deleted = [] } = await api.listSightings();
+    const deleting = new Set(readPendingDeletes());
+    const gone = new Set(deleted);
+    for (const x of useStore.getState().sightings.filter((x) => gone.has(x.id))) await useStore.getState().removeSighting(x);
     const localById = new Map(useStore.getState().sightings.map((x) => [x.id, x]));
-    const incoming = sightings.filter((x) => !localById.has(x.id) && !remaining.includes(x.id)).map(fromServer);
+    const incoming = sightings.filter((x) => !localById.has(x.id) && !deleting.has(x.id) && !gone.has(x.id)).map(fromServer);
     if (incoming.length) await useStore.getState().mergeSightings(incoming);
 
     // 3b) 運営が取り消した記録（と、取り消しを戻した記録）を端末にも反映する
@@ -111,14 +170,32 @@ async function doSync() {
     }
     if (revokedNow > 0) toast(`運営の確認により、${revokedNow}件の記録がポイントの対象外になりました`);
 
-    // 4) サーバー側のポイント・残高
-    const me = await api.me();
+    // 4) サーバー側のポイント・残高と、交換・セーフドライブ・Plus・誓い（ほかの端末やデータを消した後でも揃える）
+    const [me, history] = await Promise.all([api.me(), api.history()]);
     useStore.getState().setAccount({ me });
+    hydrateFromServer(me, history);
   } catch (e) {
     console.warn('sync error', e);
   } finally {
     useStore.getState().setAccount({ syncing: false, lastSyncAt: new Date().toISOString() });
   }
+}
+
+/** LINE モードではポイントの使い道・宣言・Plus はサーバーを正とし、端末の設定をそれに合わせる */
+function hydrateFromServer(me: Me, history: { redemptions: ServerRedemption[]; safeDriveDates: string[] }) {
+  const { settings, updateSettings } = useStore.getState();
+  const safeDriveDates = [...new Set([...history.safeDriveDates, ...readList(PENDING_SAFE_DRIVES_KEY)])].sort();
+  const redemptions = history.redemptions.map((r) => ({ id: r.id, rewardId: r.rewardId, points: r.points, at: r.at }));
+  const plan = (['trip', 'month', 'year'] as const).find((p) => p === me.plusPlan) ?? settings.plus?.plan ?? 'trip';
+  const plus = me.plusUntil ? { plan, since: settings.plus?.since ?? new Date().toISOString(), until: me.plusUntil } : null;
+  // 誓いは端末で先にした分もサーバーへ送る（オンボーディングで送れなかった時）
+  if (settings.pledged && !me.pledged) void api.updateMe({ pledged: true }).catch(() => undefined);
+  const same =
+    JSON.stringify(settings.safeDriveDates) === JSON.stringify(safeDriveDates) &&
+    JSON.stringify(settings.redemptions) === JSON.stringify(redemptions) &&
+    JSON.stringify(settings.plus) === JSON.stringify(plus) &&
+    settings.pledged === (settings.pledged || me.pledged);
+  if (!same) updateSettings({ safeDriveDates, redemptions, plus, pledged: settings.pledged || me.pledged });
 }
 
 /**
@@ -167,13 +244,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => void syncNow());
 }
 
-/** 端末とサーバーの両方から記録を消す（オフライン時はあとで消す） */
+/**
+ * 端末とサーバーの両方から記録を消す。
+ * サーバーへは同期の 1) で送る（アップロードの途中に消しても、送り終えた後に必ず消える。オフライン時はあとで消す）
+ */
 export async function deleteEverywhere(s: Sighting): Promise<void> {
   await useStore.getState().removeSighting(s);
   if (useStore.getState().account.mode !== 'line' || !s.syncState) return;
-  try {
-    await api.deleteSighting(s.id);
-  } catch {
-    queueDelete(s.id);
-  }
+  queueDelete(s.id);
+  void syncNow();
 }

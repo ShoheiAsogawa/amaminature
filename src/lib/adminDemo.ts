@@ -101,6 +101,7 @@ export function demoAdmin(now = Date.now()) {
       userNickname: '',
       revokedAt: revoked ? at(now, 2) : null,
       revokeReason: revoked ? '同じ写真・他人の写真の使い回し' : null,
+      receivedAt: at(now, i * 3 + 0.5),
     };
   });
 

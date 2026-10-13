@@ -29,6 +29,7 @@ export interface Me {
   nickname: string;
   pledged: boolean;
   plusUntil: string | null;
+  plusPlan: string | null;
   points: number;
   balance: number;
   aiRemainingToday: number;
@@ -59,6 +60,8 @@ const MESSAGES: Record<string, string> = {
   ai_quota_exceeded: '今日のAI判定の回数を使い切りました。',
   ai_unavailable: 'AI判定は現在ご利用いただけません。図鑑から選んでください。',
   unauthorized: 'ログインの有効期限が切れました。もう一度ひらき直してください。',
+  already_redeemed: 'この景品はもう交換しています（1人1回まで）。',
+  invalid_date: '宣言できる日を過ぎています。',
 };
 
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
@@ -71,7 +74,8 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   } catch {
     throw new ApiError('通信できませんでした。電波の良い場所で再度お試しください。', 0, 'offline');
   }
-  if (res.status === 401) setSession(null);
+  // 利用者のセッションで呼んだ時だけ消す（提携先キーの入れ間違いなどでログアウトさせない）
+  if (res.status === 401 && auth) setSession(null);
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new ApiError(MESSAGES[body.error ?? ''] ?? 'エラーが発生しました。', res.status, body.error);
@@ -97,7 +101,11 @@ export const api = {
   me: () => request<Me>('/api/me'),
   updateMe: (patch: Partial<Pick<Me, 'nickname' | 'pledged'>>) => request<Me>('/api/me', json(patch, 'PATCH')),
 
-  listSightings: () => request<{ sightings: ServerSighting[] }>('/api/sightings'),
+  /** deleted: ほかの端末で消した記録のID */
+  listSightings: () => request<{ sightings: ServerSighting[]; deleted?: string[] }>('/api/sightings'),
+
+  /** 交換とセーフドライブ宣言の履歴（サーバーが正） */
+  history: () => request<{ redemptions: ServerRedemption[]; safeDriveDates: string[] }>('/api/me/history'),
 
   upsertSighting(s: Sighting, photo?: { full: Blob; thumb: Blob }) {
     const form = new FormData();
@@ -123,7 +131,9 @@ export const api = {
       json({ image, month, areaId }),
     ),
 
-  safeDrive: () => request<{ ok: true; alreadyDeclared: boolean; points: number; balance: number }>('/api/safe-drive', json({})),
+  /** date: 日本時間の日付（圏外で宣言した分をあとから送る時。きょうかきのうまで） */
+  safeDrive: (date?: string) =>
+    request<{ ok: true; alreadyDeclared: boolean; points: number; balance: number }>('/api/safe-drive', json(date ? { date } : {})),
 
   /** 決済連携（Stripe）前の検証用。サーバーで DEMO_PLUS=true のときだけ有効 */
   demoPlus: (plan: string) => request<Me>('/api/plus/demo', json({ plan })),
@@ -139,6 +149,14 @@ export const api = {
   partnerSummary: (key: string) =>
     request<PartnerSummary>('/api/partner/summary', { headers: { 'X-Partner-Key': key } }, false),
 };
+
+export interface ServerRedemption {
+  id: string;
+  rewardId: string;
+  points: number;
+  status: 'requested' | 'fulfilled';
+  at: string;
+}
 
 export interface PartnerSummary {
   partner: string;

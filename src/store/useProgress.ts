@@ -9,7 +9,7 @@ import {
   rankFor,
 } from '../lib/progress';
 import { dailyMissions, visitStreak } from '../lib/missions';
-import { localDateKey, useStore } from './useStore';
+import { dayKey, useStore } from './useStore';
 
 export function useProgress() {
   const all = useStore((s) => s.sightings);
@@ -43,7 +43,7 @@ export function useMissions() {
   const daily = useStore((s) => s.settings.daily);
   const safeDriveDates = useStore((s) => s.settings.safeDriveDates);
   const visitDates = useStore((s) => s.settings.visitDates);
-  const today = localDateKey();
+  const today = dayKey();
   return useMemo(() => {
     const missions = dailyMissions({ sightings, daily, safeDriveDates, today });
     return {

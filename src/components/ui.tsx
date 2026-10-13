@@ -891,12 +891,14 @@ export function DateTimeRow({
   label = '日時',
   value,
   onChange,
+  min,
   max,
   className,
 }: {
   label?: ReactNode;
   value: string;
   onChange: (v: string) => void;
+  min?: string;
   max?: string;
   className?: string;
 }) {
@@ -912,6 +914,7 @@ export function DateTimeRow({
       <input
         type="datetime-local"
         value={value}
+        min={min}
         max={max}
         onChange={(e) => onChange(e.target.value)}
         aria-label={typeof label === 'string' ? label : '日時'}

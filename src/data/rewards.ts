@@ -16,6 +16,8 @@ export interface Reward {
   note?: string;
   /** このバッジを持っている人だけ交換できる */
   requiresBadge?: string;
+  /** 1人1回だけ交換できる（記念品など） */
+  once?: boolean;
 }
 
 export const REWARDS: Reward[] = [
@@ -58,6 +60,7 @@ export const REWARDS: Reward[] = [
     points: 500,
     kind: 'goods',
     requiresBadge: 'ruri',
+    once: true,
   },
   {
     id: 'municipal-gift',
@@ -66,6 +69,7 @@ export const REWARDS: Reward[] = [
     points: 0,
     kind: 'goods',
     requiresBadge: 'all-areas',
+    once: true,
   },
 ];
 

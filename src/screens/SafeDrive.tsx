@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { IconDeviceMobile, IconGauge, IconLightbulb, IconWarning } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import { Button, CheckMark, CtaBar, Group, ListRow, Num, ScreenHeader, SectionHeader, toast } from '../components/ui';
-import { api } from '../lib/api';
+import { api, ApiError, errorMessage } from '../lib/api';
 import { SAFE_DRIVE_POINTS } from '../lib/progress';
-import { localDateKey, useStore } from '../store/useStore';
+import { queueSafeDrive, syncNow } from '../store/sync';
+import { dayKey, useStore } from '../store/useStore';
 
 /** 固定 CTA バー（ボタン 50 ＋ 理由 1 行）の分だけ本文の下を空ける */
 const CTA_WITH_NOTE_PADDING = 'pb-[calc(118px+var(--safe-bottom))]';
@@ -17,7 +18,7 @@ const CHECKS = [
 ];
 
 export default function SafeDrive() {
-  const declared = useStore((s) => s.settings.safeDriveDates.includes(localDateKey()));
+  const declared = useStore((s) => s.settings.safeDriveDates.includes(dayKey()));
   const total = useStore((s) => s.settings.safeDriveDates.length);
   const declareSafeDrive = useStore((s) => s.declareSafeDrive);
   const lineMode = useStore((s) => s.account.mode === 'line');
@@ -28,8 +29,24 @@ export default function SafeDrive() {
   const declare = async () => {
     setBusy(true);
     try {
-      if (lineMode) await api.safeDrive().catch(() => undefined);
-      if (declareSafeDrive()) toast.success(`宣言しました。+${SAFE_DRIVE_POINTS} pt`);
+      const today = dayKey();
+      let already = false;
+      if (lineMode) {
+        try {
+          already = (await api.safeDrive(today)).alreadyDeclared;
+        } catch (e) {
+          // 林道は圏外が多い。宣言は端末に置いて、電波が戻ったら送る（きのうの分まで受け付ける）
+          if (!(e instanceof ApiError) || e.code !== 'offline') {
+            toast.error(errorMessage(e));
+            return;
+          }
+          queueSafeDrive(today);
+        }
+      }
+      const added = declareSafeDrive(today);
+      if (already) toast('今日は宣言済みです（ほかの端末で宣言しています）');
+      else if (added) toast.success(`宣言しました。+${SAFE_DRIVE_POINTS} pt`);
+      if (lineMode) void syncNow();
     } finally {
       setBusy(false);
     }

@@ -36,7 +36,7 @@ import { lineLogin, LIFF_ID } from '../lib/liff';
 import { BADGES, computeStats, earnedBadges, type Badge } from '../lib/progress';
 import type { Settings, Sighting, ThemePref } from '../lib/types';
 import { useProgress } from '../store/useProgress';
-import { isPlusActive, localDateKey, useStore } from '../store/useStore';
+import { isPlusActive, dayKey, useStore } from '../store/useStore';
 
 const ADD_FRIEND_URL = (import.meta.env.VITE_LINE_ADD_FRIEND_URL as string | undefined) ?? '';
 
@@ -130,7 +130,7 @@ export default function Me() {
       const blob = await exportBackup();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `amami-nature-backup-${localDateKey().replace(/-/g, '')}.json`;
+      a.download = `amami-nature-backup-${dayKey().replace(/-/g, '')}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       toast.success('記録を書き出しました');

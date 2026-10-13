@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dailyMissions, visitStreak } from '../src/lib/missions';
+import { dailyMissions, dayKey, visitStreak } from '../src/lib/missions';
 import { levelFor, MAX_LEVEL, pointsForLevel } from '../src/lib/progress';
 import type { Sighting } from '../src/lib/types';
 
@@ -58,7 +58,7 @@ describe('dailyMissions', () => {
     ...extra,
   });
   const today = '2026-10-10';
-  const noon = new Date(2026, 9, 10, 12).toISOString();
+  const noon = '2026-10-10T12:00:00+09:00';
 
   it('何もしていなければ 0 / 3', () => {
     const m = dailyMissions({ sightings: [], daily: { date: '', viewed: [], celebrated: false }, safeDriveDates: [], today });
@@ -77,7 +77,7 @@ describe('dailyMissions', () => {
   });
 
   it('前の日の記録と、前の日に見た種は数えない', () => {
-    const yesterday = new Date(2026, 9, 9, 12).toISOString();
+    const yesterday = '2026-10-09T23:59:00+09:00';
     const m = dailyMissions({
       sightings: [sighting(yesterday)],
       daily: { date: '2026-10-09', viewed: ['a', 'b', 'c'], celebrated: true },
@@ -85,6 +85,18 @@ describe('dailyMissions', () => {
       today,
     });
     expect(m.filter((x) => x.done)).toHaveLength(0);
+  });
+
+  it('1日の区切りは日本時間（サーバーと同じ）', () => {
+    expect(dayKey('2026-10-10T14:59:00Z')).toBe('2026-10-10');
+    expect(dayKey('2026-10-10T15:00:00Z')).toBe('2026-10-11');
+    const m = dailyMissions({
+      sightings: [sighting('2026-10-09T15:30:00Z')],
+      daily: { date: '', viewed: [], celebrated: false },
+      safeDriveDates: [],
+      today,
+    });
+    expect(m.find((x) => x.id === 'record')?.done).toBe(true);
   });
 
   it('サーバーが受け付けなかった記録は数えない', () => {

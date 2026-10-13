@@ -1033,8 +1033,13 @@ const RAW: Omit<Species, 'no'>[] = [
 
 export const SPECIES: Species[] = RAW.map((s, i) => ({ ...s, no: i + 1 }));
 
-export const SPECIES_BY_ID: Record<string, Species> = Object.fromEntries(
-  SPECIES.map((s) => [s.id, s]),
+/**
+ * 種IDで引く表。URLや通信で届いた文字列で引くので、'constructor' や '__proto__' が
+ * Object の組み込みに当たらないよう、プロトタイプのないオブジェクトにする。
+ */
+export const SPECIES_BY_ID: Record<string, Species> = Object.assign(
+  Object.create(null) as Record<string, Species>,
+  Object.fromEntries(SPECIES.map((s) => [s.id, s])),
 );
 
 /** カテゴリは色を持たない。区別はアイコン（ui.tsx の CATEGORY_ICON）とラベルで行う（§2.7） */

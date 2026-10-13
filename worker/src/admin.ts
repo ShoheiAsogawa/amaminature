@@ -69,8 +69,8 @@ adminApp.get('/summary', async (c) => {
     ).bind(week, nowIso()),
     c.env.DB.prepare(
       `SELECT SUM(CASE WHEN revoked_at IS NULL THEN 1 ELSE 0 END) AS total,
-         SUM(CASE WHEN revoked_at IS NULL AND created_at >= ?1 THEN 1 ELSE 0 END) AS today,
-         SUM(CASE WHEN revoked_at IS NULL AND created_at >= ?2 THEN 1 ELSE 0 END) AS week,
+         SUM(CASE WHEN revoked_at IS NULL AND received_at >= ?1 THEN 1 ELSE 0 END) AS today,
+         SUM(CASE WHEN revoked_at IS NULL AND received_at >= ?2 THEN 1 ELSE 0 END) AS week,
          SUM(CASE WHEN revoked_at IS NOT NULL THEN 1 ELSE 0 END) AS revoked
        FROM sightings`,
     ).bind(jstMidnightIso(now), week),
@@ -83,15 +83,15 @@ adminApp.get('/summary', async (c) => {
     ),
     c.env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS n FROM ai_usage WHERE date = ?').bind(jstDate(now)),
     c.env.DB.prepare(
-      `SELECT strftime('%Y-%m-%d', created_at, '+9 hours') AS day, COUNT(*) AS n FROM sightings
-       WHERE created_at >= ? AND revoked_at IS NULL GROUP BY day`,
+      `SELECT strftime('%Y-%m-%d', received_at, '+9 hours') AS day, COUNT(*) AS n FROM sightings
+       WHERE received_at >= ? AND revoked_at IS NULL GROUP BY day`,
     ).bind(since14),
     c.env.DB.prepare(
       `SELECT species_id AS speciesId, COUNT(*) AS n FROM sightings
-       WHERE created_at >= ? AND revoked_at IS NULL AND species_id IS NOT NULL GROUP BY species_id ORDER BY n DESC LIMIT 8`,
+       WHERE received_at >= ? AND revoked_at IS NULL AND species_id IS NOT NULL GROUP BY species_id ORDER BY n DESC LIMIT 8`,
     ).bind(since30),
     c.env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM sightings WHERE created_at >= ? AND revoked_at IS NULL
+      `SELECT COUNT(*) AS n FROM sightings WHERE received_at >= ? AND revoked_at IS NULL
        AND species_id IN (${RARE_IDS.map(() => '?').join(',')})`,
     ).bind(week, ...RARE_IDS),
   ]);
@@ -165,12 +165,12 @@ adminApp.get('/sightings', async (c) => {
   else if (filter === 'road') where.push('s.road_report IS NOT NULL');
   else if (filter === 'revoked') where.push('s.revoked_at IS NOT NULL');
   if (before && !Number.isNaN(Date.parse(before))) {
-    where.push('s.created_at < ?');
+    where.push('s.received_at < ?');
     binds.push(before);
   }
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, u.display_name AS displayName, u.nickname AS userNickname FROM sightings s LEFT JOIN users u ON u.id = s.user_id
-     ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY s.created_at DESC LIMIT ${limit}`,
+     ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY s.received_at DESC LIMIT ${limit}`,
   )
     .bind(...binds)
     .all<Record<string, unknown>>();
@@ -182,6 +182,8 @@ adminApp.get('/sightings', async (c) => {
       userNickname: (r.userNickname as string | null) ?? '',
       revokedAt: (r.revoked_at as string | null) ?? null,
       revokeReason: (r.revoke_reason as string | null) ?? null,
+      // サーバーが受け取った日時（次のページの before に使う。created_at は端末の申告なので並び順に使わない）
+      receivedAt: (r.received_at as string | null) ?? null,
     })),
   });
 });

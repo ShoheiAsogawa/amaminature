@@ -98,6 +98,8 @@ export interface AdminSighting extends Omit<Sighting, 'photoId' | 'syncState'> {
   userNickname: string;
   revokedAt: string | null;
   revokeReason: string | null;
+  /** サーバーが受け取った日時（次のページの before に渡す） */
+  receivedAt: string | null;
 }
 
 export interface AdminRoadReport {

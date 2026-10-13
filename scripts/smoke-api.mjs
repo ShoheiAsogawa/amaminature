@@ -26,10 +26,11 @@ async function call(method, path, { body, headers = {}, form } = {}) {
 }
 
 function jpeg(seed) {
-  // 最小のJPEGではなく、ハッシュが変わるだけのダミーバイト列（サーバーは中身を解釈しない）
+  // 最小のJPEGではなく、ハッシュが変わるだけのダミーバイト列（サーバーは先頭の印 FF D8 FF だけを見る）
   const bytes = new Uint8Array(2048).map((_, i) => (i * 31 + seed * 7 + RUN * 13 + (i % 97) * RUN) % 256);
   bytes[0] = 0xff;
   bytes[1] = 0xd8;
+  bytes[2] = 0xff;
   return new Blob([bytes], { type: 'image/jpeg' });
 }
 
@@ -85,6 +86,8 @@ const future = await call('POST', '/api/sightings', {
   form: sightingForm({ ...base, id: randomUUID(), speciesId: 'mejiro', observedAt: new Date(Date.now() + 5 * 86400000).toISOString() }),
 });
 check('future date → 400', future.status === 400);
+const proto = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: randomUUID(), speciesId: 'constructor', areaId: '__proto__' }) });
+check('Object.prototype keys are not species/areas → 400', proto.status === 400, `${proto.status}`);
 
 // 他人の記録は上書きできない
 const hijack = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: s1, speciesId: 'mejiro' }), headers: { Authorization: 'Dev Uother' } });
@@ -130,8 +133,11 @@ const share = await call('POST', '/api/shares', { form: sf });
 check('POST share', share.status === 200 && /\/s\/[0-9a-f-]{36}\.jpg$/.test(share.data.url), JSON.stringify(share.data));
 if (share.data.url) {
   const pub = await fetch(`${BASE}/s/${share.data.url.split('/s/')[1]}`);
-  check('GET public share image', pub.status === 200);
+  check('GET public share image (nosniff)', pub.status === 200 && pub.headers.get('x-content-type-options') === 'nosniff');
 }
+const notJpeg = new FormData();
+notJpeg.set('image', new Blob(['<html><script>alert(1)</script></html>'], { type: 'image/jpeg' }), 'card.jpg');
+check('share rejects bytes that are not a JPEG', (await call('POST', '/api/shares', { form: notJpeg })).status === 400);
 
 // 運営の管理画面 API（.dev.vars の ADMIN_KEY_SHA256 に対応するキー）
 const ADMIN_KEY = process.env.ADMIN_KEY ?? 'dev-admin-key-0123456789abcdef';
@@ -175,11 +181,53 @@ const a10 = await admin('GET', `/users?q=`);
 check('admin users list computes points', a10.status === 200 && a10.data.users?.some((u) => u.id === user && u.points === before.points), JSON.stringify(a10.data.users?.find((u) => u.id === user)));
 const a11 = await admin('GET', '/actions');
 check('admin actions are logged', a11.status === 200 && a11.data.actions?.length >= 4);
+const a12 = await admin('GET', '/sightings?filter=all');
+check('admin sightings carry the server receive time', a12.status === 200 && !!a12.data.sightings?.[0]?.receivedAt);
+
+// セーフドライブ：圏外で宣言した分は、日本時間のきのうまで後から送れる
+const jstDay = (agoMs) => new Date(Date.now() + 9 * 3600000 - agoMs).toISOString().slice(0, 10);
+const y1 = await call('POST', '/api/safe-drive', { body: { date: jstDay(86400000) } });
+check('safe drive for yesterday (sent later)', y1.status === 200 && y1.data.alreadyDeclared === false, JSON.stringify(y1.data));
+const y2 = await call('POST', '/api/safe-drive', { body: { date: jstDay(2 * 86400000) } });
+check('safe drive older than yesterday → 400', y2.status === 400);
+
+// ポイント交換：同時に何回押しても残高を超えない
+const bal = (await call('GET', '/api/me')).data.balance;
+const race = await Promise.all(Array.from({ length: 6 }, () => call('POST', '/api/redeem', { body: { rewardId: 'donate' } })));
+const won = race.filter((x) => x.status === 200).length;
+check(
+  'parallel redeem never overspends',
+  won === Math.floor(bal / 100) && race.every((x) => x.status === 200 || x.data.error === 'insufficient_points'),
+  `balance ${bal}: ${race.map((x) => x.status).join(',')}`,
+);
+const hist = await call('GET', '/api/me/history');
+check(
+  'history restores redemptions and safe drives',
+  hist.status === 200 && hist.data.redemptions?.filter((x) => x.rewardId === 'donate').length === won && hist.data.safeDriveDates?.length === 2,
+  JSON.stringify(hist.data),
+);
 
 // 削除
 const del = await call('DELETE', `/api/sightings/${s1}`);
 const after = await call('GET', '/api/sightings');
 check('DELETE sighting', del.status === 200 && !after.data.sightings.some((x) => x.id === s1));
+check('list tells other devices what was deleted', after.data.deleted?.includes(s1), JSON.stringify(after.data.deleted));
+const again = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: s1, speciesId: 'kurosagi' }) });
+check('a deleted sighting is not resurrected by a stale upload → 410', again.status === 410 && again.data.error === 'deleted', `${again.status}`);
+const s5 = randomUUID();
+await call('DELETE', `/api/sightings/${s5}`);
+const late = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: s5, speciesId: 'mejiro' }) });
+check('upload arriving after its delete → 410', late.status === 410, `${late.status}`);
+
+// 1日の記録数の上限は、サーバーが受け取った日時で数える（端末の createdAt を過去にしても抜けられない）
+const H2 = { Authorization: `Dev Ulimit${Date.now()}` };
+let lastStatus = 0;
+for (let i = 0; i <= 50; i++) {
+  const f = sightingForm({ ...base, id: randomUUID(), speciesId: 'mejiro', createdAt: '2024-01-01T00:00:00Z' });
+  lastStatus = (await call('POST', '/api/sightings', { form: f, headers: H2 })).status;
+  if (lastStatus !== 200) break;
+}
+check('daily limit ignores a backdated createdAt (51st → 429)', lastStatus === 429, `${lastStatus}`);
 
 // LINE Webhook 署名検証
 const body = JSON.stringify({ destination: 'x', events: [] });

@@ -90,6 +90,11 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** 記録できる一番古い観察日時。サーバー（worker/src/validate.ts）は3年より前を受け付けないので、1日の余裕をみる */
+function oldestObserved(now = Date.now()): Date {
+  return new Date(now - (3 * 365 - 1) * 86400000);
+}
+
 const PREFIXES = ['アマミノ', 'アマミ', 'リュウキュウ', 'オキナワ', 'オオシマ', 'ミナミ'];
 const SUFFIXES = ['ちゃん', '丸', 'すけ', 'ぴー', '太郎', 'たん', 'じろう', 'っち'];
 
@@ -237,8 +242,11 @@ function CaptureFlow() {
       setPhoto(p);
       setPhotoUrl(URL.createObjectURL(p.full));
       setAi({ loading: false, candidates: null });
-      fromPhoto.current = { time: !!p.takenAt, place: false };
-      if (p.takenAt) setObservedAt(toLocalInput(p.takenAt));
+      // 撮影日時が古すぎる・未来（カメラの時計ずれ）の時は使わない
+      const taken = p.takenAt && p.takenAt >= oldestObserved() ? new Date(Math.min(p.takenAt.getTime(), Date.now())) : null;
+      if (p.takenAt && !taken) toast('写真の撮影日が3年より前のため、日時はいまにしました');
+      fromPhoto.current = { time: !!taken, place: false };
+      if (taken) setObservedAt(toLocalInput(taken));
       if (p.lat != null && p.lng != null) {
         setCoords({ lat: p.lat, lng: p.lng });
         fromPhoto.current.place = true;
@@ -334,7 +342,13 @@ function CaptureFlow() {
     setSaving(true);
     try {
       const now = new Date();
-      const observed = new Date(observedAt);
+      const entered = new Date(observedAt);
+      // iOS は datetime-local の min / max を守らないので、ここでも確かめる（未来はいまにする）
+      const observed = isNaN(entered.getTime()) || entered > now ? now : entered;
+      if (observed < oldestObserved(now.getTime())) {
+        toast('3年より前の観察は記録できません。日時を確かめてください');
+        return;
+      }
       const protectedLoc = protectLocation(species, coords?.lat ?? null, coords?.lng ?? null);
       const photoId = photo ? newId() : null;
       const s: Sighting = {
@@ -343,7 +357,7 @@ function CaptureFlow() {
         customName: speciesId === null ? customName.trim() || undefined : undefined,
         nickname: rescue ? '' : nickname.trim(),
         memo: memo.trim(),
-        observedAt: (isNaN(observed.getTime()) ? now : observed).toISOString(),
+        observedAt: observed.toISOString(),
         createdAt: now.toISOString(),
         areaId,
         ...protectedLoc,
@@ -354,12 +368,12 @@ function CaptureFlow() {
 
       const nowMonth = currentMonth(now);
       const ctx = { pledged: settings.pledged, safeDriveDays: settings.safeDriveDates.length };
-      const before = earnedBadges(computeStats(sightings), ctx);
-      const questsBefore = new Set(allQuestProgress(sightings, nowMonth).filter((q) => q.done).map((q) => q.quest.id));
-      const isNew = !!speciesId && !rescue && !collection.has(speciesId);
-      const points = pointsForNewSighting(s, sightings);
-      // レベルの計算（図鑑の進み具合と同じく、サーバーが受け付けなかった記録は数えない）
+      // ポイント・バッジ・レベルは、図鑑の進み具合と同じく、サーバーが受け付けなかった記録を数えない
       const counted = sightings.filter((x) => x.syncState !== 'rejected');
+      const before = earnedBadges(computeStats(counted), ctx);
+      const questsBefore = new Set(allQuestProgress(counted, nowMonth).filter((q) => q.done).map((q) => q.quest.id));
+      const isNew = !!speciesId && !rescue && !collection.has(speciesId);
+      const points = pointsForNewSighting(s, counted);
       const pointsBefore = computePoints(counted, nowMonth, settings.safeDriveDates.length);
       const pointsAfter = computePoints([s, ...counted], nowMonth, settings.safeDriveDates.length);
 
@@ -368,7 +382,7 @@ function CaptureFlow() {
         photo && photoId ? { id: photoId, full: photo.full, thumb: photo.thumb, width: photo.width, height: photo.height } : undefined,
       );
 
-      const after = [s, ...sightings];
+      const after = [s, ...counted];
       const afterStats = computeStats(after);
       const afterBadges = earnedBadges(afterStats, ctx);
       const badges = BADGES.filter((b) => afterBadges.has(b.id) && !before.has(b.id));
@@ -753,7 +767,7 @@ function CaptureFlow() {
             )}
 
             <Group className="mt-6">
-              <DateTimeRow value={observedAt} onChange={setObservedAt} />
+              <DateTimeRow value={observedAt} onChange={setObservedAt} min={toLocalInput(oldestObserved())} max={toLocalInput(new Date())} />
               {/* 地域: select を行に重ねる（行には市町村名だけを出す）。右端は現在地から設定 */}
               <div className="group/row relative flex pl-4">
                 <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 border-b border-sep pr-1 group-last/row:border-b-0">

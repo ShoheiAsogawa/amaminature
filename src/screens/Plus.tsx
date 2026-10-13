@@ -15,7 +15,7 @@ import {
   Sheet,
   toast,
 } from '../components/ui';
-import { api } from '../lib/api';
+import { api, errorMessage } from '../lib/api';
 import type { PlusPlan } from '../lib/types';
 import { SPECIES_BY_ID } from '../data/species';
 import { isPlusActive, useStore } from '../store/useStore';
@@ -73,13 +73,29 @@ export default function Plus() {
   const settings = useStore((s) => s.settings);
   const lineMode = useStore((s) => s.account.mode === 'line');
   const activatePlus = useStore((s) => s.activatePlus);
+  const setAccount = useStore((s) => s.setAccount);
   const [plan, setPlan] = useState<PlusPlan>(settings.plus?.plan ?? 'trip');
   const [confirm, setConfirm] = useState(false);
   const active = isPlusActive(settings);
   const chosen = PLANS.find((p) => p.id === plan)!;
 
+  const [busy, setBusy] = useState(false);
+
   const purchase = async () => {
-    if (lineMode) await api.demoPlus(plan).catch(() => undefined);
+    if (busy) return;
+    if (lineMode) {
+      // LINE モードではサーバーの Plus を正とする（AI判定の回数はサーバーが数える）
+      setBusy(true);
+      try {
+        const me = await api.demoPlus(plan);
+        setAccount({ me });
+      } catch (e) {
+        toast.error(errorMessage(e));
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
     activatePlus(plan);
     setConfirm(false);
     toast.success('AMAMI NATURE+ を有効にしました');
@@ -171,7 +187,7 @@ export default function Plus() {
         <p className="text-body text-fg-2">
           <Phrase text={`β版のため、実際の決済は発生しません。ボタンを押すと「${chosen.title}」を無料で体験できます。`} />
         </p>
-        <Button className="mt-5" onClick={purchase}>
+        <Button className="mt-5" disabled={busy} onClick={purchase}>
           体験をはじめる
         </Button>
         <Button variant="text" size="hit" className="mt-2 w-full" onClick={() => setConfirm(false)}>

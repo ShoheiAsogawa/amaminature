@@ -1,6 +1,6 @@
 import type { DailyLog, Sighting } from './types';
 
-/** きょうのミッション（毎日 0 時にリセット）。ポイントは付かず、達成の印と連続日数で続ける楽しさを作る */
+/** きょうのミッション（日本時間の毎日 0 時にリセット）。ポイントは付かず、達成の印と連続日数で続ける楽しさを作る */
 export interface Mission {
   id: 'record' | 'study' | 'safe';
   title: string;
@@ -14,16 +14,18 @@ export interface Mission {
 /** 図鑑で調べる種の数 */
 export const STUDY_TARGET = 3;
 
-function localKey(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/**
+ * アプリの「1日」の日付（YYYY-MM-DD）。サーバー（セーフドライブ・AI判定の回数）と揃えて日本時間で区切る。
+ * 海外の時刻設定の端末でも、宣言やミッションが1日に2回数えられないように。
+ */
+export function dayKey(d: Date | string = new Date()): string {
+  return new Date(new Date(d).getTime() + 9 * 3600000).toISOString().slice(0, 10);
 }
 
 export function dailyMissions(input: { sightings: Sighting[]; daily: DailyLog; safeDriveDates: string[]; today: string }): Mission[] {
   const { sightings, daily, safeDriveDates, today } = input;
   // 記録した日（作った日）で数える。あとから過去の記録を入れても、きょうの記録になる
-  const recorded = sightings.some((s) => localKey(s.createdAt) === today && s.syncState !== 'rejected') ? 1 : 0;
+  const recorded = sightings.some((s) => dayKey(s.createdAt) === today && s.syncState !== 'rejected') ? 1 : 0;
   const viewed = daily.date === today ? daily.viewed.length : 0;
   const safe = safeDriveDates.includes(today) ? 1 : 0;
   const list: Omit<Mission, 'done'>[] = [

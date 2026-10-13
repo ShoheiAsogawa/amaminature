@@ -38,6 +38,10 @@ export const AREAS: Area[] = [
   { id: 'yoron', name: '与論町', island: '与論島', points: [[27.05, 128.42]] },
 ];
 
-export const AREA_BY_ID: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
+/** 市町村IDで引く表（SPECIES_BY_ID と同じく、組み込みのキーに当たらないようプロトタイプなし） */
+export const AREA_BY_ID: Record<string, Area> = Object.assign(
+  Object.create(null) as Record<string, Area>,
+  Object.fromEntries(AREAS.map((a) => [a.id, a])),
+);
 
 export const ISLAND_ORDER = ['奄美大島', '喜界島', '徳之島', '沖永良部島', '与論島'];
