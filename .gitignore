@@ -14,3 +14,6 @@ screenshots
 screenshots/*.tmp.png
 test-results
 !.env.example
+
+# Claude Code のワークフローが作る一時的な作業ツリー
+.claude/worktrees
