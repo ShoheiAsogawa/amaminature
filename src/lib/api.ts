@@ -18,6 +18,8 @@ export class ApiError extends Error {
 
 export interface ServerSighting extends Omit<Sighting, 'photoId' | 'syncState'> {
   hasPhoto: boolean;
+  /** 運営が不正として取り消した記録（端末でもポイント・図鑑の対象外にする） */
+  revoked?: boolean;
 }
 
 export interface Me {

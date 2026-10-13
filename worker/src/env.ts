@@ -19,6 +19,9 @@ export interface Env {
   SESSION_SECRET: string;
   ANTHROPIC_API_KEY: string;
 
+  /** 運営の管理画面のキーの SHA-256（16 進数）。未設定なら /api/admin は 503 */
+  ADMIN_KEY_SHA256?: string;
+
   /** 'true' のとき決済前の Plus 体験APIを有効にする */
   DEMO_PLUS?: string;
   /** 'true' のときローカル開発用の `Authorization: Dev <userId>` を許可（本番では絶対に設定しない） */

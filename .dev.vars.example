@@ -4,3 +4,6 @@ LINE_CHANNEL_ACCESS_TOKEN=dev-access-token
 SESSION_SECRET=dev-session-secret-change-me-0123456789
 ANTHROPIC_API_KEY=
 DEV_AUTH=true
+
+# 運営の管理画面のキーの SHA-256（`npm run admin:key` で作る）。ローカルのキーは dev-admin-key-0123456789abcdef
+ADMIN_KEY_SHA256=29e3a7a758390b467b0a0665b87f1358a03ffe35fd90940a33dd92a0f7ad3880

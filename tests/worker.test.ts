@@ -104,3 +104,21 @@ describe('AI candidates', () => {
     expect(msg.contents.footer.contents[0].action.uri).toBe('https://liff.line.me/1234-abcd/capture?inbox=987&species=rurikakesu');
   });
 });
+
+describe('admin key', () => {
+  it('accepts only the key whose SHA-256 matches, and needs 24+ characters', async () => {
+    const { isAdminKey, newPartnerKey } = await import('../worker/src/adminKey');
+    const { sha256Hex } = await import('../worker/src/crypto');
+    const key = 'ak_0123456789abcdefghijklmnop';
+    const hash = await sha256Hex(key);
+    expect(await isAdminKey(key, hash)).toBe(true);
+    expect(await isAdminKey(key, hash.toUpperCase())).toBe(true);
+    expect(await isAdminKey(`${key}x`, hash)).toBe(false);
+    expect(await isAdminKey(key, undefined)).toBe(false);
+    expect(await isAdminKey('short', await sha256Hex('short'))).toBe(false);
+    expect(await isAdminKey(null, hash)).toBe(false);
+    const p1 = newPartnerKey();
+    expect(p1).toMatch(/^pk_[A-Za-z0-9_-]{43}$/);
+    expect(newPartnerKey()).not.toBe(p1);
+  });
+});

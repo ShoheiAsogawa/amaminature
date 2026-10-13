@@ -95,7 +95,7 @@ export function parseSightingMeta(raw: unknown, now = Date.now()): SightingRow {
 }
 
 /** D1の行 → アプリの Sighting（ポイント計算・API応答用） */
-export function rowToSighting(r: Record<string, unknown>): Sighting & { hasPhoto: boolean } {
+export function rowToSighting(r: Record<string, unknown>): Sighting & { hasPhoto: boolean; revoked: boolean } {
   return {
     id: r.id as string,
     speciesId: (r.species_id as string | null) ?? null,
@@ -112,5 +112,7 @@ export function rowToSighting(r: Record<string, unknown>): Sighting & { hasPhoto
     kind: (r.kind as 'photo' | 'sign') ?? 'photo',
     roadReport: (r.road_report as RoadReport | null) ?? undefined,
     hasPhoto: !!r.photo_key,
+    // 運営が不正として取り消した記録（ポイント・図鑑・集計に数えない）
+    revoked: !!r.revoked_at,
   };
 }

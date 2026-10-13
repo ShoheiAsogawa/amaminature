@@ -27,6 +27,7 @@ const loadMotionFeatures = () => import('./lib/motionFeatures').then((r) => r.de
 // 利用頻度の低い画面は分割して読み込み、初回表示を軽くする
 const Onboarding = lazy(() => import('./screens/Onboarding'));
 const Partners = lazy(() => import('./screens/Partners'));
+const Admin = lazy(() => import('./screens/Admin'));
 const Plus = lazy(() => import('./screens/Plus'));
 const Rewards = lazy(() => import('./screens/Rewards'));
 const SafeDrive = lazy(() => import('./screens/SafeDrive'));
@@ -61,6 +62,7 @@ const TITLES: Record<string, string> = {
   '/rewards': 'ポイント交換',
   '/safe-drive': 'セーフドライブ宣言',
   '/partners': '自治体・保護団体の方へ',
+  '/admin': '運営ダッシュボード',
   '/onboarding': 'はじめに',
 };
 
@@ -119,13 +121,14 @@ function Shell() {
     markVisit();
   }, [markVisit]);
 
-  if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners') {
+  // 提携先と運営の画面は、アプリのオンボーディングを経ずに開ける
+  if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners' && pathname !== '/admin') {
     return <Navigate to="/onboarding" replace />;
   }
   const showTabs = TAB_ROUTES.includes(pathname);
   return (
     // 列幅は最大 480px。パートナー画面だけ 960px（§4.5）
-    <div className={cn('relative mx-auto min-h-dvh w-full bg-page', pathname === '/partners' ? 'max-w-[960px]' : 'max-w-[480px]')}>
+    <div className={cn('relative mx-auto min-h-dvh w-full bg-page', pathname === '/partners' ? 'max-w-[960px]' : pathname === '/admin' ? '' : 'max-w-[480px]')}>
       <Suspense fallback={<Blank />}>
         <Outlet />
       </Suspense>
@@ -150,6 +153,7 @@ const routes = [
       { path: '/rewards', element: <Rewards /> },
       { path: '/safe-drive', element: <SafeDrive /> },
       { path: '/partners', element: <Partners /> },
+      { path: '/admin', element: <Admin /> },
       { path: '/onboarding', element: <Onboarding /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

@@ -11,6 +11,7 @@ import { AREA_BY_ID } from '../../src/data/areas';
 import { REWARDS } from '../../src/data/rewards';
 import { computePoints, computeStats, currentMonth, earnedBadges } from '../../src/lib/progress';
 import type { Sighting } from '../../src/lib/types';
+import { adminApp } from './admin';
 import { jstDate, jstMidnightIso, sha256Hex, signSession, toBase64, verifyLineSignature, verifySession } from './crypto';
 import type { AppEnv, Env } from './env';
 import { IdentifyError, identifySpecies, MAX_IMAGE_BASE64_LENGTH, type ImageMediaType } from './identify';
@@ -50,8 +51,16 @@ async function ensureUser(env: Env, userId: string, profile?: { displayName?: st
     .run();
 }
 
-async function userSightings(env: Env, userId: string): Promise<(Sighting & { hasPhoto: boolean })[]> {
-  const { results } = await env.DB.prepare('SELECT * FROM sightings WHERE user_id = ? ORDER BY observed_at DESC').bind(userId).all();
+/**
+ * 利用者の記録。既定では運営が取り消した記録を除く（ポイントの計算用）。
+ * includeRevoked: 端末との同期用（取り消した記録も revoked: true で返し、端末側でポイントの対象外にする）
+ */
+async function userSightings(env: Env, userId: string, opts: { includeRevoked?: boolean } = {}): Promise<(Sighting & { hasPhoto: boolean; revoked: boolean })[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM sightings WHERE user_id = ? ${opts.includeRevoked ? '' : 'AND revoked_at IS NULL'} ORDER BY observed_at DESC`,
+  )
+    .bind(userId)
+    .all();
   return results.map(rowToSighting);
 }
 
@@ -150,7 +159,7 @@ app.patch('/api/me', auth, async (c) => {
 
 // ───────── 観察記録 ─────────
 
-app.get('/api/sightings', auth, async (c) => c.json({ sightings: await userSightings(c.env, c.get('userId')) }));
+app.get('/api/sightings', auth, async (c) => c.json({ sightings: await userSightings(c.env, c.get('userId'), { includeRevoked: true }) }));
 
 app.post('/api/sightings', auth, async (c) => {
   const userId = c.get('userId');
@@ -378,18 +387,18 @@ app.get('/api/partner/summary', async (c) => {
   const q = (sql: string, ...extra: unknown[]) => c.env.DB.prepare(sql).bind(...binds, ...extra);
 
   const [totals, roadTotal, byArea, roadByArea, byHour, byMonth, roadByMonth, top, recent] = await c.env.DB.batch([
-    q(`SELECT COUNT(*) AS sightings, COUNT(DISTINCT user_id) AS users, COUNT(DISTINCT species_id) AS species FROM sightings WHERE ${where}`),
+    q(`SELECT COUNT(*) AS sightings, COUNT(DISTINCT user_id) AS users, COUNT(DISTINCT species_id) AS species FROM sightings WHERE ${where} AND revoked_at IS NULL`),
     q(`SELECT COUNT(*) AS n FROM road_reports WHERE ${where}`),
-    q(`SELECT area_id AS areaId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND area_id IS NOT NULL GROUP BY area_id`),
+    q(`SELECT area_id AS areaId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND area_id IS NOT NULL GROUP BY area_id`),
     q(`SELECT area_id AS areaId, COUNT(*) AS n FROM road_reports WHERE ${where} AND area_id IS NOT NULL GROUP BY area_id`),
-    q(`SELECT CAST(strftime('%H', observed_at, '+9 hours') AS INTEGER) AS hour, COUNT(*) AS sightings FROM sightings WHERE ${where} GROUP BY hour`),
-    q(`SELECT strftime('%Y-%m', observed_at, '+9 hours') AS month, COUNT(*) AS sightings FROM sightings WHERE ${where} AND observed_at >= ? GROUP BY month`, since),
+    q(`SELECT CAST(strftime('%H', observed_at, '+9 hours') AS INTEGER) AS hour, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL GROUP BY hour`),
+    q(`SELECT strftime('%Y-%m', observed_at, '+9 hours') AS month, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND observed_at >= ? GROUP BY month`, since),
     q(
       `SELECT strftime('%Y-%m', observed_at, '+9 hours') AS month, COUNT(*) AS roadkill FROM road_reports
        WHERE ${where} AND type IN ('roadkill', 'injured') AND observed_at >= ? GROUP BY month`,
       since,
     ),
-    q(`SELECT species_id AS speciesId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND species_id IS NOT NULL GROUP BY species_id ORDER BY sightings DESC LIMIT 10`),
+    q(`SELECT species_id AS speciesId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND species_id IS NOT NULL GROUP BY species_id ORDER BY sightings DESC LIMIT 10`),
     q(
       `SELECT sighting_id AS id, type, species_id AS speciesId, area_id AS areaId, lat, lng, observed_at AS observedAt
        FROM road_reports WHERE ${where} ORDER BY observed_at DESC LIMIT 100`,
@@ -426,6 +435,10 @@ app.get('/api/partner/summary', async (c) => {
     roadReports: recent.results,
   });
 });
+
+// ───────── 運営の管理画面 API ─────────
+
+app.route('/api/admin', adminApp);
 
 // ───────── LINE Messaging API Webhook ─────────
 

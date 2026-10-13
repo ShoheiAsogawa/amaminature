@@ -36,8 +36,8 @@ export function queueDelete(id: string) {
 export const REMOTE_PREFIX = 'remote:';
 
 function fromServer(s: ServerSighting): Sighting {
-  const { hasPhoto, ...rest } = s;
-  return { ...rest, photoId: hasPhoto ? `${REMOTE_PREFIX}${s.id}` : null, syncState: 'synced' };
+  const { hasPhoto, revoked, ...rest } = s;
+  return { ...rest, photoId: hasPhoto ? `${REMOTE_PREFIX}${s.id}` : null, syncState: revoked ? 'rejected' : 'synced' };
 }
 
 let syncing: Promise<void> | null = null;
@@ -93,9 +93,23 @@ async function doSync() {
 
     // 3) 他の端末で記録したものを取り込む
     const { sightings } = await api.listSightings();
-    const local = new Set(useStore.getState().sightings.map((x) => x.id));
-    const incoming = sightings.filter((x) => !local.has(x.id) && !remaining.includes(x.id)).map(fromServer);
+    const localById = new Map(useStore.getState().sightings.map((x) => [x.id, x]));
+    const incoming = sightings.filter((x) => !localById.has(x.id) && !remaining.includes(x.id)).map(fromServer);
     if (incoming.length) await useStore.getState().mergeSightings(incoming);
+
+    // 3b) 運営が取り消した記録（と、取り消しを戻した記録）を端末にも反映する
+    let revokedNow = 0;
+    for (const x of sightings) {
+      const mine = localById.get(x.id);
+      if (!mine) continue;
+      if (x.revoked && mine.syncState !== 'rejected') {
+        await useStore.getState().markSynced(x.id, 'rejected');
+        revokedNow++;
+      } else if (!x.revoked && mine.syncState === 'rejected') {
+        await useStore.getState().markSynced(x.id, 'synced');
+      }
+    }
+    if (revokedNow > 0) toast(`運営の確認により、${revokedNow}件の記録がポイントの対象外になりました`);
 
     // 4) サーバー側のポイント・残高
     const me = await api.me();

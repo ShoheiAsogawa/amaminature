@@ -133,6 +133,49 @@ if (share.data.url) {
   check('GET public share image', pub.status === 200);
 }
 
+// 運営の管理画面 API（.dev.vars の ADMIN_KEY_SHA256 に対応するキー）
+const ADMIN_KEY = process.env.ADMIN_KEY ?? 'dev-admin-key-0123456789abcdef';
+const admin = (method, path, body) =>
+  fetch(`${BASE}/api/admin${path}`, {
+    method,
+    headers: { 'X-Admin-Key': ADMIN_KEY, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(async (r) => ({ status: r.status, data: (r.headers.get('content-type') ?? '').includes('json') ? await r.json() : null }));
+const a0 = await fetch(`${BASE}/api/admin/summary`, { headers: { 'X-Admin-Key': 'wrong-key-wrong-key-wrong-key' } });
+check('admin wrong key → 401', a0.status === 401);
+const a1 = await admin('GET', '/summary');
+check('admin summary', a1.status === 200 && a1.data.daily?.length === 14 && a1.data.users.total >= 1, JSON.stringify(a1.data).slice(0, 200));
+const before = (await call('GET', '/api/me')).data;
+const a2 = await admin('POST', `/sightings/${s2}/revoke`, { reason: '生き物が写っていない' });
+const revokedMe = (await call('GET', '/api/me')).data;
+const mineAfter = (await call('GET', '/api/sightings')).data.sightings.find((x) => x.id === s2);
+check('admin revoke removes the points', a2.status === 200 && revokedMe.points < before.points && mineAfter?.revoked === true, `${before.points} → ${revokedMe.points} ${JSON.stringify(mineAfter)}`);
+const a3 = await admin('POST', `/sightings/${s2}/restore`);
+check('admin restore gives them back', a3.status === 200 && (await call('GET', '/api/me')).data.points === before.points);
+const a4 = await admin('GET', '/redemptions?status=requested');
+const mineRedeem = a4.data.redemptions?.find((x) => x.userId === user);
+check('admin lists the redemption', a4.status === 200 && mineRedeem?.rewardId === 'donate', JSON.stringify(a4.data).slice(0, 200));
+const a5 = await admin('PATCH', `/redemptions/${mineRedeem?.id}`, { status: 'cancelled' });
+check('admin cancel returns the points', a5.status === 200 && (await call('GET', '/api/me')).data.balance === before.balance + 100);
+const a6 = await admin('PATCH', `/redemptions/${mineRedeem?.id}`, { status: 'bogus' });
+check('admin rejects a bad status', a6.status === 400);
+const a7 = await admin('GET', '/road-reports?status=all');
+const myRoad = a7.data.roadReports?.find((x) => x.id === s3);
+check('admin sees the precise road report', myRoad?.lat === 28.3512 && myRoad?.lng === 129.3821, JSON.stringify(myRoad));
+const a8 = await admin('PATCH', `/road-reports/${s3}`, { status: 'forwarded' });
+check('admin forwards the road report', a8.status === 200);
+const a9 = await admin('POST', '/partners', { name: 'スモークテスト', scope: ['yamato'] });
+const issued = a9.data.apiKey;
+const ps = await fetch(`${BASE}/api/partner/summary`, { headers: { 'X-Partner-Key': issued } });
+check('admin-issued partner key works', a9.status === 200 && /^pk_/.test(issued ?? '') && ps.status === 200);
+await admin('DELETE', `/partners/${a9.data.partner?.id}`);
+const ps2 = await fetch(`${BASE}/api/partner/summary`, { headers: { 'X-Partner-Key': issued } });
+check('deleted partner key stops working', ps2.status === 401);
+const a10 = await admin('GET', `/users?q=`);
+check('admin users list computes points', a10.status === 200 && a10.data.users?.some((u) => u.id === user && u.points === before.points), JSON.stringify(a10.data.users?.find((u) => u.id === user)));
+const a11 = await admin('GET', '/actions');
+check('admin actions are logged', a11.status === 200 && a11.data.actions?.length >= 4);
+
 // 削除
 const del = await call('DELETE', `/api/sightings/${s1}`);
 const after = await call('GET', '/api/sightings');
