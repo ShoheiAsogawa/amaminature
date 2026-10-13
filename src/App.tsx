@@ -14,11 +14,9 @@ import { Toaster } from 'sonner';
 import { IconCheckCircleFill, IconInfo, IconWarningCircleFill } from './components/icons';
 import { TabBar } from './components/TabBar';
 import { cn } from './lib/cn';
-import Capture from './screens/Capture';
 import Explore from './screens/Explore';
 import Home from './screens/Home';
 import Me from './screens/Me';
-import SightingDetail from './screens/SightingDetail';
 import SpeciesDetail from './screens/SpeciesDetail';
 import Zukan from './screens/Zukan';
 import { useStore } from './store/useStore';
@@ -32,6 +30,18 @@ const Partners = lazy(() => import('./screens/Partners'));
 const Plus = lazy(() => import('./screens/Plus'));
 const Rewards = lazy(() => import('./screens/Rewards'));
 const SafeDrive = lazy(() => import('./screens/SafeDrive'));
+// 記録と記録の詳細は起動後の空き時間に先読みする（タブの［きろく］を押した時に待たせない）
+const loadCapture = () => import('./screens/Capture');
+const loadSightingDetail = () => import('./screens/SightingDetail');
+const Capture = lazy(loadCapture);
+const SightingDetail = lazy(loadSightingDetail);
+if (typeof window !== 'undefined') {
+  const idle: (cb: () => void) => void = window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 1200));
+  idle(() => {
+    void loadCapture().catch(() => {});
+    void loadSightingDetail().catch(() => {});
+  });
+}
 
 /** 読み込み中は静止した page の地だけ（スピナーやシマーは出さない。§9） */
 function Blank() {

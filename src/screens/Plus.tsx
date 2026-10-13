@@ -36,17 +36,21 @@ const BENEFITS = [
 /** 近日追加（大島紬のフレームは、画面の先頭のカードで見せる） */
 const SOON = [{ icon: IconMicrophone, title: '鳴き声から調べる' }];
 
-/** 先頭のカード: 最近の記録（写真つき）を大島紬のフレームで。記録がなければルリカケスの見本 */
+/**
+ * 先頭のカード: 最近の記録（写真つき）を大島紬のフレームで。
+ * 記録がなければ、図鑑の種ではない見本（図鑑の「？？？」の種の名前や説明を見せないため）
+ */
 function FramePreview() {
   const latest = useStore((s) => s.sightings.find((x) => x.speciesId && x.photoId && SPECIES_BY_ID[x.speciesId]));
-  const sp = SPECIES_BY_ID[latest?.speciesId ?? 'rurikakesu'] ?? null;
+  const sp = latest?.speciesId ? (SPECIES_BY_ID[latest.speciesId] ?? null) : null;
   return (
     <figure className="bg-fill px-4 pb-5 pt-6">
       <div className="mx-auto h-[330px] w-[280px]" aria-hidden>
         <div className="origin-top" style={{ transform: 'scale(.82) rotate(-3deg)' }}>
           <CollectibleCard
             species={sp}
-            nickname={latest?.nickname}
+            name={latest ? undefined : 'あなたが撮った生き物'}
+            nickname={latest ? latest.nickname : '見本'}
             photoId={latest?.photoId}
             observedAt={latest?.observedAt}
             frame="tsumugi"

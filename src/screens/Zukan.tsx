@@ -19,7 +19,7 @@ import {
   Segmented,
   Sheet,
 } from '../components/ui';
-import { CATEGORY_META, CATEGORY_ORDER, normalize, SPECIES, searchSpecies } from '../data/species';
+import { CATEGORY_META, CATEGORY_ORDER, SPECIES, searchZukan } from '../data/species';
 import type { Category } from '../data/types';
 import { useCollection, type CollectionEntry } from '../store/useCollection';
 
@@ -79,11 +79,7 @@ export default function Zukan() {
 
   const list = useMemo(() => {
     // 名前で探せるのはゲットした種だけ（まだ見つけていない種は「？？？」なので、No. の番号で探す）
-    const q = normalize(query);
-    const no = /^(?:no\.?)?0*(\d{1,3})$/.exec(q)?.[1];
-    const named = new Set(searchSpecies(query).map((s) => s.id));
-    const filtered = SPECIES.filter((s) => {
-      if (q && !((collection.has(s.id) && named.has(s.id)) || (no != null && s.no === Number(no)))) return false;
+    const filtered = searchZukan(query, new Set(collection.keys())).filter((s) => {
       if (category && s.category !== category) return false;
       if (status === 'found' && !collection.has(s.id)) return false;
       if (status === 'missing' && collection.has(s.id)) return false;

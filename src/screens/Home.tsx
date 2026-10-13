@@ -21,7 +21,7 @@ import { Phrase } from '../components/Phrase';
 import { usePhotoUrl } from '../components/PhotoImg';
 import { PlayerHud } from '../components/Player';
 import { HIDDEN_NAME_LABEL, SpeciesName } from '../components/SpeciesName';
-import { SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
+import { SpeciesPlate, speciesNo, SpeciesThumb } from '../components/SpeciesTile';
 import { button, cn, Group, InfoRow, ListRow, Num, Page, RarityGems, SectionHeader, Sheet, toast } from '../components/ui';
 import { EXPERIENCES } from '../data/experiences';
 import { CATEGORY_ORDER, SPECIES, SPECIES_BY_ID, speciesInSeason } from '../data/species';
@@ -411,7 +411,7 @@ function SeasonCard({ species, entry, featured }: { species: Species; entry?: Co
       to={`/species/${species.id}`}
       onClick={() => sfx('tap')}
       className={cn('pressable relative block w-[132px] shrink-0 rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', found ? t.border : 'border-line')}
-      aria-label={found ? `${species.name}（ゲット済み）` : `${HIDDEN_NAME_LABEL}（${TYPE_META[species.category].label}）`}
+      aria-label={found ? `${species.name}（ゲット済み）` : `No.${speciesNo(species)} ${HIDDEN_NAME_LABEL}（${TYPE_META[species.category].label}）`}
     >
       {/* まだ見つけていない種は参考写真も出さない（名前と同じく、ゲットするまでのお楽しみ） */}
       <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference={found} className="aspect-square w-full rounded-[10px]">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ExperienceMeta, ExperienceSheet } from '../components/ExperienceCard';
 import { Stars, TYPE_META, TypeBadge } from '../components/game';
-import { IconCameraFill, IconEyeSlash, IconLightbulb, IconLockSimpleFill, IconMoonStarsFill } from '../components/icons';
+import { IconCameraFill, IconEyeSlash, IconLightbulb, IconLockSimpleFill, IconMoonStarsFill, IconWarning } from '../components/icons';
 import { Prose } from '../components/Prose';
 import { MonthBar, referencePhoto, SciName, SpeciesPlate, speciesNo } from '../components/SpeciesTile';
 import { HIDDEN_NAME, HIDDEN_NAME_LABEL, SpeciesName } from '../components/SpeciesName';
@@ -111,7 +111,7 @@ function SpeciesDetail({ id }: { id: string }) {
         onBack={back}
         title={
           <span aria-hidden={!navTitleShown} className={cn('transition-opacity duration-150', navTitleShown ? 'opacity-100' : 'opacity-0')}>
-            {found ? sp.name : HIDDEN_NAME}
+            {found ? sp.name : <SpeciesName species={sp} hidden clamp={false} />}
           </span>
         }
       />
@@ -162,6 +162,13 @@ function SpeciesDetail({ id }: { id: string }) {
           )}
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* 毒のある種は、名前が「？？？」でも最初に危険がわかるように、チップの先頭に出す（詳しい注意は下の Notice） */}
+          {sp.danger && (
+            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-danger px-2.5 text-caption text-on-danger">
+              <IconWarning size={14} aria-hidden />
+              毒あり・近づかない
+            </span>
+          )}
           <TypeBadge category={sp.category} />
           {sp.endemic && (
             <span className="inline-flex h-7 items-center rounded-full bg-gold px-2.5 text-caption text-[#3d2a00]">
@@ -263,7 +270,16 @@ function SpeciesDetail({ id }: { id: string }) {
           </span>
         </InfoRow>
         <InfoRow label="分布">{sp.range}</InfoRow>
-        <InfoRow label="英名">{found ? sp.en : HIDDEN_NAME}</InfoRow>
+        <InfoRow label="英名">
+          {found ? (
+            sp.en
+          ) : (
+            <>
+              <span aria-hidden>{HIDDEN_NAME}</span>
+              <span className="sr-only">ゲットするとわかります</span>
+            </>
+          )}
+        </InfoRow>
       </Group>
 
       {sp.manner && (

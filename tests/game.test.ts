@@ -97,3 +97,36 @@ describe('dailyMissions', () => {
     expect(m.find((x) => x.id === 'record')?.done).toBe(false);
   });
 });
+
+describe('まだ見つけていない種（？？？）', () => {
+  it('名前を隠したまま見せる文（さがしかたのコツ・観察マナー・危険）に、その種の名前が入っていない', async () => {
+    const { SPECIES } = await import('../src/data/species');
+    const leaks: string[] = [];
+    for (const s of SPECIES) {
+      // 「オカヤドカリの仲間」は「オカヤドカリ」で調べる。nameBreak の 3 文字以上の部分（クロウサギ など）も調べる
+      const base = s.name.replace(/の仲間$/, '');
+      const parts = [base, ...(s.nameBreak ?? '').split('|').map((p) => p.replace(/の仲間$/, ''))].filter((p) => p.length >= 3 && p !== 'アマミ');
+      for (const field of ['tip', 'manner', 'danger'] as const) {
+        const text = s[field];
+        if (!text) continue;
+        for (const p of parts) if (text.includes(p)) leaks.push(`${s.name}.${field} に「${p}」`);
+      }
+    }
+    expect(leaks).toEqual([]);
+  });
+
+  it('図鑑の検索は、ゲットした種だけ名前で見つかり、まだの種は番号で見つかる', async () => {
+    const { searchZukan, SPECIES } = await import('../src/data/species');
+    const none = new Set<string>();
+    const found = new Set(['amami-kurousagi']);
+    expect(searchZukan('くろうさぎ', none)).toEqual([]);
+    expect(searchZukan('Pentalagus', none)).toEqual([]);
+    expect(searchZukan('くろうさぎ', found).map((s) => s.id)).toEqual(['amami-kurousagi']);
+    expect(searchZukan('1', none).map((s) => s.no)).toEqual([1]);
+    expect(searchZukan('No.012', none).map((s) => s.no)).toEqual([12]);
+    expect(searchZukan('no012', none).map((s) => s.no)).toEqual([12]);
+    expect(searchZukan('007', none).map((s) => s.no)).toEqual([7]);
+    expect(searchZukan('999', none)).toEqual([]);
+    expect(searchZukan('', none)).toHaveLength(SPECIES.length);
+  });
+});

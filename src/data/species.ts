@@ -482,7 +482,7 @@ const RAW: Omit<Species, 'no'>[] = [
     range: '奄美群島・沖縄諸島',
     description:
       'お腹が鮮やかなオレンジ色のイモリ。田んぼや水たまり、側溝など身近な水辺で見られる。',
-    tip: '水の中をのぞきこんでみよう。尾の形が剣（尻剣）のよう。',
+    tip: '水の中をのぞきこんでみよう。尾の形が剣のよう。',
   },
   {
     id: 'ryukyu-kajikagaeru',
@@ -976,7 +976,7 @@ const RAW: Omit<Species, 'no'>[] = [
     range: '奄美群島以南',
     description:
       '梅雨のころ、森を白い花で彩る常緑樹。ツバキに似た花をたくさんつける。',
-    tip: '5〜6月、山の斜面に点々と白い花が見えたらイジュ。',
+    tip: '5〜6月、山の斜面に点々と白い花が見えたら、この木かも。',
   },
   {
     id: 'teppouyuri',
@@ -1073,6 +1073,18 @@ export function searchSpecies(query: string): Species[] {
       normalize(s.en).includes(q) ||
       normalize(s.sci).includes(q),
   );
+}
+
+/**
+ * 図鑑の検索。名前（和名・英名・学名）で見つかるのはゲットした種だけ。
+ * まだ見つけていない種は名前が「？？？」なので、No. の番号（「12」「No.012」）で探す。
+ */
+export function searchZukan(query: string, discovered: ReadonlySet<string>): Species[] {
+  const q = normalize(query);
+  if (!q) return SPECIES;
+  const no = /^(?:no\.?)?0*(\d{1,3})$/.exec(q)?.[1];
+  const named = new Set(searchSpecies(query).map((s) => s.id));
+  return SPECIES.filter((s) => (discovered.has(s.id) && named.has(s.id)) || (no != null && s.no === Number(no)));
 }
 
 /** ひらがな→カタカナ、全角英数→半角、小文字化してあいまい検索に使う */

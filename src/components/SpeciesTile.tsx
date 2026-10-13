@@ -106,13 +106,13 @@ export type SpeciesPlateProps = {
   photoUrl?: string | null;
   /** 記録済みか。未発見なら参考写真は使わず、シルエットか「？」にする */
   discovered?: boolean;
-  /** 未発見でも参考写真を使う（ホームの季節の種の行のサムネイル） */
+  /** 未発見でも参考写真を使う（記録の名前を選ぶ段階だけ。図鑑・ホーム・種詳細では、未発見の種に参考写真を出さない） */
   showReference?: boolean;
   /** 「？」の大きさ（tile: 図鑑のタイル、thumb: 行のサムネイル 40〜56、large: 図鑑カード・ヒーロー） */
   patternSize?: PatternSize;
   /** 写真の解像度 */
   photoSize?: 'thumb' | 'full';
-  /** 写真の代替テキスト。省くと飾り（alt=""）。種詳細のヒーローは和名を渡す */
+  /** 写真の代替テキスト。省くと飾り（alt=""）。種詳細のヒーローは、記録済みなら和名、未発見なら「まだ見つけていない生き物」 */
   alt?: string;
   className?: string;
   style?: CSSProperties;
@@ -173,7 +173,7 @@ export function SpeciesPlate({
 
 /**
  * 行のサムネイル（40 / 48 / 56、rounded-xs）。ListRow の leading に置き、thumbSize に同じ大きさを渡す。
- * 季節の種の行は showReference（利用者の写真 → 参考写真 → シルエット → 番号の順）。
+ * 記録の名前を選ぶ段階は showReference（利用者の写真 → 参考写真 → シルエット →「？」の順）。
  */
 export function SpeciesThumb({
   species,
@@ -219,7 +219,7 @@ export type SpeciesTileProps = {
 
 /**
  * 図鑑のタイル（ゲームのカード）。白い面に 2px の線と厚み。記録済みはタイプの色の枠になり、
- * めずらしい・幻は光が横切る。未発見は「？」のプレートで、和名を薄く出す。
+ * めずらしい・幻は光が横切る。未発見は「？」のプレートで、名前は「？？？」（記録すると名前がわかる）。
  */
 export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = false }: SpeciesTileProps) {
   const legendary = species.rarity === 4;

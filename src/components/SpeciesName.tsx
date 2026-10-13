@@ -24,7 +24,7 @@ type Props = {
 };
 
 /**
- * 和名（docs/DESIGN_SYSTEM.md §3）。hidden の時は「？？？」。
+ * 和名（docs/DESIGN_SYSTEM.md §3）。hidden の時は「？？？」（§5.1）。
  * BudouX はカタカナの複合語を切れないので、species.nameBreak の | を <wbr> にして、
  * そこでだけ改行できるようにする（.phrase）。nameBreak がない短い名前は途中で改行しない。
  */
