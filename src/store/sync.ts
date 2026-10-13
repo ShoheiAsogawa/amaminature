@@ -77,6 +77,9 @@ export function syncNow(): Promise<void> {
 }
 
 const codeOf = (e: unknown) => (e as { code?: string }).code;
+/** あとでもう一度送れば通るかもしれない失敗（圏外・混雑・サーバーの不調・ログイン切れ） */
+const retryLater = (e: unknown) =>
+  !(e instanceof ApiError) || e.code === 'offline' || e.code === 'rate_limited' || e.status === 401 || e.status >= 500;
 
 async function doSync() {
   const store = useStore.getState();
@@ -105,8 +108,9 @@ async function doSync() {
     for (const id of sent) {
       try {
         await api.deleteSighting(id);
-      } catch {
-        remaining.push(id);
+      } catch (e) {
+        // 自分の記録でない（403）など、何度送っても消せないものは諦める
+        if (retryLater(e)) remaining.push(id);
       }
     }
     // 送っている間に増えた分は残す（次の回で送る）
@@ -132,21 +136,22 @@ async function doSync() {
         await useStore.getState().markSynced(id, 'synced', s);
       } catch (e) {
         const code = codeOf(e);
-        if (code === 'offline') break;
+        // 圏外・混雑などは、残りも通らないので次の回にまとめて送る（写真を何度も送らない）
+        if (retryLater(e)) break;
         if (code === 'deleted') {
           // ほかの端末で消した記録
           const cur = useStore.getState().sightings.find((x) => x.id === id);
           if (cur) await useStore.getState().removeSighting(cur);
-        } else if (code === 'duplicate_photo' || code === 'invalid_request') {
-          // サーバーが受け付けない記録は再送しない（端末には残し、ポイント対象外にする）
+        } else {
+          // サーバーが受け付けない記録（同じ写真・日時が正しくない・写真が大きすぎる・ほかの人の記録など）は
+          // 再送しない（端末には残し、ポイント対象外にする）
           await useStore.getState().markSynced(id, 'rejected', s, code === 'duplicate_photo' ? 'duplicate' : 'invalid');
           toast(
             code === 'duplicate_photo'
               ? '同じ写真の記録があるため、クラウドには保存されませんでした'
-              : '日時などが正しくない記録があり、クラウドに保存できませんでした（ポイントの対象外です）',
+              : 'クラウドに保存できない記録がありました（日時が古すぎるなど。ポイントの対象外です）',
           );
-        } else {
-          console.warn('sync failed', id, e);
+          console.warn('sync rejected', id, e);
         }
       }
     }
