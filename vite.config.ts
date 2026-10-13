@@ -37,7 +37,8 @@ export default defineConfig({
     budouxBrowserDom,
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 新しい版への入れ替えは src/main.tsx で、記録の途中でない時に行う（injectRegister: false では autoUpdate が効かない）
+      registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {

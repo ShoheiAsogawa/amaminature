@@ -117,6 +117,8 @@ const RAW: Omit<Species, 'no'>[] = [
     category: 'bird',
     rarity: 3,
     endemic: 'subspecies',
+    // 営巣木の場所が広まると、撮影者が集まって繁殖をじゃまする
+    sensitive: true,
     protection: ['国の天然記念物'],
     habitat: ['森'],
     months: ALL,
@@ -657,6 +659,8 @@ const RAW: Omit<Species, 'no'>[] = [
     sci: 'Rosalia ferriei',
     category: 'insect',
     rarity: 4,
+    // 採集の対象になりやすい（場所が広まると採られる）
+    sensitive: true,
     habitat: ['森'],
     months: [5, 6, 7],
     range: '奄美大島・徳之島・沖縄島など',

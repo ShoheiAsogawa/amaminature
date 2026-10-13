@@ -1,12 +1,13 @@
 // ローカルの Worker（`npm run dev:worker`、.dev.vars で DEV_AUTH=true）に対するAPIスモークテスト
 // 使い方: node scripts/smoke-api.mjs [http://127.0.0.1:8787]
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:8787';
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET ?? 'dev-channel-secret';
-const PARTNER_KEY = process.env.PARTNER_KEY ?? 'test-partner-key';
 const user = `Udev${Date.now()}`;
-const RUN = Date.now() % 251; // 実行ごとに写真のバイト列（ハッシュ）を変える
+const RUN = Date.now() % 251;
+// 実行ごとに写真のバイト列（ハッシュ）を変える（ローカルの D1 は実行をまたいで残り、同じ写真は重複として断られる）
+const SALT = randomBytes(16);
 const H = { Authorization: `Dev ${user}` };
 let failures = 0;
 
@@ -28,6 +29,7 @@ async function call(method, path, { body, headers = {}, form } = {}) {
 function jpeg(seed) {
   // 最小のJPEGではなく、ハッシュが変わるだけのダミーバイト列（サーバーは先頭の印 FF D8 FF だけを見る）
   const bytes = new Uint8Array(2048).map((_, i) => (i * 31 + seed * 7 + RUN * 13 + (i % 97) * RUN) % 256);
+  bytes.set(SALT, 16);
   bytes[0] = 0xff;
   bytes[1] = 0xd8;
   bytes[2] = 0xff;
@@ -43,6 +45,19 @@ function sightingForm(meta, photoSeed) {
   }
   return f;
 }
+
+// 運営の管理画面 API（.dev.vars の ADMIN_KEY_SHA256 に対応するキー）
+const ADMIN_KEY = process.env.ADMIN_KEY ?? 'dev-admin-key-0123456789abcdef';
+const admin = (method, path, body) =>
+  fetch(`${BASE}/api/admin${path}`, {
+    method,
+    headers: { 'X-Admin-Key': ADMIN_KEY, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(async (r) => ({ status: r.status, data: (r.headers.get('content-type') ?? '').includes('json') ? await r.json() : null }));
+
+// 提携先のキーは、このテストの中で管理 API から発行する（最後に無効にする）
+const smokePartner = process.env.PARTNER_KEY ? null : (await admin('POST', '/partners', { name: 'スモークテスト（全域）', scope: 'all' })).data;
+const PARTNER_KEY = process.env.PARTNER_KEY ?? smokePartner?.apiKey;
 
 const now = new Date().toISOString();
 const base = { nickname: 'テスト', memo: '', observedAt: now, createdAt: now, areaId: 'yamato', kind: 'photo', locationProtected: false };
@@ -139,14 +154,6 @@ const notJpeg = new FormData();
 notJpeg.set('image', new Blob(['<html><script>alert(1)</script></html>'], { type: 'image/jpeg' }), 'card.jpg');
 check('share rejects bytes that are not a JPEG', (await call('POST', '/api/shares', { form: notJpeg })).status === 400);
 
-// 運営の管理画面 API（.dev.vars の ADMIN_KEY_SHA256 に対応するキー）
-const ADMIN_KEY = process.env.ADMIN_KEY ?? 'dev-admin-key-0123456789abcdef';
-const admin = (method, path, body) =>
-  fetch(`${BASE}/api/admin${path}`, {
-    method,
-    headers: { 'X-Admin-Key': ADMIN_KEY, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  }).then(async (r) => ({ status: r.status, data: (r.headers.get('content-type') ?? '').includes('json') ? await r.json() : null }));
 const a0 = await fetch(`${BASE}/api/admin/summary`, { headers: { 'X-Admin-Key': 'wrong-key-wrong-key-wrong-key' } });
 check('admin wrong key → 401', a0.status === 401);
 const a1 = await admin('GET', '/summary');
@@ -165,6 +172,8 @@ const a5 = await admin('PATCH', `/redemptions/${mineRedeem?.id}`, { status: 'can
 check('admin cancel returns the points', a5.status === 200 && (await call('GET', '/api/me')).data.balance === before.balance + 100);
 const a6 = await admin('PATCH', `/redemptions/${mineRedeem?.id}`, { status: 'bogus' });
 check('admin rejects a bad status', a6.status === 400);
+const reopen = await admin('PATCH', `/redemptions/${mineRedeem?.id}`, { status: 'requested' });
+check('a cancelled redemption cannot be reopened (would skip the balance check) → 409', reopen.status === 409, `${reopen.status}`);
 const a7 = await admin('GET', '/road-reports?status=all');
 const myRoad = a7.data.roadReports?.find((x) => x.id === s3);
 check('admin sees the precise road report', myRoad?.lat === 28.3512 && myRoad?.lng === 129.3821, JSON.stringify(myRoad));
@@ -251,6 +260,22 @@ check('webhook valid signature → 200', w1.status === 200);
 // SPA フォールバック
 const spa = await fetch(`${BASE}/species/rurikakesu`);
 check('SPA fallback serves index.html', spa.status === 200 && (await spa.text()).includes('<div id="root">'));
+
+// 取り消した路上レポートは、提携先（行政・保護機関）に渡さない
+const sRoad = randomUUID();
+await call('POST', '/api/sightings', {
+  form: sightingForm({ ...base, id: sRoad, speciesId: 'amami-kurousagi', roadReport: 'roadkill', reportLat: 28.3, reportLng: 129.4 }),
+});
+const before2 = await (await fetch(`${BASE}/api/partner/summary`, { headers: { 'X-Partner-Key': PARTNER_KEY } })).json();
+await admin('POST', `/sightings/${sRoad}/revoke`, { reason: '生き物が写っていない' });
+const after2 = await (await fetch(`${BASE}/api/partner/summary`, { headers: { 'X-Partner-Key': PARTNER_KEY } })).json();
+check(
+  'revoked road reports are hidden from partners',
+  before2.roadReports?.some((x) => x.id === sRoad) && !after2.roadReports?.some((x) => x.id === sRoad) && after2.totals.roadReports === before2.totals.roadReports - 1,
+  `${before2.totals?.roadReports} → ${after2.totals?.roadReports}`,
+);
+
+if (smokePartner?.partner) await admin('DELETE', `/partners/${smokePartner.partner.id}`);
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

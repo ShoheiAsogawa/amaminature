@@ -174,8 +174,12 @@ async function doSync() {
         await useStore.getState().markSynced(x.id, 'rejected', undefined, 'revoked');
         revokedNow++;
       } else if (!x.revoked && mine.syncState === 'rejected' && (mine.rejectReason ?? 'revoked') === 'revoked') {
-        // 運営が取り消しを戻した（日時が正しくなくて送れなかった記録は、直して送り直すまでそのまま）
-        await useStore.getState().markSynced(x.id, 'synced');
+        // 運営が取り消しを戻した。取り消されている間に端末で直したメモなどもあるので、送り直す（pending にする）
+        const cur = useStore.getState().sightings.find((s) => s.id === x.id);
+        if (cur) {
+          const { rejectReason: _r, ...rest } = cur;
+          await useStore.getState().updateSighting({ ...rest, syncState: 'synced' });
+        }
       }
     }
     if (revokedNow > 0) toast(`運営の確認により、${revokedNow}件の記録がポイントの対象外になりました`);

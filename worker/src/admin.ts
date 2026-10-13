@@ -143,9 +143,15 @@ adminApp.patch('/redemptions/:id', async (c) => {
   if (status !== undefined && !(REDEMPTION_STATUS as readonly string[]).includes(status)) return c.json({ error: 'invalid_status' }, 400);
   const row = await c.env.DB.prepare('SELECT status FROM redemptions WHERE id = ?').bind(id).first<{ status: string }>();
   if (!row) return c.json({ error: 'not_found' }, 404);
-  await c.env.DB.prepare('UPDATE redemptions SET status = COALESCE(?, status), note = COALESCE(?, note), updated_at = ? WHERE id = ?')
+  // 取り消した申請はポイントを戻してあるので、申請中・発送済みに戻さない（残高や1人1回の確認を通らずに使えてしまう）。
+  // 利用者にもう一度申請してもらう
+  const r = await c.env.DB.prepare(
+    `UPDATE redemptions SET status = COALESCE(?1, status), note = COALESCE(?2, note), updated_at = ?3
+     WHERE id = ?4 AND NOT (status = 'cancelled' AND ?1 IS NOT NULL AND ?1 <> 'cancelled')`,
+  )
     .bind(status ?? null, typeof note === 'string' ? note.trim().slice(0, 200) : null, nowIso(), id)
     .run();
+  if (r.meta.changes === 0) return c.json({ error: 'cannot_reopen' }, 409);
   await logAction(c.env, 'redemption.update', id, `${row.status} → ${status ?? row.status}${typeof note === 'string' ? ` / ${note.slice(0, 100)}` : ''}`);
   return c.json({ ok: true });
 });

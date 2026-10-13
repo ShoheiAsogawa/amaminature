@@ -61,8 +61,12 @@ npx wrangler r2 bucket lifecycle add amami-nature-photos inbox-expire inbox/ --e
 
 ```bash
 VITE_LIFF_ID=<LIFF_ID> VITE_LINE_ADD_FRIEND_URL=https://lin.ee/xxxxxxx npm run build
+# 新しい Worker が使う表・列を先に作る（worker/migrations のうち、まだ当てていないものだけが当たる）
+npm run db:migrate:remote
 npx wrangler deploy
 ```
+
+（`npm run deploy` は build → db:migrate:remote → wrangler deploy をまとめて行う。VITE_* は環境変数で渡す）
 
 デプロイ後、LINE Developers の Messaging API 設定で **Webhook URL** を
 `https://<デプロイ先>/api/line/webhook` に設定し、「検証」→ 成功を確認、「Webhookの利用」をオン。

@@ -64,6 +64,7 @@ const BRAND = '#1E50A2';
 const FG = '#161A18';
 const FG2 = '#4A524E';
 const FG3 = '#656C68';
+const DANGER = '#C8261B';
 
 export function liffUrl(liffId: string, path = '/'): string {
   return `https://liff.line.me/${liffId}${path}`;
@@ -115,7 +116,8 @@ export function identifyResultMessage(liffId: string, messageId: string, candida
 
   return {
     type: 'flex',
-    altText: sp ? `この生き物は「${sp.name}」かもしれません` : '図鑑の中からは特定できませんでした',
+    // 毒のある生き物は、通知の文にも注意を入れる（写真を送った時は、まだすぐ近くにいることが多い）
+    altText: sp ? `${sp.danger ? `【注意】${sp.danger} ` : ''}この生き物は「${sp.name}」かもしれません` : '図鑑の中からは特定できませんでした',
     contents: {
       type: 'bubble',
       body: {
@@ -127,6 +129,7 @@ export function identifyResultMessage(liffId: string, messageId: string, candida
               { type: 'text', text: 'AIの判定', size: 'xs', color: FG3, weight: 'bold' },
               { type: 'text', text: sp.name, size: 'xxl', weight: 'bold', color: FG, wrap: true },
               { type: 'text', text: sp.sci, size: 'sm', color: FG3, style: 'italic' },
+              ...(sp.danger ? [{ type: 'text', text: `⚠ ${sp.danger}`, size: 'sm', color: DANGER, weight: 'bold', wrap: true, margin: 'md' }] : []),
               {
                 type: 'text',
                 text: `確からしさ ${Math.round((top!.confidence ?? 0) * 100)}%・${RARITY_META[sp.rarity].label}`,

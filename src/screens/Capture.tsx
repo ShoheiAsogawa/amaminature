@@ -480,6 +480,13 @@ function CaptureFlow() {
         subtitle={
           <>
             <SciName sci={sp.sci} className="block text-sub leading-[18px]" />
+            {/* 毒のある種は、候補の時点で危険がわかるように */}
+            {sp.danger && (
+              <span className="mt-1 inline-flex h-6 items-center gap-1 rounded-full bg-danger px-2 text-caption text-on-danger">
+                <IconWarning size={13} aria-hidden />
+                毒あり・近づかない
+              </span>
+            )}
             {entry && <span className="mt-0.5 block text-caption text-fg-3">記録済み</span>}
           </>
         }
@@ -850,7 +857,9 @@ function CaptureFlow() {
               </label>
             </Group>
 
-            <div className="pb-4 pt-4">
+            <div className="space-y-3 pb-4 pt-4">
+              {/* 毒のある生き物の注意は、記録する時にも必ず見せる（いちばん近くにいる時なので） */}
+              {species?.danger && <Notice kind="caution">{species.danger}</Notice>}
               {roadType ? (
                 <Notice icon={IconMapPin}>
                   {`${coords ? '正確な位置を記録しました。' : '地域の行の現在地ボタンで正確な位置を記録すると、対策に役立ちます。'}正確な位置は行政・保護機関との共有用で、アプリ内や共有画像には表示しません。`}

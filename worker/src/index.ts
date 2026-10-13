@@ -171,7 +171,15 @@ app.post('/api/auth/line', async (c) => {
 
 // ───────── プロフィール ─────────
 
-app.get('/api/me', auth, async (c) => c.json((await buildMe(c.env, c.get('userId'))).me));
+app.get('/api/me', auth, async (c) => {
+  const userId = c.get('userId');
+  // 起動と同期のたびに呼ばれるので、ここで最後に使った日時を残す（書き込みは1時間に1回まで）。管理画面の「今週あそんだ人」に使う
+  const now = Date.now();
+  await c.env.DB.prepare('UPDATE users SET last_seen_at = ?1 WHERE id = ?2 AND (last_seen_at IS NULL OR last_seen_at < ?3)')
+    .bind(new Date(now).toISOString(), userId, new Date(now - 3600000).toISOString())
+    .run();
+  return c.json((await buildMe(c.env, userId)).me);
+});
 
 app.patch('/api/me', auth, async (c) => {
   const body = await c.req.json<{ nickname?: unknown; pledged?: unknown }>();
@@ -263,7 +271,7 @@ app.post('/api/sightings', auth, async (c) => {
        ON CONFLICT(id) DO UPDATE SET
          species_id = ?3, custom_name = ?4, nickname = ?5, memo = ?6, observed_at = ?7, updated_at = ?9,
          area_id = ?10, lat = ?11, lng = ?12, location_protected = ?13, kind = ?14, road_report = ?15,
-         photo_key = ?16, photo_hash = ?17`,
+         photo_key = ?16, photo_hash = ?17, received_at = COALESCE(sightings.received_at, ?9)`,
     ).bind(
       s.id,
       userId,
@@ -481,26 +489,28 @@ app.get('/api/partner/summary', async (c) => {
 
   const areas = partner.scope === 'all' ? null : partner.scope.split(',').filter((a) => AREA_BY_ID[a]);
   const where = areas ? `area_id IN (${areas.map(() => '?').join(',')})` : '1=1';
+  // 運営が取り消した路上レポート（ポイント目的の作り話など）は、行政・保護機関に渡さない
+  const roadOk = 'sighting_id NOT IN (SELECT id FROM sightings WHERE revoked_at IS NOT NULL)';
   const binds = areas ?? [];
   const since = new Date(Date.now() - 365 * 86400000).toISOString();
   const q = (sql: string, ...extra: unknown[]) => c.env.DB.prepare(sql).bind(...binds, ...extra);
 
   const [totals, roadTotal, byArea, roadByArea, byHour, byMonth, roadByMonth, top, recent] = await c.env.DB.batch([
     q(`SELECT COUNT(*) AS sightings, COUNT(DISTINCT user_id) AS users, COUNT(DISTINCT species_id) AS species FROM sightings WHERE ${where} AND revoked_at IS NULL`),
-    q(`SELECT COUNT(*) AS n FROM road_reports WHERE ${where}`),
+    q(`SELECT COUNT(*) AS n FROM road_reports WHERE ${where} AND ${roadOk}`),
     q(`SELECT area_id AS areaId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND area_id IS NOT NULL GROUP BY area_id`),
-    q(`SELECT area_id AS areaId, COUNT(*) AS n FROM road_reports WHERE ${where} AND area_id IS NOT NULL GROUP BY area_id`),
+    q(`SELECT area_id AS areaId, COUNT(*) AS n FROM road_reports WHERE ${where} AND ${roadOk} AND area_id IS NOT NULL GROUP BY area_id`),
     q(`SELECT CAST(strftime('%H', observed_at, '+9 hours') AS INTEGER) AS hour, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL GROUP BY hour`),
     q(`SELECT strftime('%Y-%m', observed_at, '+9 hours') AS month, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND observed_at >= ? GROUP BY month`, since),
     q(
       `SELECT strftime('%Y-%m', observed_at, '+9 hours') AS month, COUNT(*) AS roadkill FROM road_reports
-       WHERE ${where} AND type IN ('roadkill', 'injured') AND observed_at >= ? GROUP BY month`,
+       WHERE ${where} AND ${roadOk} AND type IN ('roadkill', 'injured') AND observed_at >= ? GROUP BY month`,
       since,
     ),
     q(`SELECT species_id AS speciesId, COUNT(*) AS sightings FROM sightings WHERE ${where} AND revoked_at IS NULL AND species_id IS NOT NULL GROUP BY species_id ORDER BY sightings DESC LIMIT 10`),
     q(
       `SELECT sighting_id AS id, type, species_id AS speciesId, area_id AS areaId, lat, lng, observed_at AS observedAt
-       FROM road_reports WHERE ${where} ORDER BY observed_at DESC LIMIT 100`,
+       FROM road_reports WHERE ${where} AND ${roadOk} ORDER BY observed_at DESC LIMIT 100`,
     ),
   ]);
 

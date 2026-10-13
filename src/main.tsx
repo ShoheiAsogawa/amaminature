@@ -32,7 +32,44 @@ createRoot(document.getElementById('root')!).render(
 // LINE（LIFF）から開かれていればログインして同期を開始
 void initAccount();
 
+/**
+ * 新しい版を公開した直後、古い版の分割ファイルはもうない。読み込みに失敗したら1回だけ読み込み直して新しい版にする
+ * （サービスワーカーのない LINE の iPhone 内ブラウザなど）。App.tsx の RouteError と同じ印を使い、続けて読み直さない
+ */
+window.addEventListener('vite:preloadError', (event) => {
+  if (!navigator.onLine) return;
+  try {
+    const last = Number(sessionStorage.getItem('amami-nature:reloaded-at') ?? 0);
+    if (Date.now() - last < 30000) return;
+    sessionStorage.setItem('amami-nature:reloaded-at', String(Date.now()));
+  } catch {
+    return;
+  }
+  event.preventDefault();
+  window.location.reload();
+});
+
 // PWA（LINE外でホーム画面に追加した場合のオフライン対応）
 if ('serviceWorker' in navigator && import.meta.env.PROD && window.top === window.self) {
-  void import('virtual:pwa-register').then(({ registerSW }) => registerSW({ immediate: true }));
+  void import('virtual:pwa-register').then(({ registerSW }) => {
+    const updateSW = registerSW({
+      immediate: true,
+      // 新しい版が届いた。記録や入力の途中で読み込み直さないよう、アプリを裏に回した時か、
+      // タブの画面でシートを開いていない時に入れ替える
+      onNeedRefresh() {
+        const calm = () =>
+          document.visibilityState === 'hidden' ||
+          (['/', '/zukan', '/explore', '/me'].includes(window.location.pathname) && !document.querySelector('[role="dialog"]'));
+        const apply = () => {
+          if (!calm()) return;
+          document.removeEventListener('visibilitychange', apply);
+          window.clearInterval(timer);
+          void updateSW(true);
+        };
+        document.addEventListener('visibilitychange', apply);
+        const timer = window.setInterval(apply, 5000);
+        apply();
+      },
+    });
+  });
 }

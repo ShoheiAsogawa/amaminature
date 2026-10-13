@@ -15,7 +15,7 @@ import type { Sighting } from '../lib/types';
 import { useStore } from '../store/useStore';
 import { CollectibleCard, CollectibleCardBack } from './CollectibleCard';
 import { Coin, LevelBadge, MessageWindow, Sparkles, XPBar } from './game';
-import { IconArrowSquareOut, IconX } from './icons';
+import { IconArrowSquareOut, IconWarning, IconX } from './icons';
 import { Phrase } from './Phrase';
 import { loadPhotoUrl } from './PhotoImg';
 import { BadgeEmblem, BadgeName, Button, formatDateJa, ListRow, Num, SectionHeader, toast, useCanGoBack } from './ui';
@@ -356,6 +356,13 @@ function Reveal({
 
               {phase === 'reward' && (
                 <m.div initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="mt-3 space-y-2.5">
+                  {/* 毒のある生き物は、お祝いの中でも注意を先に見せる */}
+                  {species?.danger && (
+                    <p role="note" className="flex items-start gap-2 rounded-lg border-2 border-white/30 bg-danger px-3.5 py-2.5 text-callout font-bold text-on-danger">
+                      <IconWarning size={20} className="mt-0.5 shrink-0" aria-hidden />
+                      {species.danger}
+                    </p>
+                  )}
                   {/* ポイントと XP */}
                   <div className="rounded-lg border-2 border-white/15 bg-white/[.08] p-3.5">
                     <div className="flex items-center gap-3">

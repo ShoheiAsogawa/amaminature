@@ -161,3 +161,11 @@ describe('連続日数の記録', () => {
     }
   });
 });
+
+describe('位置を保存しない種', () => {
+  it('幻の種と、採集・営巣の注意がある種は、すべて sensitive', async () => {
+    const { SPECIES } = await import('../src/data/species');
+    const missing = SPECIES.filter((s) => (s.rarity === 4 || /採集|採取|営巣|盗掘/.test(s.manner ?? '')) && !s.sensitive).map((s) => s.id);
+    expect(missing).toEqual([]);
+  });
+});

@@ -124,6 +124,9 @@ export default function Admin() {
   const [redemptionStatus, setRedemptionStatus] = useState<RedemptionStatus | 'all'>('requested');
   const [roadStatus, setRoadStatus] = useState<RoadStatus | 'all'>('new');
   const [sightingFilter, setSightingFilter] = useState<SightingFilter>('all');
+  /** 記録チェックの続き（1回に60件ずつ。サーバーが受け取った日時の古い方へたどる） */
+  const [sightingsMore, setSightingsMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [userQuery, setUserQuery] = useState('');
 
   useEffect(() => {
@@ -160,7 +163,10 @@ export default function Admin() {
         if (latest()) setData((d) => ({ ...d, redemptions: r.redemptions }));
       } else if (tab === 'sightings') {
         const r = await adminApi.sightings(key, sightingFilter);
-        if (latest()) setData((d) => ({ ...d, sightings: r.sightings }));
+        if (latest()) {
+          setData((d) => ({ ...d, sightings: r.sightings }));
+          setSightingsMore(r.sightings.length >= SIGHTINGS_PAGE);
+        }
       } else if (tab === 'road') {
         const r = await adminApi.roadReports(key, roadStatus);
         if (latest()) setData((d) => ({ ...d, roadReports: r.roadReports }));
@@ -309,6 +315,27 @@ export default function Admin() {
             items={demo ? data.sightings.filter((s) => matchSighting(s, sightingFilter)) : data.sightings}
             filter={sightingFilter}
             onFilter={setSightingFilter}
+            more={!demo && sightingsMore}
+            loadingMore={loadingMore}
+            onMore={async () => {
+              const cursor = data.sightings.at(-1)?.receivedAt;
+              if (!key || !cursor) return;
+              const seq = loadSeq.current;
+              setLoadingMore(true);
+              try {
+                const r = await adminApi.sightings(key, sightingFilter, cursor);
+                if (seq !== loadSeq.current) return;
+                setData((d) => {
+                  const seen = new Set(d.sightings.map((x) => x.id));
+                  return { ...d, sightings: [...d.sightings, ...r.sightings.filter((x) => !seen.has(x.id))] };
+                });
+                setSightingsMore(r.sightings.length >= SIGHTINGS_PAGE);
+              } catch (e) {
+                toast.error((e as Error).message);
+              } finally {
+                setLoadingMore(false);
+              }
+            }}
             onRevoke={(s, reason) =>
               act(
                 (k) => adminApi.revoke(k, s.id, reason),
@@ -636,10 +663,13 @@ function RedemptionsTab({
                       取り消す
                     </Button>
                   </>
-                ) : (
+                ) : r.status === 'fulfilled' ? (
                   <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => onUpdate(r, 'requested')}>
                     申請中に戻す
                   </Button>
+                ) : (
+                  // 取り消した申請はポイントを返してあるので戻せない（もう一度申請してもらう）
+                  <p className="text-caption text-fg-3">取り消し済み・ポイントは返しました</p>
                 )}
               </div>
             </div>
@@ -686,11 +716,17 @@ function useAdminPhoto(adminKey: string | null, id: string, enabled: boolean) {
   return url;
 }
 
+/** 記録チェックの1回に読む件数（worker/src/admin.ts の既定と同じ） */
+const SIGHTINGS_PAGE = 60;
+
 function SightingsTab({
   adminKey,
   items,
   filter,
   onFilter,
+  more,
+  loadingMore,
+  onMore,
   onRevoke,
   onRestore,
 }: {
@@ -698,6 +734,9 @@ function SightingsTab({
   items: AdminSighting[];
   filter: SightingFilter;
   onFilter: (f: SightingFilter) => void;
+  more: boolean;
+  loadingMore: boolean;
+  onMore: () => void;
   onRevoke: (s: AdminSighting, reason: string) => void;
   onRestore: (s: AdminSighting) => void;
 }) {
@@ -730,6 +769,11 @@ function SightingsTab({
           <SightingCard key={s.id} s={s} adminKey={adminKey} onRevoke={() => (setReason(REVOKE_REASONS[0]), setTarget(s))} onRestore={() => onRestore(s)} />
         ))}
       </div>
+      {more && (
+        <Button variant="secondary" className="mx-auto mt-4 sm:w-auto sm:px-8" onClick={onMore} disabled={loadingMore}>
+          {loadingMore ? '読み込んでいます' : 'もっと見る（古い記録）'}
+        </Button>
+      )}
       <Sheet open={!!target} onClose={() => setTarget(null)} title="記録を取り消す">
         {target && (
           <>
@@ -857,11 +901,11 @@ function RoadTab({
   onStatus: (s: RoadStatus | 'all') => void;
   onUpdate: (r: AdminRoadReport, s: RoadStatus) => void;
 }) {
-  /** 行政・保護機関への転送用の CSV（正確な位置を含むので、扱いに注意） */
+  /** 行政・保護機関への転送用の CSV（正確な位置を含むので、扱いに注意）。運営が取り消したレポートは入れない */
   const download = () => {
     const rows = [
       ['種類', '生き物', '市町村', '日時', '緯度', '経度', '地図', '状態', 'メモ'],
-      ...items.map((r) => [
+      ...items.filter((r) => !r.revokedAt).map((r) => [
         ROAD_TYPE[r.type].label,
         speciesName(r.speciesId, '不明'),
         areaName(r.areaId),
