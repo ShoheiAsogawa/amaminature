@@ -174,7 +174,7 @@ export default function Plus() {
       </Group>
 
       <div className="mt-4 flex gap-4 px-3">
-        <Button variant="text" size="hit" onClick={() => toast('利用規約は準備中です')}>
+        <Button variant="text" size="hit" onClick={() => navigate('/terms')}>
           利用規約
         </Button>
         <Button variant="text" size="hit" onClick={() => toast(active ? 'すでに有効です' : 'β版のため、復元する購入はありません')}>

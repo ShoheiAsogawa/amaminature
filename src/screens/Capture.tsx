@@ -1,6 +1,7 @@
 import { AnimatePresence, m, type Variants } from 'framer-motion';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useBlocker, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { hasRoadConsent, RoadConsentSheet, setRoadConsent } from '../components/RoadConsentSheet';
 import {
   IconCameraFill,
   IconCaretLeft,
@@ -172,6 +173,8 @@ function CaptureFlow() {
     candidates: null,
   });
   const [aiSheet, setAiSheet] = useState(false);
+  /** 路上レポートの正確な位置を送る前の同意のシート */
+  const [roadAsk, setRoadAsk] = useState(false);
   const [tipsSheet, setTipsSheet] = useState(false);
   const [seed, setSeed] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -360,11 +363,21 @@ function CaptureFlow() {
     go('details');
   }
 
-  async function save() {
+  /** precise: 路上レポートの正確な位置を送るか（同意のシートで選んだ直後だけ渡す） */
+  async function save(opts?: { precise?: boolean }) {
     if (speciesId === undefined || saving) return;
     if (locating) {
       toast('現在地を調べています。少し待ってから送ってください');
       return;
+    }
+    // 路上レポートの正確な位置は、提携先に渡すことへの同意がある時だけ送る。まだ聞いていない（または文面が変わった）時は先に聞く
+    let precise = false;
+    if (roadType && coords) {
+      if (opts?.precise !== undefined) precise = opts.precise;
+      else if (!settings.roadConsent || (settings.roadConsent.version !== null && !hasRoadConsent(settings.roadConsent))) {
+        setRoadAsk(true);
+        return;
+      } else precise = hasRoadConsent(settings.roadConsent);
     }
     setSaving(true);
     try {
@@ -390,7 +403,7 @@ function CaptureFlow() {
         ...protectedLoc,
         photoId,
         kind: photo ? 'photo' : 'sign',
-        ...(roadType ? { roadReport: roadType, reportLat: coords?.lat ?? null, reportLng: coords?.lng ?? null } : {}),
+        ...(roadType ? { roadReport: roadType, reportLat: precise ? (coords?.lat ?? null) : null, reportLng: precise ? (coords?.lng ?? null) : null } : {}),
       };
 
       const nowMonth = currentMonth(now);
@@ -862,7 +875,9 @@ function CaptureFlow() {
               {species?.danger && <Notice kind="caution">{species.danger}</Notice>}
               {roadType ? (
                 <Notice icon={IconMapPin}>
-                  {`${coords ? '正確な位置を記録しました。' : '地域の行の現在地ボタンで正確な位置を記録すると、対策に役立ちます。'}正確な位置は行政・保護機関との共有用で、アプリ内や共有画像には表示しません。`}
+                  {settings.roadConsent && settings.roadConsent.version === null
+                    ? '正確な位置は送らない設定です（市町村までを送ります）。送るときは、マイページの「路上レポートの位置の提供」で同意できます。'
+                    : `${coords ? '正確な位置を記録しました。' : '地域の行の現在地ボタンで正確な位置を記録すると、対策に役立ちます。'}正確な位置は、同意いただいた場合だけ、提携する自治体・保護団体に渡します。アプリ内や共有画像には表示しません。`}
                 </Notice>
               ) : species?.sensitive ? (
                 <Notice icon={IconEyeSlash}>
@@ -878,7 +893,7 @@ function CaptureFlow() {
 
       {step === 'details' && (
         <CtaBar>
-          <Button variant={roadType ? 'danger' : 'primary'} onClick={save} aria-busy={saving}>
+          <Button variant={roadType ? 'danger' : 'primary'} onClick={() => void save()} aria-busy={saving}>
             {saving && <Spinner size={20} />}
             {roadType ? '送信する' : '図鑑に記録する'}
           </Button>
@@ -897,6 +912,16 @@ function CaptureFlow() {
           <ListRow icon={IconMicrophone} title="写真なしでも記録できます" subtitle={<Phrase text="鳴き声を聞いた、暗くて撮れなかったときに。" />} />
         </div>
       </Sheet>
+
+      <RoadConsentSheet
+        open={roadAsk}
+        onClose={() => setRoadAsk(false)}
+        onDecide={(agree) => {
+          setRoadConsent(agree);
+          setRoadAsk(false);
+          void save({ precise: agree });
+        }}
+      />
 
       <Sheet open={aiSheet} onClose={() => setAiSheet(false)} title="AI判定は AMAMI NATURE+ の機能です">
         <p className="text-body text-fg-2">

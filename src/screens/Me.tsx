@@ -29,14 +29,16 @@ import {
   toast,
 } from '../components/ui';
 import { SPECIES, SPECIES_DISCLAIMER } from '../data/species';
-import { api } from '../lib/api';
+import { hasRoadConsent, RoadConsentSheet, setRoadConsent } from '../components/RoadConsentSheet';
+import { DELETE_ACCOUNT } from '../data/consentTexts';
+import { api, errorMessage } from '../lib/api';
 import { exportBackup, importBackup } from '../lib/db';
 import { sfx } from '../lib/sfx';
 import { lineLogin, LIFF_ID } from '../lib/liff';
 import { BADGES, computeStats, earnedBadges, type Badge } from '../lib/progress';
 import type { Settings, Sighting, ThemePref } from '../lib/types';
 import { useProgress } from '../store/useProgress';
-import { syncNow } from '../store/sync';
+import { clearSyncQueues, syncNow } from '../store/sync';
 import { isPlusActive, dayKey, useStore } from '../store/useStore';
 
 const ADD_FRIEND_URL = (import.meta.env.VITE_LINE_ADD_FRIEND_URL as string | undefined) ?? '';
@@ -115,6 +117,29 @@ export default function Me() {
   const [badge, setBadge] = useState<Badge | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [roadSheet, setRoadSheet] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const roadAgreed = hasRoadConsent(settings.roadConsent);
+
+  /** 退会：クラウドのデータを消し、ログインを外し、この端末のデータも消す */
+  const leave = async () => {
+    setLeaving(true);
+    try {
+      await api.deleteAccount();
+      api.logout();
+      clearSyncQueues();
+      await resetAll();
+      useStore.getState().setAccount({ mode: 'demo', me: null, pictureUrl: null });
+      setLeaveOpen(false);
+      toast.success(DELETE_ACCOUNT.done);
+      navigate('/onboarding', { replace: true });
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setLeaving(false);
+    }
+  };
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -278,6 +303,12 @@ export default function Me() {
         />
         <ListRow title="表示モード" value={themeLabel} chevron onClick={() => setThemeSheet(true)} />
         <ListRow title="セーフドライブ宣言" chevron to="/safe-drive" />
+        <ListRow
+          title="路上レポートの位置の提供"
+          value={roadAgreed ? '同意している' : settings.roadConsent ? '送らない' : '未設定'}
+          chevron
+          onClick={() => setRoadSheet(true)}
+        />
       </Group>
 
       {/* データ */}
@@ -286,6 +317,7 @@ export default function Me() {
         <ListRow title="記録を書き出す" chevron onClick={doExport} />
         <ListRow title="バックアップから読み込む" chevron onClick={() => fileRef.current?.click()} />
         <ListRow title={<span className="text-danger">この端末のデータを消去</span>} onClick={() => setResetOpen(true)} />
+        {lineMode && <ListRow title={<span className="text-danger">退会（クラウドのデータを消す）</span>} onClick={() => setLeaveOpen(true)} />}
       </Group>
       <input
         ref={fileRef}
@@ -304,6 +336,9 @@ export default function Me() {
       <Group>
         <ListRow title="自治体・保護団体の方へ" chevron to="/partners" />
         <ListRow title="AMAMI NATURE+" value={plus ? `${formatDateJa(settings.plus!.until, { year: false })}まで` : undefined} chevron to="/plus" />
+        <ListRow title="お問い合わせ" value={account.me?.supportCode} chevron to="/contact" />
+        <ListRow title="利用規約" chevron to="/terms" />
+        <ListRow title="プライバシーポリシー" chevron to="/privacy" />
       </Group>
 
       {!showLogin && (
@@ -373,6 +408,29 @@ export default function Me() {
       </Sheet>
 
       <BadgeSheet badge={badge} earned={!!badge && badges.has(badge.id)} earnedAt={badge ? earnedAt.get(badge.id) : null} onClose={() => setBadge(null)} />
+
+      {/* 路上レポートの位置の提供（同意・撤回） */}
+      <RoadConsentSheet
+        open={roadSheet}
+        settings={{ agreed: roadAgreed }}
+        onClose={() => setRoadSheet(false)}
+        onDecide={(agree) => {
+          setRoadConsent(agree);
+          setRoadSheet(false);
+          toast(agree ? '路上レポートの正確な位置を送ります' : 'これからの路上レポートは、位置を市町村までにします');
+        }}
+      />
+
+      {/* 退会（クラウドのデータを消す） */}
+      <ConfirmDialog
+        open={leaveOpen}
+        onClose={() => setLeaveOpen(false)}
+        title={DELETE_ACCOUNT.title}
+        body={<span className="whitespace-pre-line">{DELETE_ACCOUNT.body}</span>}
+        confirmLabel={DELETE_ACCOUNT.confirm}
+        busy={leaving}
+        onConfirm={() => void leave()}
+      />
 
       {/* この端末のデータを消去 */}
       <ConfirmDialog

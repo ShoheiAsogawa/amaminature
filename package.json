@@ -15,6 +15,7 @@
     "icons:ui": "node scripts/build-ui-icons.mjs",
     "contrast": "node scripts/contrast.mjs",
     "check:sil": "node scripts/check-silhouettes.mjs",
+    "check:legal": "node scripts/check-legal.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "build:demo": "DEMO_BUILD=1 vite build --outDir dist-demo",
     "dev:worker": "wrangler dev --local --port 8787",

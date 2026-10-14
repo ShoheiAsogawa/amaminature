@@ -16,6 +16,8 @@ import { IconCheckCircleFill, IconInfo, IconWarningCircleFill } from './componen
 import { TabBar } from './components/TabBar';
 import { Button } from './components/ui';
 import { cn } from './lib/cn';
+import { PRIVACY_VERSION, TERMS_VERSION } from './data/legalVersions';
+import { api } from './lib/api';
 import { LIFF_ID } from './lib/liff';
 import Explore from './screens/Explore';
 import Home from './screens/Home';
@@ -40,6 +42,10 @@ const loadSafeDrive = retry(() => import('./screens/SafeDrive'));
 const loadCapture = retry(() => import('./screens/Capture'));
 const loadSightingDetail = retry(() => import('./screens/SightingDetail'));
 const Onboarding = lazy(loadOnboarding);
+const loadLegal = retry(() => import('./screens/Legal'));
+const Legal = lazy(loadLegal);
+const ConsentUpdate = lazy(() => loadLegal().then((m) => ({ default: m.ConsentUpdate })));
+const Contact = lazy(retry(() => import('./screens/Contact')));
 const Partners = lazy(retry(() => import('./screens/Partners')));
 const Admin = lazy(retry(() => import('./screens/Admin')));
 const Plus = lazy(loadPlus);
@@ -117,7 +123,13 @@ const TITLES: Record<string, string> = {
   '/partners': '自治体・保護団体の方へ',
   '/admin': '運営ダッシュボード',
   '/onboarding': 'はじめに',
+  '/terms': '利用規約',
+  '/privacy': 'プライバシーポリシー',
+  '/contact': 'お問い合わせ',
 };
+
+/** オンボーディングや規約の改定の同意の前でも開ける画面（提携先・運営・規約・お問い合わせ） */
+const OPEN_ROUTES = ['/onboarding', '/partners', '/admin', '/terms', '/privacy', '/contact'];
 
 function useRouteTitle() {
   const { pathname, search } = useLocation();
@@ -166,11 +178,13 @@ function AppToaster() {
 
 function Shell() {
   const onboarded = useStore((s) => s.settings.onboarded);
+  const consent = useStore((s) => s.settings.consent);
   const liffReady = useStore((s) => s.account.liffReady);
   const markVisit = useStore((s) => s.markVisit);
   const { pathname, search } = useLocation();
-  // LIFF の初期化が URL のログイン情報（#access_token など）を読み終えるまで、オンボーディングへ移らない（長くても数秒）
-  const [liffWaited, setLiffWaited] = useState(!LIFF_ID);
+  // LIFF の初期化が URL のログイン情報（#access_token など）を読み終えるまで、オンボーディングへ移らない（長くても数秒）。
+  // ログイン済みの端末も、サーバーの同意を読み込むまで待つ（別の端末で同意した人に同意の画面を一瞬出さない）
+  const [liffWaited, setLiffWaited] = useState(!LIFF_ID && !api.hasSession());
   useEffect(() => {
     if (liffWaited) return;
     const t = window.setTimeout(() => setLiffWaited(true), 5000);
@@ -187,11 +201,22 @@ function Shell() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [markVisit]);
 
-  // 提携先と運営の画面は、アプリのオンボーディングを経ずに開ける
-  if (!onboarded && pathname !== '/onboarding' && pathname !== '/partners' && pathname !== '/admin') {
+  // 提携先・運営・規約の画面は、アプリのオンボーディングを経ずに開ける
+  const open = OPEN_ROUTES.includes(pathname);
+  if (!onboarded && !open) {
     if (!liffReady && !liffWaited) return <Blank />;
     // LINE のトークから開いた記録画面（?inbox= など）を、オンボーディングの後に開き直す
     return <Navigate to="/onboarding" replace state={{ from: pathname + search }} />;
+  }
+  // 利用規約・プライバシーポリシーを改定したら、同意してもらうまで先に進めない
+  // （LINE で別の端末の同意を読み込む間は待つ。sync.ts の adoptServerConsent）
+  if (onboarded && !open && (consent?.terms !== TERMS_VERSION || consent?.privacy !== PRIVACY_VERSION)) {
+    if (!liffReady && !liffWaited) return <Blank />;
+    return (
+      <Suspense fallback={<Blank />}>
+        <ConsentUpdate />
+      </Suspense>
+    );
   }
   const showTabs = TAB_ROUTES.includes(pathname);
   return (
@@ -224,6 +249,9 @@ const routes = [
       { path: '/partners', element: <Partners /> },
       { path: '/admin', element: <Admin /> },
       { path: '/onboarding', element: <Onboarding /> },
+      { path: '/terms', element: <Legal kind="terms" /> },
+      { path: '/privacy', element: <Legal kind="privacy" /> },
+      { path: '/contact', element: <Contact /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

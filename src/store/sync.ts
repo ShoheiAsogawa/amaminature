@@ -37,6 +37,12 @@ export function queueDelete(id: string) {
   writeList(PENDING_DELETES_KEY, [...new Set([...readPendingDeletes(), id])]);
 }
 
+/** 送る予定の削除・セーフドライブ宣言を捨てる（退会した時） */
+export function clearSyncQueues() {
+  writeList(PENDING_DELETES_KEY, []);
+  writeList(PENDING_SAFE_DRIVES_KEY, []);
+}
+
 /** 圏外で宣言したセーフドライブ（日本時間の日付）。電波が戻ったら送る */
 export function queueSafeDrive(date: string) {
   writeList(PENDING_SAFE_DRIVES_KEY, [...new Set([...readList(PENDING_SAFE_DRIVES_KEY), date])]);
@@ -85,6 +91,10 @@ async function doSync() {
   const store = useStore.getState();
   store.setAccount({ syncing: true });
   try {
+    // 同意をサーバーと揃える（路上レポートの正確な位置は、サーバーに同意があるものだけ受け取られるので、記録より先に送る）
+    const me0 = useStore.getState().account.me ?? (await api.me());
+    await syncConsents(me0);
+
     // 0) 圏外で宣言したセーフドライブ
     const drives = readList(PENDING_SAFE_DRIVES_KEY);
     if (drives.length) {
@@ -195,6 +205,33 @@ async function doSync() {
   }
 }
 
+/** サーバーにある同意を端末に入れる（別の端末で同意した・データを消した後） */
+export function adoptServerConsent(me: Me) {
+  const { settings, updateSettings } = useStore.getState();
+  const { terms, privacy, road, roadAt } = me.consents;
+  if (terms && privacy && (!settings.consent || terms > settings.consent.terms || privacy > settings.consent.privacy)) {
+    updateSettings({ consent: { terms, privacy, at: new Date().toISOString() } });
+  }
+  const local = settings.roadConsent;
+  if (roadAt && (!local || Date.parse(roadAt) > Date.parse(local.at)) && (local?.version ?? null) !== road) {
+    updateSettings({ roadConsent: { version: road, at: roadAt } });
+  }
+}
+
+/** 端末とサーバーの同意を揃える。新しい方に合わせる（同意も撤回も） */
+async function syncConsents(me: Me) {
+  adoptServerConsent(me);
+  const { settings, setAccount } = useStore.getState();
+  const patch: Parameters<typeof api.updateMe>[0] = {};
+  const c = settings.consent;
+  if (c && (c.terms > (me.consents.terms ?? '') || c.privacy > (me.consents.privacy ?? ''))) patch.consent = { terms: c.terms, privacy: c.privacy };
+  const r = settings.roadConsent;
+  if (r && (r.version ?? null) !== me.consents.road && (!me.consents.roadAt || Date.parse(r.at) >= Date.parse(me.consents.roadAt))) {
+    patch.roadConsent = r.version;
+  }
+  if (Object.keys(patch).length) setAccount({ me: await api.updateMe(patch) });
+}
+
 /** LINE モードではポイントの使い道・宣言・Plus はサーバーを正とし、端末の設定をそれに合わせる */
 function hydrateFromServer(me: Me, history: { redemptions: ServerRedemption[]; safeDriveDates: string[] }) {
   const { settings, updateSettings } = useStore.getState();
@@ -270,8 +307,9 @@ async function doInitAccount(): Promise<void> {
     const settings = useStore.getState().settings;
     const name = me.nickname || profile?.displayName || me.displayName;
     if (!settings.name && name) useStore.getState().updateSettings({ name });
-    // 別の端末で誓いを済ませた人には、オンボーディングをもう一度させない
+    // 別の端末で誓いを済ませた人には、オンボーディングをもう一度させない（同意もサーバーのものを使う）
     if (me.pledged && !settings.onboarded) useStore.getState().updateSettings({ onboarded: true, pledged: true });
+    adoptServerConsent(me);
     useStore.getState().setAccount({
       mode: 'line',
       me,

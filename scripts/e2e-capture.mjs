@@ -60,6 +60,10 @@ page.on('console', (m) => ['warning', 'error'].includes(m.type()) && console.log
 
 await page.goto(`${BASE}/capture`);
 await page.waitForLoadState('networkidle');
+// 利用規約・プライバシーポリシーに同意していない利用者には、先に同意の画面を出す
+await page.getByRole('heading', { name: '利用規約とプライバシーポリシーについて' }).waitFor();
+check('consent screen is shown before using the app', true);
+await page.getByRole('button', { name: '同意して続ける' }).click();
 await page.locator('input[type=file]:not([capture])').setInputFiles(photoPath);
 // 1 写真: 選んだ写真を舞台に出し、［この写真で進む］で 2 名前へ
 await page.getByRole('button', { name: 'この写真で進む' }).click();
@@ -107,6 +111,7 @@ check('sighting synced to server', !!synced && synced.nickname === 'ルリ太郎
 check('photo uploaded to R2', synced?.hasPhoto === true);
 const me = await (await fetch(`${BASE}/api/me`, { headers: { Authorization: `Bearer ${session}` } })).json();
 check('server points match (30pt)', me.points === 30, JSON.stringify(me));
+check('the consent reached the server', !!me.consents?.terms && !!me.consents?.privacy, JSON.stringify(me.consents));
 
 // 別端末を想定：ローカルDBが空の状態でもサーバーから取り込める
 const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ja-JP', timezoneId: 'Asia/Tokyo' });

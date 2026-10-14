@@ -6,7 +6,9 @@ import { Coin, MessageWindow, Sparkles } from '../components/game';
 import { IconCarProfile, IconEyeSlash, IconHandHeart, IconTicket } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import { BadgeEmblem, BadgeName, Button, cn, CTA_PADDING, CtaBar, Field, Input, StampSeal } from '../components/ui';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../data/legalVersions';
 import { api } from '../lib/api';
+import { LegalSheet, type LegalKind } from './Legal';
 import { BADGES } from '../lib/progress';
 import { sfx } from '../lib/sfx';
 import { useStore } from '../store/useStore';
@@ -279,6 +281,7 @@ function Intro({ onDone }: { onDone: () => void }) {
 function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
   const existingName = useStore((s) => s.settings.name);
   const [name, setName] = useState(existingName);
+  const [reading, setReading] = useState<LegalKind | null>(null);
 
   return (
     <main className={cn('min-h-dvh pt-safe', CTA_PADDING)}>
@@ -321,6 +324,20 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
         </Field>
       </form>
 
+      {/* 利用規約・プライバシーポリシーへの同意（ボタン1つで約束と同意をする。同意した版と日時を残す） */}
+      <p className="mt-6 px-4 text-sub font-bold text-fg-2">
+        ［約束してはじめる］を押すと、
+        <button type="button" className="font-black text-brand underline underline-offset-2" onClick={() => setReading('terms')}>
+          利用規約
+        </button>
+        と
+        <button type="button" className="font-black text-brand underline underline-offset-2" onClick={() => setReading('privacy')}>
+          プライバシーポリシー
+        </button>
+        に同意したことになります。未成年の方は、保護者の方と一緒に読んでください。
+      </p>
+      <LegalSheet kind={reading} onClose={() => setReading(null)} />
+
       <CtaBar>
         <Button
           onClick={() => {
@@ -357,8 +374,10 @@ export default function Onboarding() {
 
   const finish = (raw: string) => {
     const name = raw.trim();
-    updateSettings({ onboarded: true, pledged: true, name });
-    if (lineMode) void api.updateMe({ pledged: true, nickname: name }).catch(() => undefined);
+    const consent = { terms: TERMS_VERSION, privacy: PRIVACY_VERSION };
+    updateSettings({ onboarded: true, pledged: true, name, consent: { ...consent, at: new Date().toISOString() } });
+    // 送れなくても、次の同期で送る（sync.ts の syncConsents）
+    if (lineMode) void api.updateMe({ pledged: true, nickname: name, consent }).catch(() => undefined);
   };
 
   return step === 'intro' ? <Intro onDone={() => setStep('pledge')} /> : <Pledge onFinish={finish} />;

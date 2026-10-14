@@ -8,6 +8,7 @@ import {
   IconCoinsFill,
   IconCrownSimpleFill,
   IconDiceFive,
+  IconDownloadSimple,
   IconFileArrowDown,
   IconFlagBannerFill,
   IconGift,
@@ -400,9 +401,36 @@ export default function Admin() {
         )}
         {tab === 'users' && (
           <UsersTab
-            items={demo ? data.users.filter((u) => !userQuery || `${u.displayName}${u.nickname}`.includes(userQuery)) : data.users}
+            items={
+              demo
+                ? data.users.filter(
+                    (u) => !userQuery || `${u.displayName}${u.nickname}`.includes(userQuery) || u.supportCode === userQuery.toUpperCase(),
+                  )
+                : data.users
+            }
             query={userQuery}
             onQuery={setUserQuery}
+            onExport={async (u) => {
+              try {
+                const json = key ? await adminApi.exportUser(key, u.id) : { demo: true, user: u };
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }));
+                a.download = `amami-nature-${u.supportCode ?? u.id.slice(0, 8)}.json`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+                toast.success(demo ? '書き出しました（デモのため見本です）' : '書き出しました。安全な方法で本人に渡してください');
+              } catch (e) {
+                toast.error((e as Error).message);
+                if ((e as AdminError).code === 'unauthorized') signOut();
+              }
+            }}
+            onDelete={(u, reason) =>
+              act(
+                (k) => adminApi.deleteUser(k, u.id, reason),
+                (d) => ({ ...d, users: d.users.filter((x) => x.id !== u.id) }),
+                `${u.supportCode ?? 'この利用者'} のデータを消しました`,
+              )
+            }
           />
         )}
         {tab === 'log' && <LogTab items={data.actions} />}
@@ -1144,16 +1172,32 @@ function PartnersTab({
 
 // ───────── ユーザー ─────────
 
-function UsersTab({ items, query, onQuery }: { items: AdminUser[]; query: string; onQuery: (q: string) => void }) {
+function UsersTab({
+  items,
+  query,
+  onQuery,
+  onExport,
+  onDelete,
+}: {
+  items: AdminUser[];
+  query: string;
+  onQuery: (q: string) => void;
+  onExport: (u: AdminUser) => void;
+  onDelete: (u: AdminUser, reason: string) => Promise<void>;
+}) {
   const [draft, setDraft] = useState(query);
+  const [removing, setRemoving] = useState<AdminUser | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     const t = window.setTimeout(() => onQuery(draft.trim()), 350);
     return () => window.clearTimeout(t);
   }, [draft, onQuery]);
   return (
     <>
-      <SearchField value={draft} onChange={setDraft} placeholder="名前・ニックネームで探す" aria-label="ユーザーを探す" />
-      <p className="mt-2 text-caption text-fg-2">最近ひらいた順。ポイントは取り消した記録を除いて、サーバーで計算した値です。</p>
+      <SearchField value={draft} onChange={setDraft} placeholder="名前・番号（AN-…）で探す" aria-label="ユーザーを探す" />
+      <p className="mt-2 text-caption text-fg-2">
+        最近ひらいた順。ポイントは取り消した記録を除いて、サーバーで計算した値です。開示・削除の請求は、お問い合わせ番号（AN-…）で本人を確かめてから対応します（docs/OPERATIONS.md）。
+      </p>
       <div className="mt-4 space-y-2.5">
         {items.length === 0 && <Empty icon={IconUsers} title="ユーザーが見つかりません" />}
         {items.map((u) => (
@@ -1178,6 +1222,11 @@ function UsersTab({ items, query, onQuery }: { items: AdminUser[]; query: string
               <p className="mt-0.5 text-caption text-fg-2">
                 記録 {u.sightings} ・ {u.species} 種 ・ 最終 {ago(u.lastSeenAt ?? u.createdAt)}
               </p>
+              <p className="mt-0.5 text-caption text-fg-3">
+                <span className="num tracking-[0.04em]">{u.supportCode ?? '番号なし'}</span>
+                {' ・ '}規約 {u.termsVersion ? '同意済み' : '未同意'}
+                {' ・ '}路上の位置 {u.roadConsentVersion ? '同意' : 'なし'}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <Ring value={u.species / 62} size={44} stroke={6}>
@@ -1191,9 +1240,41 @@ function UsersTab({ items, query, onQuery }: { items: AdminUser[]; query: string
                 <p className="text-caption text-fg-3">累計 {u.points.toLocaleString()} pt</p>
               </div>
             </div>
+            <div className="flex w-full gap-2 border-t-2 border-sep pt-2.5">
+              <Button variant="secondary" size="md" className="h-10 flex-1 px-3" onClick={() => onExport(u)} aria-label="データを書き出す（開示の請求）">
+                <IconDownloadSimple size={18} />
+                書き出す
+              </Button>
+              <Button variant="secondary" size="md" className="h-10 flex-1 px-3 text-danger" onClick={() => setRemoving(u)}>
+                <IconTrash size={18} />
+                データを消す
+              </Button>
+            </div>
           </div>
         ))}
       </div>
+      <ConfirmDialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        title="この利用者のデータを消しますか？"
+        body={
+          removing
+            ? `${removing.nickname || removing.displayName || '（名前なし）'}（${removing.supportCode ?? '番号なし'}）の、アカウント・記録・写真・路上レポート・共有画像を消します。交換の記録は、利用者と結びつかない形で残します。元に戻せません。本人からの削除の請求であることを、お問い合わせ番号で確かめてから消してください。`
+            : ''
+        }
+        confirmLabel="消す"
+        busy={busy}
+        onConfirm={async () => {
+          if (!removing) return;
+          setBusy(true);
+          try {
+            await onDelete(removing, '本人からの削除の請求');
+            setRemoving(null);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </>
   );
 }

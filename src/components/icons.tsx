@@ -693,6 +693,42 @@ export function IconFlagBannerFill({ size = 24, ...p }: IconProps) {
   return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_FLAG_BANNER_FILL }} />;
 }
 
+const B_FILE_TEXT = "<path fill=\"currentColor\" d=\"m213.66 82.34l-56-56A8 8 0 0 0 152 24H56a16 16 0 0 0-16 16v176a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16V88a8 8 0 0 0-2.34-5.66M160 51.31L188.69 80H160ZM200 216H56V40h88v48a8 8 0 0 0 8 8h48zm-32-80a8 8 0 0 1-8 8H96a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8m0 32a8 8 0 0 1-8 8H96a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8\"/>";
+/** file-text */
+export function IconFileText({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_FILE_TEXT }} />;
+}
+
+const B_SHIELD_CHECK = "<path fill=\"currentColor\" d=\"M208 40H48a16 16 0 0 0-16 16v56c0 52.72 25.52 84.67 46.93 102.19c23.06 18.86 46 25.26 47 25.53a8 8 0 0 0 4.2 0c1-.27 23.91-6.67 47-25.53C198.48 196.67 224 164.72 224 112V56a16 16 0 0 0-16-16m0 72c0 37.07-13.66 67.16-40.6 89.42a129.3 129.3 0 0 1-39.4 22.2a128.3 128.3 0 0 1-38.92-21.81C61.82 179.51 48 149.3 48 112V56h160ZM82.34 141.66a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32l-56 56a8 8 0 0 1-11.32 0Z\"/>";
+/** shield-check */
+export function IconShieldCheck({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_SHIELD_CHECK }} />;
+}
+
+const B_ENVELOPE_SIMPLE = "<path fill=\"currentColor\" d=\"M224 48H32a8 8 0 0 0-8 8v136a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a8 8 0 0 0-8-8m-20.57 16L128 133.15L52.57 64ZM216 192H40V74.19l82.59 75.71a8 8 0 0 0 10.82 0L216 74.19z\"/>";
+/** envelope-simple */
+export function IconEnvelopeSimple({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_ENVELOPE_SIMPLE }} />;
+}
+
+const B_COPY = "<path fill=\"currentColor\" d=\"M216 32H88a8 8 0 0 0-8 8v40H40a8 8 0 0 0-8 8v128a8 8 0 0 0 8 8h128a8 8 0 0 0 8-8v-40h40a8 8 0 0 0 8-8V40a8 8 0 0 0-8-8m-56 176H48V96h112Zm48-48h-32V88a8 8 0 0 0-8-8H96V48h112Z\"/>";
+/** copy */
+export function IconCopy({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_COPY }} />;
+}
+
+const B_DOWNLOAD_SIMPLE = "<path fill=\"currentColor\" d=\"M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 124.69V32a8 8 0 0 0-16 0v92.69L93.66 98.34a8 8 0 0 0-11.32 11.32Z\"/>";
+/** download-simple */
+export function IconDownloadSimple({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_DOWNLOAD_SIMPLE }} />;
+}
+
+const B_USER_MINUS = "<path fill=\"currentColor\" d=\"M256 136a8 8 0 0 1-8 8h-48a8 8 0 0 1 0-16h48a8 8 0 0 1 8 8m-57.87 58.85a8 8 0 0 1-12.26 10.3C165.75 181.19 138.09 168 108 168s-57.75 13.19-77.87 37.15a8 8 0 0 1-12.25-10.3c14.94-17.78 33.52-30.41 54.17-37.17a68 68 0 1 1 71.9 0c20.65 6.76 39.23 19.39 54.18 37.17M108 152a52 52 0 1 0-52-52a52.06 52.06 0 0 0 52 52\"/>";
+/** user-minus */
+export function IconUserMinus({ size = 24, ...p }: IconProps) {
+  return <svg viewBox="0 0 256 256" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false" {...p} dangerouslySetInnerHTML={{ __html: B_USER_MINUS }} />;
+}
+
 const B_AMAMI_KUROUSAGI = "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M71 207.8H186.9C202.1 207.8 208.8 197.4 205 186.9C203.1 179.3 198.3 173.6 192.6 169.8C211.6 164.1 223 150.8 223 135.6C223 107.1 205.9 88.1 181.2 83.4C179.3 67.2 170.8 57.7 159.4 57.7C148 57.7 141.3 67.2 142.3 80.5C99.5 78.6 44.4 101.4 34.9 145.1C27.3 181.2 42.5 207.8 71 207.8Z\"/><path d=\"M129.9 207.8C131.8 175.5 112.8 152.7 84.3 156.5\"/><circle cx=\"187.9\" cy=\"121.4\" r=\"11.4\" fill=\"currentColor\" stroke=\"none\"/></g>";
 /** amami:kurousagi */
 export function IconAmamiKurousagi({ size = 24, ...p }: IconProps) {

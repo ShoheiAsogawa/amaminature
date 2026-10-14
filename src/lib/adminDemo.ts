@@ -143,6 +143,9 @@ export function demoAdmin(now = Date.now()) {
       points,
       balance: Math.round(points * 0.6),
       level: Math.max(1, Math.floor(Math.sqrt(points / 10))),
+      supportCode: `AN-${(0x1a2b3c00 + i * 7919).toString(16).toUpperCase().slice(-8)}`,
+      termsVersion: '2026-10-14',
+      roadConsentVersion: i % 3 === 0 ? null : '2026-10-14',
     };
   });
 

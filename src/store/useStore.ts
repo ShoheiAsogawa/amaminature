@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS: Settings = {
   sound: true,
   daily: { date: '', viewed: [], celebrated: false },
   visitDates: [],
+  consent: null,
+  roadConsent: null,
 };
 
 function loadSettings(): Settings {

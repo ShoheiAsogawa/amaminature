@@ -1,6 +1,7 @@
 // ローカルの Worker（`npm run dev:worker`、.dev.vars で DEV_AUTH=true）に対するAPIスモークテスト
 // 使い方: node scripts/smoke-api.mjs [http://127.0.0.1:8787]
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:8787';
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET ?? 'dev-channel-secret';
@@ -108,6 +109,21 @@ check('Object.prototype keys are not species/areas → 400', proto.status === 40
 const hijack = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: s1, speciesId: 'mejiro' }), headers: { Authorization: 'Dev Uother' } });
 check('cannot overwrite others sighting', hijack.status === 403);
 
+// 路上レポートの正確な位置は、提携先に渡すことに同意した人のものだけ受け取る
+const ROAD_CONSENT_VERSION = (await readFile(new URL('../src/data/legalVersions.ts', import.meta.url), 'utf8')).match(/ROAD_CONSENT_VERSION = '([^']+)'/)[1];
+const sNo = randomUUID();
+await call('POST', '/api/sightings', {
+  form: sightingForm({ ...base, id: sNo, speciesId: 'amami-kurousagi', roadReport: 'on-road', reportLat: 28.31, reportLng: 129.41 }),
+  headers: { Authorization: `Dev Unoconsent${Date.now()}` },
+});
+const consentMe = await call('PATCH', '/api/me', { body: { roadConsent: ROAD_CONSENT_VERSION, consent: { terms: '2026-10-14', privacy: '2026-10-14' } } });
+check(
+  'consents are recorded on the server',
+  consentMe.data.consents?.road === ROAD_CONSENT_VERSION && consentMe.data.consents?.terms === '2026-10-14' && !!consentMe.data.consents?.roadAt,
+  JSON.stringify(consentMe.data.consents),
+);
+check('me has a support code', /^AN-[0-9A-F]{8}$/.test(consentMe.data.supportCode ?? ''), consentMe.data.supportCode);
+
 // ロードキル報告（正確な位置は road_reports にだけ保存）
 const s3 = randomUUID();
 const r3 = await call('POST', '/api/sightings', {
@@ -177,6 +193,10 @@ check('a cancelled redemption cannot be reopened (would skip the balance check) 
 const a7 = await admin('GET', '/road-reports?status=all');
 const myRoad = a7.data.roadReports?.find((x) => x.id === s3);
 check('admin sees the precise road report', myRoad?.lat === 28.3512 && myRoad?.lng === 129.3821, JSON.stringify(myRoad));
+const noConsentRoad = a7.data.roadReports?.find((x) => x.id === sNo);
+check('a road report sent before consenting has no precise location', !!noConsentRoad && noConsentRoad.lat === null && noConsentRoad.lng === null, JSON.stringify(noConsentRoad));
+const byCode = await admin('GET', `/users?q=${consentMe.data.supportCode}`);
+check('admin finds the user by support code', byCode.data.users?.length === 1 && byCode.data.users[0].id === user, JSON.stringify(byCode.data.users?.map((u) => u.id)));
 const a8 = await admin('PATCH', `/road-reports/${s3}`, { status: 'forwarded' });
 check('admin forwards the road report', a8.status === 200);
 const a9 = await admin('POST', '/partners', { name: 'スモークテスト', scope: ['yamato'] });
@@ -274,6 +294,46 @@ check(
   before2.roadReports?.some((x) => x.id === sRoad) && !after2.roadReports?.some((x) => x.id === sRoad) && after2.totals.roadReports === before2.totals.roadReports - 1,
   `${before2.totals?.roadReports} → ${after2.totals?.roadReports}`,
 );
+
+// 退会：クラウドのデータを消し、退会前のログインを使えなくする（本物のセッションで確かめる）
+const vars = Object.fromEntries(
+  (await readFile(new URL('../.dev.vars', import.meta.url), 'utf8'))
+    .split('\n')
+    .filter((l) => l.includes('=') && !l.startsWith('#'))
+    .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]),
+);
+const sessionFor = (sub, now = Date.now()) => {
+  const h = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const p = Buffer.from(JSON.stringify({ sub, iat: Math.floor(now / 1000), iatMs: now, exp: Math.floor(now / 1000) + 3600 })).toString('base64url');
+  return `${h}.${p}.${createHmac('sha256', vars.SESSION_SECRET).update(`${h}.${p}`).digest('base64url')}`;
+};
+const leaver = `Uleave${Date.now()}`;
+const oldToken = sessionFor(leaver);
+const LH = { Authorization: `Bearer ${oldToken}` };
+const sLeave = randomUUID();
+const up = await call('POST', '/api/sightings', { form: sightingForm({ ...base, id: sLeave, speciesId: 'mejiro' }, 77), headers: LH });
+const shareForm = new FormData();
+shareForm.set('image', jpeg(78), 'card.jpg');
+const leaverShare = await call('POST', '/api/shares', { form: shareForm, headers: LH });
+const leaverCode = (await call('GET', '/api/me', { headers: LH })).data.supportCode;
+const del1 = await call('DELETE', '/api/me', { headers: LH });
+check('DELETE /api/me removes the account, photos and share images', up.status === 200 && del1.status === 200 && del1.data.photos === 2 && del1.data.shares === 1, JSON.stringify(del1.data));
+check('the session issued before deleting no longer works → 401', (await call('GET', '/api/me', { headers: LH })).status === 401);
+const sharedUrl = leaverShare.data.url ? `${BASE}/s/${leaverShare.data.url.split('/s/')[1]}` : '';
+check('the public share image is gone', !!sharedUrl && (await fetch(sharedUrl)).status === 404);
+const gone = await admin('GET', `/users?q=${leaverCode}`);
+check('the deleted user is not in the admin list', gone.status === 200 && gone.data.users?.length === 0, JSON.stringify(gone.data));
+const fresh = await call('GET', '/api/me', { headers: { Authorization: `Bearer ${sessionFor(leaver, Date.now() + 5)}` } });
+check('logging in again after deleting starts a new account', fresh.status === 200 && fresh.data.points === 0, `${fresh.status} ${JSON.stringify(fresh.data).slice(0, 120)}`);
+
+// 運営の書き出し（開示）と削除
+const exp1 = await admin('GET', `/users/${user}/export`);
+check('admin export contains the records and precise road reports', exp1.status === 200 && exp1.data.sightings?.length > 0 && exp1.data.roadReports?.some((r) => r.sighting_id === s3), `${exp1.status}`);
+const adminDel = await admin('DELETE', `/users/${encodeURIComponent(user)}`, { reason: 'スモークテスト' });
+check('admin deletes a user on request', adminDel.status === 200 && adminDel.data.photos >= 2, JSON.stringify(adminDel.data));
+check('…and the export is gone afterwards → 404', (await admin('GET', `/users/${user}/export`)).status === 404);
+const log = (await admin('GET', '/actions')).data.actions ?? [];
+check('the deletion is logged without the LINE ID', log.some((a) => a.action === 'user.delete' && !String(a.targetId).startsWith('U')), JSON.stringify(log.slice(0, 2)));
 
 if (smokePartner?.partner) await admin('DELETE', `/partners/${smokePartner.partner.id}`);
 

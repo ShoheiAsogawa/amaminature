@@ -97,7 +97,8 @@ npx wrangler d1 execute amami-nature --remote --command \
 ## 6. 公開前チェックリスト
 
 - [ ] 図鑑データの監修（docs/BUSINESS_PLAN.md「監修体制」）
-- [ ] 利用規約・プライバシーポリシー（位置情報を行政・保護機関に提供する旨と範囲）
+- [ ] 利用規約・プライバシーポリシー：画面（`/terms`・`/privacy`）と同意の記録はできている。会社の情報を埋め、弁護士の確認を受ける（`docs/LEGAL_CHECKLIST.md`、`npm run check:legal`）。LINE ログインチャネルに `https://<ドメイン>/privacy` と `/terms` を登録する
+- [ ] お問い合わせの窓口のメール（`src/data/company.ts` の `email`）と、問い合わせ・削除の請求の手順（`docs/OPERATIONS.md`）
 - [ ] `DEV_AUTH` が本番の環境変数に**存在しない**こと
 - [ ] Webhook の署名検証が通ること（LINE Developers の「検証」）
 - [ ] 景品・抽選の運用ルールの専門家確認（景品表示法）

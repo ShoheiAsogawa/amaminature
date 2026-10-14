@@ -65,6 +65,13 @@ export interface Settings {
   daily: DailyLog;
   /** アプリを開いた日（YYYY-MM-DD、新しい順に最大 60 日）。連続日数に使う */
   visitDates: string[];
+  /** 利用規約とプライバシーポリシーに同意した版と日時（版が上がったら、もう一度同意してもらう） */
+  consent: { terms: string; privacy: string; at: string } | null;
+  /**
+   * 路上レポートの正確な位置を提携先に渡すことへの同意。null はまだ聞いていない。
+   * version が null は「同意しない・撤回した」（at はその日時。端末どうしで新しい方に合わせる）
+   */
+  roadConsent: { version: string | null; at: string } | null;
 }
 
 export interface DailyLog {

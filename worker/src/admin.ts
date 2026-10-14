@@ -13,6 +13,7 @@ import { REWARDS } from '../../src/data/rewards';
 import { SPECIES_BY_ID } from '../../src/data/species';
 import { computePoints, computeStats, currentMonth, levelFor } from '../../src/lib/progress';
 import { isAdminKey, newPartnerKey } from './adminKey';
+import { deleteUserData, exportUserData } from './userData';
 import { jstDate, jstMidnightIso, sha256Hex } from './crypto';
 import type { AppEnv, Env } from './env';
 import { rowToSighting } from './validate';
@@ -114,6 +115,32 @@ adminApp.get('/summary', async (c) => {
     }),
     topSpecies: top.results,
   });
+});
+
+// ───────── 利用者のデータの開示（書き出し）と削除（請求への対応） ─────────
+
+adminApp.get('/users/:id/export', async (c) => {
+  const id = c.req.param('id');
+  const data = await exportUserData(c.env, id);
+  if (!data) return c.json({ error: 'not_found' }, 404);
+  await logAction(c.env, 'user.export', data.user.support_code ? String(data.user.support_code) : id.slice(0, 6), '開示の請求のため書き出し');
+  return c.json(data);
+});
+
+adminApp.delete('/users/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT support_code FROM users WHERE id = ?').bind(id).first<{ support_code: string | null }>();
+  if (!row) return c.json({ error: 'not_found' }, 404);
+  const { reason } = await body<{ reason: string }>(c);
+  const result = await deleteUserData(c.env, id);
+  // 記録には LINE ユーザー ID を残さず、お問い合わせ番号だけを書く
+  await logAction(
+    c.env,
+    'user.delete',
+    row.support_code ?? 'unknown',
+    `${typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 100) : '削除の請求'}（写真 ${result.photos} 件・共有画像 ${result.shares} 件）`,
+  );
+  return c.json({ ok: true, ...result });
 });
 
 // ───────── 景品の交換申請 ─────────
@@ -296,12 +323,15 @@ adminApp.get('/users', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, 40);
   const limit = clampLimit(c.req.query('limit'), 50, 100);
   const like = `%${q.replace(/[%_]/g, '')}%`;
+  // お問い合わせ番号（AN-XXXXXXXX、ハイフンなしでも可）でも探せる
+  const code = /^AN-?[0-9A-F]{8}$/i.test(q) ? `AN-${q.replace(/^AN-?/i, '').toUpperCase()}` : '';
   const { results: users } = await c.env.DB.prepare(
     `SELECT id, display_name AS displayName, nickname, picture_url AS pictureUrl, is_friend AS isFriend, plus_until AS plusUntil,
-       created_at AS createdAt, last_seen_at AS lastSeenAt FROM users
-     ${q ? 'WHERE display_name LIKE ?1 OR nickname LIKE ?1' : ''} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT ${limit}`,
+       created_at AS createdAt, last_seen_at AS lastSeenAt, support_code AS supportCode,
+       terms_version AS termsVersion, road_consent_version AS roadConsentVersion FROM users
+     ${q ? 'WHERE display_name LIKE ?1 OR nickname LIKE ?1 OR support_code = ?2' : ''} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT ${limit}`,
   )
-    .bind(...(q ? [like] : []))
+    .bind(...(q ? [like, code] : []))
     .all<Record<string, unknown>>();
   if (users.length === 0) return c.json({ users: [] });
   const ids = users.map((u) => u.id as string);

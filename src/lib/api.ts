@@ -24,6 +24,10 @@ export interface ServerSighting extends Omit<Sighting, 'photoId' | 'syncState'> 
 
 export interface Me {
   userId: string;
+  /** お問い合わせ番号（AN-XXXXXXXX）。問い合わせの時に運営がアカウントを探すのに使う */
+  supportCode: string;
+  /** 同意した版（未同意は null） */
+  consents: { terms: string | null; privacy: string | null; road: string | null; roadAt: string | null };
   displayName: string;
   pictureUrl: string | null;
   nickname: string;
@@ -99,7 +103,17 @@ export const api = {
   },
 
   me: () => request<Me>('/api/me'),
-  updateMe: (patch: Partial<Pick<Me, 'nickname' | 'pledged'>>) => request<Me>('/api/me', json(patch, 'PATCH')),
+  updateMe: (
+    patch: Partial<Pick<Me, 'nickname' | 'pledged'>> & {
+      /** 利用規約とプライバシーポリシーに同意した版 */
+      consent?: { terms: string; privacy: string };
+      /** 路上レポートの位置の提供に同意した版（null で撤回） */
+      roadConsent?: string | null;
+    },
+  ) => request<Me>('/api/me', json(patch, 'PATCH')),
+
+  /** 退会：クラウドのデータをすべて消す（元に戻せない） */
+  deleteAccount: () => request<{ ok: true }>('/api/me', { method: 'DELETE' }),
 
   /** deleted: ほかの端末で消した記録のID */
   listSightings: () => request<{ sightings: ServerSighting[]; deleted?: string[] }>('/api/sightings'),

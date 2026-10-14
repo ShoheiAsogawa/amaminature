@@ -140,6 +140,12 @@ export interface AdminUser {
   points: number;
   balance: number;
   level: number;
+  /** お問い合わせ番号（AN-XXXXXXXX）。利用者からの問い合わせでアカウントを探すのに使う */
+  supportCode: string | null;
+  /** 同意した利用規約の版（未同意は null） */
+  termsVersion: string | null;
+  /** 路上レポートの位置の提供に同意した版（未同意・撤回は null） */
+  roadConsentVersion: string | null;
 }
 
 export interface AdminAction {
@@ -170,5 +176,10 @@ export const adminApi = {
     req<{ partner: AdminPartner; apiKey: string }>(key, '/partners', { method: 'POST', body: body({ name, scope }) }),
   deletePartner: (key: string, id: string) => req<{ ok: true }>(key, `/partners/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   users: (key: string, q: string) => req<{ users: AdminUser[] }>(key, `/users?q=${encodeURIComponent(q)}`),
+  /** 開示の請求のための書き出し（JSON） */
+  exportUser: (key: string, id: string) => req<Record<string, unknown>>(key, `/users/${encodeURIComponent(id)}/export`),
+  /** 削除の請求への対応（元に戻せない） */
+  deleteUser: (key: string, id: string, reason: string) =>
+    req<{ ok: true; photos: number; shares: number }>(key, `/users/${encodeURIComponent(id)}`, { method: 'DELETE', body: body({ reason }) }),
   actions: (key: string) => req<{ actions: AdminAction[] }>(key, '/actions'),
 };

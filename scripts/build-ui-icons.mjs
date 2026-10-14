@@ -27,6 +27,7 @@ tree-palm leaf plant user-plus camera
 star star-fill sparkle-fill fire-fill lightning-fill coins-fill crown-simple-fill gift-fill lock-simple-fill
 medal-fill target speaker-simple-high-fill speaker-simple-slash-fill question-fill seal-check-fill map-trifold-fill
 rocket-launch-fill confetti-fill paw-print-fill play-fill flag-banner-fill
+file-text shield-check envelope-simple copy download-simple user-minus
 amami:kurousagi amami:kurousagi-fill amami:frog amami:frog-fill amami:fern amami:fern-fill
 amami:kayak amami:kayak-fill
 `

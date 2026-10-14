@@ -49,24 +49,37 @@ const SESSION_DAYS = 30;
 
 export async function signSession(userId: string, secret: string, now = Date.now()): Promise<string> {
   const header = b64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
-  const payload = b64url(enc.encode(JSON.stringify({ sub: userId, exp: Math.floor(now / 1000) + SESSION_DAYS * 86400 })));
+  const iat = Math.floor(now / 1000);
+  // iatMs: 発行日時（ミリ秒）。退会の直後に作り直したログインを、退会前のものと取り違えないように
+  const payload = b64url(enc.encode(JSON.stringify({ sub: userId, iat, iatMs: now, exp: iat + SESSION_DAYS * 86400 })));
   const sig = b64url(await hmacSha256(secret, `${header}.${payload}`));
   return `${header}.${payload}.${sig}`;
 }
 
-export async function verifySession(token: string, secret: string, now = Date.now()): Promise<string | null> {
+/** 署名と期限を確かめて、利用者IDと発行日時（ミリ秒）を返す。発行日時のない古いトークンは期限から逆算する */
+export async function readSession(token: string, secret: string, now = Date.now()): Promise<{ sub: string; issuedAt: number } | null> {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   const [header, payload, sig] = parts;
   const expected = b64url(await hmacSha256(secret, `${header}.${payload}`));
   if (!timingSafeEqual(sig, expected)) return null;
   try {
-    const { sub, exp } = JSON.parse(new TextDecoder().decode(b64urlDecode(payload))) as { sub?: string; exp?: number };
+    const { sub, exp, iat, iatMs } = JSON.parse(new TextDecoder().decode(b64urlDecode(payload))) as {
+      sub?: string;
+      exp?: number;
+      iat?: number;
+      iatMs?: number;
+    };
     if (!sub || !exp || exp * 1000 < now) return null;
-    return sub;
+    const issuedAt = typeof iatMs === 'number' ? iatMs : typeof iat === 'number' ? iat * 1000 : (exp - SESSION_DAYS * 86400) * 1000;
+    return { sub, issuedAt };
   } catch {
     return null;
   }
+}
+
+export async function verifySession(token: string, secret: string, now = Date.now()): Promise<string | null> {
+  return (await readSession(token, secret, now))?.sub ?? null;
 }
 
 /** LINE Webhook の署名（X-Line-Signature）を検証 */

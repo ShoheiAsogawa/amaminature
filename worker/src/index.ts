@@ -12,10 +12,12 @@ import { REWARDS } from '../../src/data/rewards';
 import { computePoints, computeStats, currentMonth, earnedBadges } from '../../src/lib/progress';
 import type { Sighting } from '../../src/lib/types';
 import { adminApp } from './admin';
-import { jstDate, jstMidnightIso, sha256Hex, signSession, toBase64, verifyLineSignature, verifySession } from './crypto';
+import { ROAD_CONSENT_VERSION } from '../../src/data/legalVersions';
+import { jstDate, jstMidnightIso, readSession, sha256Hex, signSession, toBase64, verifyLineSignature } from './crypto';
 import type { AppEnv, Env } from './env';
 import { IdentifyError, identifySpecies, MAX_IMAGE_BASE64_LENGTH, type ImageMediaType } from './identify';
 import * as line from './line';
+import { deleteUserData, isRevokedSession, supportCodeFor } from './userData';
 import { parseSightingMeta, rowToSighting, ValidationError } from './validate';
 
 export const LIMITS = {
@@ -42,13 +44,14 @@ const nowIso = () => new Date().toISOString();
 
 async function ensureUser(env: Env, userId: string, profile?: { displayName?: string; pictureUrl?: string | null }) {
   await env.DB.prepare(
-    `INSERT INTO users (id, display_name, picture_url, created_at, last_seen_at) VALUES (?1, ?2, ?3, ?4, ?4)
+    `INSERT INTO users (id, display_name, picture_url, created_at, last_seen_at, support_code) VALUES (?1, ?2, ?3, ?4, ?4, ?5)
      ON CONFLICT(id) DO UPDATE SET
        display_name = CASE WHEN ?2 <> '' THEN ?2 ELSE users.display_name END,
        picture_url = COALESCE(?3, users.picture_url),
-       last_seen_at = ?4`,
+       last_seen_at = ?4,
+       support_code = COALESCE(users.support_code, ?5)`,
   )
-    .bind(userId, profile?.displayName ?? '', profile?.pictureUrl ?? null, nowIso())
+    .bind(userId, profile?.displayName ?? '', profile?.pictureUrl ?? null, nowIso(), await supportCodeFor(userId))
     .run();
 }
 
@@ -122,9 +125,24 @@ async function buildMe(env: Env, userId: string) {
   const points = computePoints(sightings, currentMonth(), safeDriveDays);
   const plus = isPlus(user);
   const stats = computeStats(sightings);
+  let supportCode = (user?.support_code as string | null) ?? null;
+  if (user && !supportCode) {
+    // 番号を入れる前に作ったアカウント
+    supportCode = await supportCodeFor(userId);
+    await env.DB.prepare('UPDATE users SET support_code = ? WHERE id = ?').bind(supportCode, userId).run();
+  }
   return {
     me: {
       userId,
+      supportCode: supportCode ?? (await supportCodeFor(userId)),
+      /** 同意した版（未同意は null） */
+      consents: {
+        terms: (user?.terms_version as string | null) ?? null,
+        privacy: (user?.privacy_version as string | null) ?? null,
+        road: (user?.road_consent_version as string | null) ?? null,
+        /** 同意・撤回した日時（端末どうしで新しい方に合わせる） */
+        roadAt: (user?.road_consent_at as string | null) ?? null,
+      },
       displayName: (user?.display_name as string) ?? '',
       pictureUrl: (user?.picture_url as string | null) ?? null,
       nickname: (user?.nickname as string) ?? '',
@@ -143,7 +161,9 @@ const auth = createMiddleware<AppEnv>(async (c, next) => {
   const header = c.req.header('Authorization') ?? '';
   let userId: string | null = null;
   if (header.startsWith('Bearer ') && c.env.SESSION_SECRET) {
-    userId = await verifySession(header.slice(7), c.env.SESSION_SECRET);
+    const session = await readSession(header.slice(7), c.env.SESSION_SECRET);
+    // 退会した後は、退会前に発行したログインを使えない（端末に残ったログインで記録が送り直されないように）
+    if (session && !(await isRevokedSession(c.env, session.sub, session.issuedAt))) userId = session.sub;
   } else if (c.env.DEV_AUTH === 'true' && header.startsWith('Dev ')) {
     userId = header.slice(4).trim() || null;
     if (userId) await ensureUser(c.env, userId, { displayName: 'dev' });
@@ -182,8 +202,24 @@ app.get('/api/me', auth, async (c) => {
 });
 
 app.patch('/api/me', auth, async (c) => {
-  const body = await c.req.json<{ nickname?: unknown; pledged?: unknown }>();
+  const body = await c.req.json<{ nickname?: unknown; pledged?: unknown; consent?: unknown; roadConsent?: unknown }>();
   const userId = c.get('userId');
+  // 同意などを書く前に、利用者の行があることを確かめる（ログインより後にデータベースを作り直した時など）
+  await c.env.DB.prepare('INSERT OR IGNORE INTO users (id, created_at, last_seen_at, support_code) VALUES (?1, ?2, ?2, ?3)')
+    .bind(userId, nowIso(), await supportCodeFor(userId))
+    .run();
+  // 利用規約とプライバシーポリシーに同意した版（日時はサーバーの時刻で残す）
+  const consent = body.consent as { terms?: unknown; privacy?: unknown } | undefined;
+  if (consent && typeof consent.terms === 'string' && typeof consent.privacy === 'string') {
+    await c.env.DB.prepare('UPDATE users SET terms_version = ?, privacy_version = ?, consented_at = ? WHERE id = ?')
+      .bind(consent.terms.slice(0, 20), consent.privacy.slice(0, 20), nowIso(), userId)
+      .run();
+  }
+  // 路上レポートの正確な位置の提供への同意（null で撤回）
+  if (body.roadConsent === null || typeof body.roadConsent === 'string') {
+    const version = typeof body.roadConsent === 'string' ? body.roadConsent.slice(0, 20) : null;
+    await c.env.DB.prepare('UPDATE users SET road_consent_version = ?, road_consent_at = ? WHERE id = ?').bind(version, nowIso(), userId).run();
+  }
   if (typeof body.nickname === 'string') {
     await c.env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(body.nickname.trim().slice(0, 20), userId).run();
   }
@@ -191,6 +227,15 @@ app.patch('/api/me', auth, async (c) => {
     await c.env.DB.prepare('UPDATE users SET pledged = 1 WHERE id = ?').bind(userId).run();
   }
   return c.json((await buildMe(c.env, userId)).me);
+});
+
+/**
+ * 退会：この利用者のクラウドのデータ（アカウント・記録・写真・路上レポート・共有画像・AI の利用回数）を消す。
+ * 交換の記録は協賛先との精算のため、利用者と結びつかない形で残す。退会前のログインは使えなくなる
+ */
+app.delete('/api/me', auth, async (c) => {
+  const result = await deleteUserData(c.env, c.get('userId'));
+  return c.json({ ok: true, ...result });
 });
 
 /** 交換とセーフドライブ宣言の履歴（別の端末・データを消した端末でも、ポイントの使い道と宣言を戻せるように） */
@@ -230,11 +275,17 @@ app.post('/api/sightings', auth, async (c) => {
     .first<{ user_id: string; photo_key: string | null; photo_hash: string | null }>();
   if (existing && existing.user_id !== userId) return c.json({ error: 'forbidden' }, 403);
 
-  const [tomb, today] = await c.env.DB.batch([
+  const [tomb, today, consent] = await c.env.DB.batch([
     c.env.DB.prepare('SELECT 1 AS x FROM sighting_tombstones WHERE id = ? AND user_id = ?').bind(s.id, userId),
     // 1日の上限はサーバーが受け取った日時で数える（端末の申告する created_at は過去にずらせるため）
     c.env.DB.prepare('SELECT COUNT(*) AS n FROM sightings WHERE user_id = ? AND received_at >= ?').bind(userId, jstMidnightIso()),
+    c.env.DB.prepare('SELECT road_consent_version AS v FROM users WHERE id = ?').bind(userId),
   ]);
+  // 路上レポートの正確な位置は、提携先に渡すことに同意した人のものだけ受け取る（同意していなければ市町村までにする）
+  if ((consent.results[0] as { v?: string | null } | undefined)?.v !== ROAD_CONSENT_VERSION) {
+    s.reportLat = null;
+    s.reportLng = null;
+  }
   // 消した記録が古い端末から送り直されても生き返らせない
   if (tomb.results.length) return c.json({ error: 'deleted' }, 410);
   if (!existing && ((today.results[0] as { n?: number } | undefined)?.n ?? 0) >= LIMITS.sightingsPerDay) {
@@ -263,7 +314,7 @@ app.post('/api/sightings', auth, async (c) => {
   const now = nowIso();
   const statements = [
     // セッションはユーザー行より長生きしうる（DB作り直し・退会後の再登録など）ので、外部キーのために必ず作る
-    c.env.DB.prepare('INSERT OR IGNORE INTO users (id, created_at, last_seen_at) VALUES (?1, ?2, ?2)').bind(userId, now),
+    c.env.DB.prepare('INSERT OR IGNORE INTO users (id, created_at, last_seen_at, support_code) VALUES (?1, ?2, ?2, ?3)').bind(userId, now, await supportCodeFor(userId)),
     c.env.DB.prepare(
       `INSERT INTO sightings (id, user_id, species_id, custom_name, nickname, memo, observed_at, created_at, updated_at,
          area_id, lat, lng, location_protected, kind, road_report, photo_key, photo_hash, received_at)

@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { jstDate, jstMidnightIso, signSession, verifyLineSignature, verifySession } from '../worker/src/crypto';
+import { jstDate, jstMidnightIso, readSession, signSession, verifyLineSignature, verifySession } from '../worker/src/crypto';
 import { normalizeCandidates } from '../worker/src/identify';
 import { identifyResultMessage } from '../worker/src/line';
 import { parseSightingMeta, ValidationError } from '../worker/src/validate';
@@ -16,6 +16,16 @@ describe('session tokens', () => {
     const forged = `${h}.${Buffer.from(JSON.stringify({ sub: 'Uadmin', exp: 9e9 })).toString('base64url')}.${s}`;
     expect(await verifySession(forged, 'secret', NOW)).toBeNull();
     expect(await verifySession(token, 'secret', NOW + 31 * 86400000)).toBeNull();
+  });
+
+  it('carries the issue time (退会の前に発行したログインを見分ける)', async () => {
+    const token = await signSession('U123', 'secret', NOW + 123);
+    expect(await readSession(token, 'secret', NOW)).toEqual({ sub: 'U123', issuedAt: NOW + 123 });
+    // 発行日時のない古い形式は、期限（30日後）から逆算する
+    const [h, , ] = token.split('.');
+    const legacyPayload = Buffer.from(JSON.stringify({ sub: 'U123', exp: Math.floor(NOW / 1000) + 30 * 86400 })).toString('base64url');
+    const sig = createHmac('sha256', 'secret').update(`${h}.${legacyPayload}`).digest('base64url');
+    expect(await readSession(`${h}.${legacyPayload}.${sig}`, 'secret', NOW)).toEqual({ sub: 'U123', issuedAt: Math.floor(NOW / 1000) * 1000 });
   });
 });
 
