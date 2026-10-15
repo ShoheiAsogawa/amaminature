@@ -26,8 +26,10 @@ const FRAME = 40;
 /** 写真の窓（5:4）。線は 1 ドット */
 const PHOTO = { x: 84, y: 200, w: 912, h: 730, border: DOT } as const;
 
-const FONT_JP = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
-const FONT_NUM = '"Lilita One", "M PLUS Rounded 1c", "Hiragino Sans", sans-serif';
+/** アプリと同じドット文字（docs/DESIGN_SYSTEM.md §3）。名前とラベルは PixelMplus12 の太字、説明と地名は DotGothic16、数字は Jersey 15 */
+const FONT_HEAD = 'PixelMplus12, "Jersey 15", DotGothic16, "Hiragino Sans", sans-serif';
+const FONT_JP = 'DotGothic16, "Hiragino Sans", sans-serif';
+const FONT_NUM = '"Jersey 15", DotGothic16, "Hiragino Sans", sans-serif';
 
 const TYPE_LABEL: Record<Category, string> = {
   mammal: 'けもの',
@@ -202,10 +204,10 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number, maxL
   return lines;
 }
 
-/** 名前は 64px、入らなければ縮める。図鑑にない生き物の名前は最後に末尾を省く */
+/** 名前は 60px（PixelMplus12 の 5 倍）、入らなければ 12 の倍数で縮める。図鑑にない生き物の名前は最後に末尾を省く */
 function fitName(ctx: CanvasRenderingContext2D, name: string, max: number): string {
-  for (const px of [64, 56, 48, 42]) {
-    ctx.font = `900 ${px}px ${FONT_JP}`;
+  for (const px of [60, 48, 36]) {
+    ctx.font = `700 ${px}px ${FONT_HEAD}`;
     if (ctx.measureText(name).width <= max) return name;
   }
   let s = name;
@@ -240,10 +242,10 @@ export async function renderShareCard(opts: {
 
   await loadFonts([
     [`400 56px ${FONT_NUM}`, `${no}${brand}${date}GET!`],
-    [`900 64px ${FONT_JP}`, name],
-    [`900 40px ${FONT_JP}`, `${nickname}${typeLabel}`],
-    [`800 32px ${FONT_JP}`, area ?? '奄美群島'],
-    [`800 31px ${FONT_JP}`, species?.description ?? ''],
+    [`700 60px ${FONT_HEAD}`, name],
+    [`700 36px ${FONT_HEAD}`, `${nickname}${typeLabel}`],
+    [`400 32px ${FONT_JP}`, area ?? '奄美群島'],
+    [`400 32px ${FONT_JP}`, species?.description ?? ''],
   ]);
 
   const canvas = document.createElement('canvas');
@@ -318,12 +320,12 @@ export async function renderShareCard(opts: {
 
   // タイプと星
   const rowY = PHOTO.y + PHOTO.h + 52;
-  pill(ctx, typeLabel, 84, rowY, 64, typeColor, '#FFFFFF', `900 34px ${FONT_JP}`);
+  pill(ctx, typeLabel, 84, rowY, 64, typeColor, '#FFFFFF', `700 36px ${FONT_HEAD}`);
   if (species) drawStars(ctx, species.rarity, W - 84, rowY + 32);
 
   // ニックネーム
   if (nickname) {
-    ctx.font = `900 40px ${FONT_JP}`;
+    ctx.font = `700 36px ${FONT_HEAD}`;
     pixelRect(ctx, 84, rowY + 90, W - 168, 76, CLIP_1);
     ctx.fillStyle = LIGHT.fill;
     ctx.fill();
@@ -347,7 +349,7 @@ export async function renderShareCard(opts: {
     ctx.lineTo(W - 84, top);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.font = `800 31px ${FONT_JP}`;
+    ctx.font = `400 32px ${FONT_JP}`;
     ctx.fillStyle = LIGHT.fg2;
     wrapText(ctx, species.description, W - 168, lines).forEach((l, i) => ctx.fillText(l, 84, top + 52 + i * 46));
   }
@@ -358,7 +360,7 @@ export async function renderShareCard(opts: {
   ctx.font = `400 34px ${FONT_NUM}`;
   ctx.fillText(date, 84, footY);
   const dw = ctx.measureText(date).width;
-  ctx.font = `800 32px ${FONT_JP}`;
+  ctx.font = `400 32px ${FONT_JP}`;
   ctx.fillText(area ?? '奄美群島', 84 + dw + 24, footY);
   ctx.fillStyle = LIGHT.brand;
   ctx.font = `400 34px ${FONT_NUM}`;

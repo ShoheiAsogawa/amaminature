@@ -7,6 +7,7 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 - 2026-10: 前のデザインシステム「瑠璃の野帳」（白い紙と墨、瑠璃 1 色の静かな図鑑）を廃止した。依頼は「もっとドパガキ向けの、ポケモンのゲームみたいな UI/UX」。中高生〜若い大人が、ゲームと同じ手ざわりで遊べることを優先する。
 - 方向: 空色の盤面に白いパネル、押せる厚みのあるボタン、生き物のタイプ（分類）とレア度の色、丸ゴシックの太い文字、ゲットの演出・効果音・紙吹雪・レベルアップ。
 - 2026-10: 「ドット絵の文字なんやから、BOX も丸っぽいのじゃなくてドットに。ポケモンみたいな装飾ドット BOX」の依頼で、角丸をやめ、すべての箱をドット絵の枠（§4.1）にした。
+- 2026-10: 「フォントもドット絵風に。文字が潰れない程度に」の依頼で、文字をすべてドット文字にした（§3）。小さい文字は 12px 用の書体で、太字にしない。
 - ポケモンそのもの（モンスターボール、キャラクター、ロゴ、専用フォント、「ポケモン」「図鑑」以外の固有名詞）は使わない。手ざわりだけを借り、図柄はすべてオリジナル（§9）。
 
 ## 1. 原則
@@ -62,13 +63,21 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 
 ## 3. 文字
 
-| 用途 | 書体 | 太さ |
-|---|---|---|
-| 本文・見出し | M PLUS Rounded 1c | 500 / 700 / 800 / 900 |
-| 数字・英字のラベル（Lv、No.、GET!、pt） | Lilita One（`.num`、`font-num`） | 400 |
-| メッセージ窓 | DotGothic16（`font-pixel`、`.msg-window`） | 400 |
+すべてドット文字（2026-10「フォントもドット絵風に。文字が潰れない程度に」）。ドット文字は、1 ドットが画面の整数 px になる大きさでにじまない。小さい文字は 12px のために作られた書体にして、漢字がつぶれないようにする。
 
-Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind.config.js` の `display`(30/900) `title`(24/800) `section`(19/800) `headline`(17/700) `body`(15) `callout`(15) `sub`(13) `tile`(12/800) `caption`(11/700) `tab`(11/800) と、数字の `num-xl`(48) `num-kpi`(30) `num-l`(24)。行のタイトルは 700、見出しは 800〜900。和文の改行は `line-break: strict` と BudouX（`<Phrase>`）。
+| 用途 | 書体 | 大きさ（Tailwind） | 太さ |
+|---|---|---|---|
+| 本文・行のタイトル・ボタン | DotGothic16（`font-sans`） | `body` `callout` `headline` `input` 16px（1 ドット = 1px） | 太字は「ドットの太字」（1px 右に重ねる `text-shadow`）。合成の太字・斜体は使わない |
+| 見出し | PixelMplus12 の太字（`font-head`） | `section` `title` 24px（2 倍）、`display` 36px（3 倍） | 太字の字形 |
+| 小さい文字（補足・ラベル・タブ・タイル） | PixelMplus12（`font-small`、`'PixelMplus12 Text'`） | `sub` `caption` `tab` `tile` 12px（1 倍）。`text-[10〜13px]` もこの書体 | いつも標準の字形（12px の太字は漢字がつぶれる） |
+| 数字・英字のラベル（Lv、No.、GET!、pt） | Jersey 15（`.num`、`font-num`） | `num-xl` 48、`num-kpi` 30、`num-l` 24 など | 1 つ |
+| メッセージ窓 | DotGothic16（`.msg-window`） | 16px | — |
+
+- 書体の割り当ては `src/styles/index.css` の「ドット文字の決まり」（`:where(.text-section …)` など）。`.num` や `font-*` のクラスがあればそちらが勝つ。
+- 数字：PixelMplus12 の 0 は点があり「θ」に見えるので、PixelMplus12 からは数字を抜いてある。数字は小さい文字では DotGothic16、見出しでは Jersey 15 で出る。
+- 学名（`.sci`）は斜体にしない（ドット文字の斜体はにじむ）。色（`fg-2`）で区別する。
+- 読み込み：DotGothic16 と Jersey 15 は Google Fonts。PixelMplus12 は `public/fonts/`（`scripts/subset-pixel-font.py` で作る）。アプリの文言に出てくる文字の分（`pm12-*-ui.woff2`、約 60KB ずつ）は先に読み込み・オフライン用に保存し、それ以外の漢字（`*-more.woff2`、約 210KB ずつ）はニックネームなどで使われた時だけ読み込む。**アプリの文言に新しい漢字を足したら、スクリプトで作り直す**（作り直さなくても表示はされるが、大きい方を読み込む）。
+- 和文の改行は `line-break: strict` と BudouX（`<Phrase>`）。
 
 ## 4. 形と部品
 
@@ -202,7 +211,7 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 ## 9. 権利
 
 - 使わないもの: ポケモンのキャラクター・モンスターボールの図柄（赤と白に帯の球）・ロゴ・専用フォント・固有の文言（「ゲットだぜ」など）。
-- 文字: M PLUS Rounded 1c、Lilita One、DotGothic16 はいずれも SIL Open Font License。
+- 文字: DotGothic16、Jersey 15 は SIL Open Font License。PixelMplus12（itouhiro、M+ FONTS PROJECT）は M+ FONT LICENSE（自由に使用・改変・再配布できる）。`public/fonts/LICENSE-PixelMplus.txt`。
 - アイコン: Phosphor（MIT）と奄美の独自グリフ（`src/icons/amami`）。`npm run icons:ui` で `src/components/icons.tsx` を生成。
 - 種の絵: シルエット 62 点は発注中（`docs/SILHOUETTE_LIST.md`、`npm run check:sil`）。
 

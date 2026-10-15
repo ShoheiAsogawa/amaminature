@@ -6,25 +6,29 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
-    // 本文は丸ゴシック（M PLUS Rounded 1c）、数字とラベルはゲームの数字（Lilita One）、メッセージ窓はドット文字（DotGothic16）
+    // 文字はすべてドット文字（docs/DESIGN_SYSTEM.md §3）。本文は DotGothic16（16px で 1 ドット = 1px）、
+    // 小さい文字（12px）と見出し（24・36px）は PixelMplus12、数字は Jersey 15
     fontFamily: {
-      sans: ['"M PLUS Rounded 1c"', '"Hiragino Maru Gothic ProN"', '"Hiragino Sans"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
-      num: ['"Lilita One"', '"M PLUS Rounded 1c"', '"Hiragino Maru Gothic ProN"', 'system-ui', 'sans-serif'],
-      pixel: ['DotGothic16', '"M PLUS Rounded 1c"', 'monospace'],
+      sans: ['DotGothic16', '"Hiragino Sans"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
+      num: ['"Jersey 15"', 'DotGothic16', 'system-ui', 'sans-serif'],
+      pixel: ['DotGothic16', '"Hiragino Sans"', 'monospace'],
+      small: ['"PixelMplus12 Text"', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
+      head: ['PixelMplus12', '"Jersey 15"', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
     },
     fontWeight: { normal: '500', semibold: '700', bold: '800', black: '900' },
     fontSize: {
-      display: ['30px', { lineHeight: '38px', fontWeight: '900' }],
+      // ドット文字がにじまない大きさ：PixelMplus12 は 12 の倍数（12・24・36）、DotGothic16 は 16
+      display: ['36px', { lineHeight: '44px', fontWeight: '900' }],
       title: ['24px', { lineHeight: '32px', fontWeight: '800' }],
-      section: ['19px', { lineHeight: '26px', fontWeight: '800' }],
-      headline: ['17px', { lineHeight: '24px', fontWeight: '700' }],
-      body: ['15px', { lineHeight: '25px' }],
-      callout: ['15px', { lineHeight: '22px' }],
+      section: ['24px', { lineHeight: '30px', fontWeight: '800' }],
+      headline: ['16px', { lineHeight: '24px', fontWeight: '700' }],
+      body: ['16px', { lineHeight: '26px' }],
+      callout: ['16px', { lineHeight: '24px' }],
       input: ['16px', { lineHeight: '24px' }],
-      sub: ['13px', { lineHeight: '19px' }],
+      sub: ['12px', { lineHeight: '18px' }],
       tile: ['12px', { lineHeight: '16px', fontWeight: '800' }],
-      caption: ['11px', { lineHeight: '15px', letterSpacing: '0.02em', fontWeight: '700' }],
-      tab: ['11px', { lineHeight: '13px', letterSpacing: '0.02em', fontWeight: '800' }],
+      caption: ['12px', { lineHeight: '16px', fontWeight: '700' }],
+      tab: ['12px', { lineHeight: '14px', fontWeight: '800' }],
       'num-xl': ['48px', { lineHeight: '52px', letterSpacing: '0.01em' }],
       'num-kpi': ['30px', { lineHeight: '34px', letterSpacing: '0.01em' }],
       'num-l': ['24px', { lineHeight: '28px', letterSpacing: '0.01em' }],

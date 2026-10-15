@@ -69,8 +69,12 @@
   --chart-2: rgb(var(--c-capture));
   --chart-grid: rgb(var(--c-sep));
   --chart-band: rgb(var(--c-fill-strong));
-  --font-ui: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
-  --font-num: "Lilita One", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  /* ドット文字（docs/DESIGN_SYSTEM.md §3）。数字は PixelMplus12 に入れていない（点のある 0 が θ に見える）ので、続く書体で出す */
+  --font-ui: DotGothic16, "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  --font-num: "Jersey 15", DotGothic16, system-ui, sans-serif;
+  /* 小さい文字は太字を指定されても標準の字形（12px の太字は漢字がつぶれる） */
+  --font-small: "PixelMplus12 Text", DotGothic16, "Hiragino Sans", sans-serif;
+  --font-head: PixelMplus12, "Jersey 15", DotGothic16, "Hiragino Sans", sans-serif;
   --dot: rgb(var(--c-brand) / 0.07);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -126,8 +130,8 @@
   body {
     @apply bg-page font-sans text-fg antialiased;
     font-weight: 500;
+    /* ドット文字は太字・斜体を合成しない（にじむ）。太字は下の「ドットの太字」 */
     font-synthesis: none;
-    font-feature-settings: 'palt';
     /* 禁則処理：小さいかな（ょ・ゃ・っ）や句読点を行頭に置かない */
     line-break: strict;
     text-size-adjust: 100%;
@@ -156,6 +160,24 @@
 }
 
 @layer components {
+  /* ───────── ドット文字の決まり（§3） ─────────
+     見出し（24・36px）は PixelMplus12 の太字、12px 以下の文字は PixelMplus12（どちらも 1 ドット = 1・2・3px でにじまない）。
+     :where で詳細度を 0 にして、.num や font-* のクラスが勝つようにする */
+  :where(.text-display, .text-title, .text-section) {
+    font-family: var(--font-head);
+  }
+  :where(.text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[10px]'], [class*='text-[11px]'], [class*='text-[12px]'], [class*='text-[13px]']) {
+    font-family: var(--font-small);
+  }
+  /* ドットの太字：DotGothic16 には太字がないので、1px 右に重ねて線を太くする（ゲームの太字と同じ） */
+  :where(.font-bold, .font-black, .font-semibold, .text-headline) {
+    text-shadow: 1px 0 currentColor;
+  }
+  /* PixelMplus12・数字の書体は太字の字形があるので、重ねない */
+  :where(.text-display, .text-title, .text-section, .text-sub, .text-tile, .text-caption, .text-tab, .num, .font-num, .font-small, .font-head, [class*='text-[10px]'], [class*='text-[11px]'], [class*='text-[12px]'], [class*='text-[13px]']) {
+    text-shadow: none;
+  }
+
   /* 単独で立つ数字（pt、種数、レベル、図鑑番号） */
   .num {
     font-family: var(--font-num);
@@ -163,11 +185,10 @@
     font-variant-numeric: tabular-nums lining-nums;
     letter-spacing: 0.01em;
   }
-  /* 学名: <i lang="la" className="sci"> */
+  /* 学名: <i lang="la" className="sci">。ドット文字は斜体にするとにじむので、立てたまま色で区別する */
   .sci {
     font-family: var(--font-ui);
-    font-style: italic;
-    font-synthesis: style;
+    font-style: normal;
     font-weight: 500;
     letter-spacing: 0;
     color: rgb(var(--c-fg-2));
@@ -200,7 +221,7 @@
   .msg-window {
     position: relative;
     color: #1b1f3b;
-    font-family: DotGothic16, var(--font-ui);
+    font-family: var(--font-ui);
     font-weight: 400;
     font-feature-settings: normal;
     letter-spacing: 0.04em;

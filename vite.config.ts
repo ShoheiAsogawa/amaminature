@@ -61,9 +61,19 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // ドット文字の「アプリの文言にない漢字」の分（約 210KB ずつ）は、使われた時に読み込んでキャッシュする
+        globIgnores: ['**/fonts/*-more.woff2'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/s\//],
         runtimeCaching: [
+          {
+            urlPattern: /\/fonts\/.*\.woff2$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'pixel-fonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',

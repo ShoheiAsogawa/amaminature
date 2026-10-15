@@ -361,7 +361,7 @@ export function MessageWindow({
         </span>
       )}
       <div
-        className="px-msg msg-window min-h-[88px] px-2.5 py-2 text-[17px] leading-[28px]"
+        className="px-msg msg-window min-h-[88px] px-2.5 py-2 text-[16px] leading-[28px]"
         onClick={() => setN(chars.length)}
         role="presentation"
       >

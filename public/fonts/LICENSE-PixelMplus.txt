@@ -1,0 +1,22 @@
+M+ FONTS                                Copyright (C) 2002-2013 M+ FONTS PROJECT
+
+-
+
+LICENSE_E
+
+
+
+
+These fonts are free software.
+Unlimited permission is granted to use, copy, and distribute them, with
+or without modification, either commercially or noncommercially.
+THESE FONTS ARE PROVIDED "AS IS" WITHOUT WARRANTY.
+
+
+http://mplus-fonts.sourceforge.jp/mplus-outline-fonts/
+
+----
+PixelMplus12 (Regular / Bold) by itouhiro, based on M+ BITMAP FONTS.
+https://github.com/itouhiro/PixelMplus
+The woff2 files in this folder are subsets (digits removed, split into "ui" and "more" ranges)
+made by scripts/subset-pixel-font.py.

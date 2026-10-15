@@ -605,7 +605,7 @@ export const button = cva(
       },
       // 枠（6px）の分、左右の余白は 16px にする
       size: {
-        lg: 'h-14 w-full px-4 text-[17px]',
+        lg: 'h-14 w-full px-4 text-[16px]',
         md: 'h-11 px-4 text-callout',
         hit: 'min-h-11 px-1 text-callout',
       },

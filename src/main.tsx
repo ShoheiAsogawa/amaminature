@@ -6,6 +6,7 @@ import { applyTheme, useStore } from './store/useStore';
 import { DARK, LIGHT } from './styles/palette';
 import './styles/index.css';
 import './styles/pixel-frames.css';
+import './styles/pixel-fonts.css';
 
 /**
  * ブラウザの上下のバーの色（theme-color、2 つの meta）をテーマに合わせる（§2.9・§12.2）。
