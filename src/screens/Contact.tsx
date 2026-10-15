@@ -47,11 +47,11 @@ export default function Contact() {
       {/* お問い合わせ番号（運営がアカウントを探すため） */}
       <SectionHeader title="お問い合わせ番号" />
       {code ? (
-        <div className="panel mx-4 flex items-center gap-3 p-4">
+        <div className="panel mx-4 flex items-center gap-3 p-3">
           <span className="num min-w-0 flex-1 text-[24px] tracking-[0.08em] text-fg" aria-label={`お問い合わせ番号 ${code.split('').join(' ')}`}>
             {code}
           </span>
-          <Button variant="secondary" size="md" className="h-10 px-3" onClick={copy}>
+          <Button variant="secondary" size="md" className="h-10 px-2" onClick={copy}>
             <IconCopy size={18} />
             コピー
           </Button>

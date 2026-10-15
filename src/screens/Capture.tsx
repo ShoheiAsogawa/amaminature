@@ -22,7 +22,7 @@ import {
   IconX,
   type IconProps,
 } from '../components/icons';
-import { TYPE_META } from '../components/game';
+import { pxCircleClip, TYPE_META } from '../components/game';
 import { Phrase } from '../components/Phrase';
 import { SciName, SpeciesPlate, SpeciesThumb } from '../components/SpeciesTile';
 import { SpeciesName } from '../components/SpeciesName';
@@ -86,6 +86,16 @@ const ROAD_OPTIONS: { value: RoadReport; label: string; desc: string; icon: type
   { value: 'injured', label: 'けがをしている生き物', desc: '動けない、弱っている', icon: IconHandHeart },
   { value: 'on-road', label: '路上にいた生き物', desc: '生きていて、道路上や路肩にいた', icon: IconCarProfile },
 ];
+
+/** 選んだタイプのチップの枠（タイプの色の面のドット絵の枠）。枠は絵なので、色ごとのクラス名をそのまま書く */
+const TYPE_CHIP: Record<Category, string> = {
+  mammal: 'px-type-mammal',
+  bird: 'px-type-bird',
+  herp: 'px-type-herp',
+  insect: 'px-type-insect',
+  aqua: 'px-type-aqua',
+  plant: 'px-type-plant',
+};
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -510,7 +520,7 @@ function CaptureFlow() {
             <SciName sci={sp.sci} className="block text-sub leading-[18px]" />
             {/* 毒のある種は、候補の時点で危険がわかるように */}
             {sp.danger && (
-              <span className="mt-1 inline-flex h-6 items-center gap-1 rounded-full bg-danger px-2 text-caption text-on-danger">
+              <span className="px-clip-1 mt-1 inline-flex h-6 items-center gap-1 bg-danger px-2 text-caption text-on-danger">
                 <IconWarning size={13} aria-hidden />
                 毒あり・近づかない
               </span>
@@ -643,7 +653,7 @@ function CaptureFlow() {
                     disabled={processing}
                     className="flex flex-col items-center gap-1.5 justify-self-start text-white active:opacity-60"
                   >
-                    <span className="grid h-11 w-11 place-items-center rounded-xs bg-white/[.14]">
+                    <span className="px-clip-2 grid h-11 w-11 place-items-center bg-white/[.14]">
                       <IconImageSquare size={24} />
                     </span>
                     <span className="text-caption text-white/70">アルバム</span>
@@ -653,10 +663,16 @@ function CaptureFlow() {
                     onClick={() => cameraRef.current?.click()}
                     disabled={processing}
                     aria-label="カメラで撮る"
-                    className="relative grid h-[80px] w-[80px] place-items-center justify-self-center rounded-full border-[5px] border-white bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge))] transition-transform duration-75 active:translate-y-[3px]"
+                    className="relative grid h-[80px] w-[80px] place-items-center justify-self-center text-white transition-transform duration-75 active:translate-y-[3px]"
                   >
-                    <span aria-hidden className="absolute inset-[-5px] animate-ring-pulse rounded-full border-4 border-capture" />
-                    <IconCameraFill size={34} />
+                    {/* 白い縁の赤いドット絵の丸（白い丸に 6px 内側の赤い丸を重ねる）。厚みは切り抜かない外側の drop-shadow。
+                        波紋は切り抜いた丸の外に広がるので、丸の兄弟にして下に置く */}
+                    <span aria-hidden className="px-ring-capture absolute inset-0 animate-ring-pulse" />
+                    <span aria-hidden className="absolute inset-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-capture-edge)))]">
+                      <span className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(80) }} />
+                      <span className="absolute inset-[6px] bg-capture" style={{ clipPath: pxCircleClip(68) }} />
+                    </span>
+                    <IconCameraFill size={34} className="relative" />
                   </button>
                   <Button variant="text" size="hit" className="justify-self-end text-white" disabled={processing} onClick={afterPhoto}>
                     写真なしで記録
@@ -679,7 +695,7 @@ function CaptureFlow() {
             className="pb-[calc(32px+var(--safe-bottom))]"
           >
             <ScreenHeader variant="nav" title="名前を選ぶ" onBack={() => go('photo')} right={<StepCount n={2} />} />
-            {photoUrl && <img src={photoUrl} alt="撮影した写真" className="photo ml-4 mt-2 h-[72px] w-[72px] rounded-xs object-cover" />}
+            {photoUrl && <img src={photoUrl} alt="撮影した写真" className="photo px-clip-2 ml-4 mt-2 h-[72px] w-[72px] object-cover" />}
             <div className="px-4 pt-3">
               <SearchField value={query} onChange={setQuery} aria-label="生き物の名前で探す" />
             </div>
@@ -690,7 +706,7 @@ function CaptureFlow() {
                   selected={cat === c}
                   icon={TYPE_META[c].icon}
                   onClick={() => setCat(cat === c ? null : c)}
-                  className={cn(cat === c && [TYPE_META[c].bg, 'border-transparent shadow-[0_3px_0_rgb(0_0_0/.25)]'])}
+                  className={cn(cat === c && TYPE_CHIP[c])}
                   aria-label={CATEGORY_META[c].label}
                 >
                   {TYPE_META[c].label}
@@ -710,7 +726,7 @@ function CaptureFlow() {
                         const sp = SPECIES_BY_ID[c.speciesId];
                         if (!sp)
                           return (
-                            <Notice key={`unknown-${c.speciesId}`} className="py-3">
+                            <Notice key={`unknown-${c.speciesId}`}>
                               {`図鑑の中からは特定できませんでした。${c.reason}`}
                             </Notice>
                           );
@@ -777,9 +793,9 @@ function CaptureFlow() {
             />
             <div className="flex items-center gap-3 px-4 pt-2">
               {photoUrl ? (
-                <img src={photoUrl} alt="撮影した写真" className="photo h-[72px] w-[72px] shrink-0 rounded-xs object-cover" />
+                <img src={photoUrl} alt="撮影した写真" className="photo px-clip-2 h-[72px] w-[72px] shrink-0 object-cover" />
               ) : species ? (
-                <SpeciesPlate species={species} discovered={collection.has(species.id)} showReference patternSize="thumb" className="h-[72px] w-[72px] shrink-0 rounded-xs" />
+                <SpeciesPlate species={species} discovered={collection.has(species.id)} showReference patternSize="thumb" className="px-clip-2 h-[72px] w-[72px] shrink-0" />
               ) : null}
               <div className="min-w-0 flex-1">
                 <div className="text-headline text-fg">{species ? <SpeciesName species={species} /> : '図鑑にない生き物'}</div>
@@ -817,7 +833,7 @@ function CaptureFlow() {
                               setNickname(nicknameIdeas(species, next)[0]);
                             }}
                             aria-label="ニックネームの候補を変える"
-                            className="grid h-10 w-10 place-items-center rounded-sm text-fg-2 active:bg-fill-strong"
+                            className="grid h-9 w-9 place-items-center text-fg-2 active:bg-fill-strong"
                           >
                             <IconDiceFive size={20} />
                           </button>
@@ -843,7 +859,7 @@ function CaptureFlow() {
               {/* 地域: select を行に重ねる（行には市町村名だけを出す）。右端は現在地から設定 */}
               <div className="group/row relative flex pl-4">
                 <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 border-b border-sep pr-1 group-last/row:border-b-0">
-                  <div className="relative flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-sm py-2.5 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
+                  <div className="relative flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
                     <span className="w-24 shrink-0 text-callout text-fg-2">地域</span>
                     <span className={cn('min-w-0 flex-1 text-callout', area ? 'text-fg' : 'text-fg-3')}>{area?.name ?? '未設定'}</span>
                     <select
@@ -869,13 +885,13 @@ function CaptureFlow() {
                     onClick={locate}
                     disabled={locating}
                     aria-label="現在地から設定"
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-brand active:bg-fill-strong"
+                    className="grid h-11 w-11 shrink-0 place-items-center text-brand active:bg-fill-strong"
                   >
                     {locating ? <Spinner size={20} /> : <IconGpsFix size={20} />}
                   </button>
                 </div>
               </div>
-              <label className="group/row flex rounded-b-md pl-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
+              <label className="group/row flex pl-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
                 <span className="flex min-w-0 flex-1 items-start gap-3 py-3 pr-4">
                   <span className="w-24 shrink-0 text-callout text-fg-2">メモ</span>
                   <textarea

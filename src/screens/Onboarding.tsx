@@ -18,8 +18,12 @@ import { useStore } from '../store/useStore';
 function TitleLogo() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid h-11 w-11 place-items-center rounded-full border-[3px] border-white bg-brand-fill shadow-[0_3px_0_rgb(var(--c-brand-pressed))]">
-        <LogoMark size={26} className="text-white" />
+      {/* 白い線の瑠璃のドット絵の丸（白い丸に瑠璃の丸を 3px 内側に重ねる）。下の厚みは切り抜かない外側の drop-shadow で落とす */}
+      <span className="shrink-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
+        <span className="px-circle-m relative grid h-11 w-11 place-items-center bg-white">
+          <span className="px-circle-m absolute inset-[3px] bg-brand-fill" />
+          <LogoMark size={26} className="relative text-white" />
+        </span>
       </span>
       <div className="leading-none">
         <div className="num text-[24px] tracking-[0.03em] text-white">
@@ -33,17 +37,27 @@ function TitleLogo() {
 
 // ───────── 紹介のページの絵（写真がない間は、アプリの中の物そのものを見せる） ─────────
 
-/** 1 ページ目: 伏せた図鑑カード（裏面の龍郷柄）を 3 枚、扇に広げる */
+/**
+ * 1 ページ目: 伏せた図鑑カード（裏面の龍郷柄）を 3 枚、扇に広げる。
+ * カードは図鑑カードの裏面と同じ形（白い縁 2 ドット、角は 3 段の段々 px-clip-3、柄の面は 1 段の段々）。
+ * 切り抜いたカードは自分の影を描けないので、傾けない外側の箱に固い影（下 6px）を付ける（影はまっすぐ下に落ちる）
+ */
 function CardFan() {
   const card = (rot: number, x: number, y: number, z: number, delay: string) => (
-    <div className="absolute left-1/2 top-1/2" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`, zIndex: z }}>
-      <div
-        className="grid h-[214px] w-[152px] animate-float place-items-center rounded-[18px] border-[5px] border-white shadow-object"
-        style={{ ...TATSUGO_STYLE, animationDelay: delay }}
-      >
-        <span className="grid h-16 w-16 place-items-center rounded-full border-4 border-white bg-brand-pressed">
-          <LogoMark size={32} className="text-white" />
-        </span>
+    <div
+      className="absolute left-1/2 top-1/2 [filter:drop-shadow(0_6px_0_rgb(0_0_0/.35))]"
+      style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`, zIndex: z }}
+    >
+      <div style={{ transform: `rotate(${rot}deg)` }}>
+        <div className="px-clip-3 grid h-[214px] w-[152px] animate-float bg-white p-1.5" style={{ animationDelay: delay }}>
+          <div className="px-clip-1 grid place-items-center" style={TATSUGO_STYLE}>
+            {/* 白い線の紋章（白い丸に瑠璃の丸を 3px 内側に重ねる） */}
+            <span className="px-circle-l relative grid h-16 w-16 place-items-center bg-white">
+              <span className="px-circle-l absolute inset-[3px] bg-brand-pressed" />
+              <LogoMark size={32} className="relative text-white" />
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -52,8 +66,9 @@ function CardFan() {
       {card(-12, -64, 16, 1, '0.4s')}
       {card(12, 64, 16, 2, '0.8s')}
       {card(0, 0, 0, 3, '0s')}
-      <span className="num absolute left-1/2 top-[-8px] z-10 -translate-x-1/2 -rotate-6 rounded-full bg-capture px-3 py-0.5 text-[18px] text-white shadow-[0_3px_0_rgb(var(--c-capture-edge))]">
-        62 SPECIES
+      {/* ステッカー（傾きは残す）。切り抜いたタグの下の厚みは、外側の drop-shadow で落とす */}
+      <span className="absolute left-1/2 top-[-8px] z-10 -translate-x-1/2 -rotate-6 [filter:drop-shadow(0_3px_0_rgb(var(--c-capture-edge)))]">
+        <span className="px-clip-1 num block bg-capture px-3 py-0.5 text-[18px] text-white">62 SPECIES</span>
       </span>
     </div>
   );
@@ -85,7 +100,7 @@ function StampsAndReward() {
   const yesterday = new Date(today.getTime() - 864e5);
   return (
     <div className="w-full max-w-[358px] px-4">
-      <div className="grid grid-cols-4 justify-items-center rounded-lg bg-white/90 py-3">
+      <div className="px-clip-2 grid grid-cols-4 justify-items-center bg-white/90 py-3">
         <StampSeal name="奄美市" visited date={yesterday} />
         <StampSeal name="龍郷町" visited date={today} />
         <StampSeal name="徳之島町" visited={false} />
@@ -96,9 +111,9 @@ function StampsAndReward() {
           { icon: IconTicket, title: '提携ツアー 1,000円引き', points: 300 },
           { icon: IconHandHeart, title: '奄美の自然保護に寄付する', points: 100 },
         ].map((r) => (
-          <div key={r.title} className="group/row flex items-center pl-4">
+          <div key={r.title} className="group/row flex items-center pl-3">
             <r.icon size={20} className="shrink-0 text-fg-2" />
-            <span className="ml-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b-2 border-sep py-2.5 pr-4 group-last/row:border-b-0">
+            <span className="ml-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 border-b-2 border-sep py-2.5 pr-3 group-last/row:border-b-0">
               <span className="min-w-0 flex-1 text-callout font-bold text-fg">{r.title}</span>
               <span className="flex shrink-0 items-center gap-1">
                 <Coin size={20} />
@@ -258,7 +273,7 @@ function Intro({ onDone }: { onDone: () => void }) {
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] px-4 pb-[calc(14px+var(--safe-bottom))] pt-3">
         <div className="mb-3.5 flex justify-center gap-2" aria-hidden>
           {SLIDES.map((_, i) => (
-            <span key={i} className={cn('h-2.5 rounded-full transition-all', i === index ? 'w-7 bg-gold' : 'w-2.5 bg-white/30')} />
+            <span key={i} className={cn('h-[9px] transition-all', i === index ? 'w-[27px] bg-gold' : 'w-[9px] bg-white/30')} />
           ))}
         </div>
         <p className="sr-only" aria-live="polite">
@@ -295,10 +310,13 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
 
       <ul className="mt-5 space-y-2.5 px-4">
         {PLEDGES.map((p, i) => (
-          <li key={p.title} className="panel flex gap-3 p-3.5">
-            <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
-              <p.icon size={24} />
-              <span className="num absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-gold text-[12px] leading-none text-[#3d2a00]">{i + 1}</span>
+          <li key={p.title} className="panel flex gap-3 p-2.5">
+            {/* 番号は丸の外にはみ出すので、切り抜いた丸の兄弟にする */}
+            <span className="relative h-11 w-11 shrink-0">
+              <span className="px-circle-m grid h-full w-full place-items-center bg-brand-soft text-brand">
+                <p.icon size={24} />
+              </span>
+              <span className="px-circle-s num absolute -left-1 -top-1 grid h-5 w-5 place-items-center bg-gold text-[12px] leading-none text-[#3d2a00]">{i + 1}</span>
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-headline font-black text-fg">

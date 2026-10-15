@@ -56,7 +56,7 @@ function ConsentSheet({
   return (
     <Sheet open={open} onClose={onClose} title={text.title} snapPoints={[1]}>
       <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+        <span className="px-circle-m grid h-11 w-11 shrink-0 place-items-center bg-brand-soft text-brand">
           <Icon size={24} />
         </span>
         <p className="prose whitespace-pre-line text-body text-fg-2">{text.body}</p>

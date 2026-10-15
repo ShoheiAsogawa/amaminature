@@ -35,12 +35,14 @@ import { useCollection, type CollectionEntry } from '../store/useCollection';
 import { useMissions, useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
 
-/** 画面の左上の小さなロゴ */
+/** 画面の左上の小さなロゴ（瑠璃のドット絵の丸。下の厚みは切り抜かない外側の drop-shadow で落とす） */
 function Brand() {
   return (
     <span className="flex items-center gap-2" aria-label="AMAMI NATURE">
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-fill text-white shadow-[0_3px_0_rgb(var(--c-brand-pressed))]">
-        <LogoMark size={22} className="text-white" />
+      <span className="shrink-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
+        <span className="px-circle-m grid h-9 w-9 place-items-center bg-brand-fill text-white">
+          <LogoMark size={22} className="text-white" />
+        </span>
       </span>
       <span aria-hidden className="num text-[19px] leading-none tracking-[0.03em] text-fg">
         AMAMI <span className="text-brand">NATURE</span>
@@ -154,7 +156,7 @@ export default function Home() {
           <SyncStatus />
           {streak > 0 && (
             <span
-              className="flex h-9 items-center gap-1 rounded-full border-2 border-capture/30 bg-surface pl-2 pr-3 shadow-pop-sm"
+              className="px-panel flex h-9 items-center gap-1 pl-1 pr-2"
               aria-label={`${streak}日連続でプレイ中`}
             >
               <IconFireFill size={18} className="text-capture" aria-hidden />
@@ -170,9 +172,9 @@ export default function Home() {
         <PlayerHud />
       </header>
 
-      {/* ───── 季節のバナー（いまの奄美） ───── */}
-      <section className="mx-4 mt-4 overflow-hidden rounded-lg border-2 border-night bg-night text-white shadow-[0_4px_0_rgb(var(--c-edge))]" aria-labelledby="home-season-title">
-        <div className="relative px-4 pb-4 pt-3.5" style={{ background: 'radial-gradient(120% 140% at 100% 0%, rgb(var(--c-night-2)) 0%, transparent 60%)' }}>
+      {/* ───── 季節のバナー（いまの奄美。夜空の地にドット絵の枠 px-night） ───── */}
+      <section className="px-night mx-4 mt-4 overflow-hidden bg-night text-white" aria-labelledby="home-season-title">
+        <div className="relative px-3 pb-3 pt-2.5" style={{ background: 'radial-gradient(120% 140% at 100% 0%, rgb(var(--c-night-2)) 0%, transparent 60%)' }}>
           <Sparkles count={4} className="opacity-70" />
           <p className="num text-[13px] tracking-[0.08em] text-gold">
             {MONTH_EN[month - 1]} · {night ? 'NIGHT MODE' : 'DAY MODE'}
@@ -198,7 +200,7 @@ export default function Home() {
           id="home-missions"
           title="きょうのミッション"
           action={
-            <span className="num rounded-full bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${missions.length}つ中${done}つ達成`}>
+            <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${missions.length}つ中${done}つ達成`}>
               {done}/{missions.length}
             </span>
           }
@@ -215,7 +217,7 @@ export default function Home() {
       </section>
 
       {/* ───── 図鑑のコンプ率 ───── */}
-      <Link to="/zukan" onClick={() => sfx('tap')} className="panel pressable mx-4 mt-7 flex items-center gap-4 p-4">
+      <Link to="/zukan" onClick={() => sfx('tap')} className="panel pressable mx-4 mt-7 flex items-center gap-4 p-3">
         <Ring value={rate} size={78} stroke={10}>
           <span className="num text-[20px] leading-none text-fg">{Math.round(rate * 100)}%</span>
         </Ring>
@@ -229,8 +231,8 @@ export default function Home() {
             {CATEGORY_ORDER.map((c) => {
               const v = stats.byCategory[c];
               return (
-                <span key={c} className="h-2 flex-1 overflow-hidden rounded-full bg-fill-strong">
-                  <span className={cn('block h-full rounded-full', TYPE_META[c].bg)} style={{ width: `${(v.found / v.total) * 100}%` }} />
+                <span key={c} className="px-clip-1 h-[9px] flex-1 overflow-hidden bg-fill-strong">
+                  <span className={cn('block h-full', TYPE_META[c].bg)} style={{ width: `${(v.found / v.total) * 100}%` }} />
                 </span>
               );
             })}
@@ -267,8 +269,8 @@ export default function Home() {
                 }}
                 className="panel pressable block w-full overflow-hidden text-left"
               >
-                <span className="flex items-center gap-3 px-4 pb-2 pt-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-soft text-gold-edge">
+                <span className="flex items-center gap-3 px-3 pb-2 pt-2">
+                  <span className="px-circle-m grid h-10 w-10 shrink-0 place-items-center bg-gold-soft text-gold-edge">
                     <IconFlagBannerFill size={22} />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -284,7 +286,7 @@ export default function Home() {
                     {qp.current}/{qp.target}
                   </span>
                 </span>
-                <span className="block px-4 pb-3.5">
+                <span className="block px-3 pb-2.5">
                   <XPBar value={qp.current / qp.target} tone="gold" height={12} label="クエストの進み具合" />
                 </span>
               </button>
@@ -309,9 +311,9 @@ export default function Home() {
       {night && (
         <Link
           to="/safe-drive"
-          className="pressable mx-4 mt-7 flex items-center gap-3 rounded-lg border-2 border-night bg-night p-4 text-white shadow-[0_4px_0_rgb(var(--c-edge))]"
+          className="px-night pressable mx-4 mt-7 flex items-center gap-3 bg-night p-3 text-white"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold text-night">
+          <span className="px-circle-m grid h-11 w-11 shrink-0 place-items-center bg-gold text-night">
             <IconCarProfileFill size={24} />
           </span>
           <span className="min-w-0 flex-1">
@@ -377,7 +379,7 @@ function MissionRow({ mission }: { mission: Mission }) {
       className="group/row flex items-center gap-3 border-b-2 border-sep px-4 py-3 active:bg-fill"
       aria-label={`${mission.title}${mission.done ? '（達成）' : `（${mission.current}/${mission.target}）`}`}
     >
-      <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', mission.done ? 'bg-xp text-white' : 'bg-brand-soft text-brand')}>
+      <span className={cn('px-circle-m grid h-10 w-10 shrink-0 place-items-center', mission.done ? 'bg-xp text-white' : 'bg-brand-soft text-brand')}>
         {mission.done ? <IconCheck size={22} /> : <Icon size={22} />}
       </span>
       <span className="min-w-0 flex-1">
@@ -392,7 +394,7 @@ function MissionRow({ mission }: { mission: Mission }) {
         )}
       </span>
       {mission.done ? (
-        <span className="num shrink-0 animate-pop-in rounded-full bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
+        <span className="px-clip-1 num shrink-0 animate-pop-in bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
       ) : (
         <IconCaretRight size={18} className="shrink-0 text-fg-3" />
       )}
@@ -402,24 +404,33 @@ function MissionRow({ mission }: { mission: Mission }) {
 
 // ───────── 季節の種のカード ─────────
 
-/** 「いま会えるかも」の横スクロールのカード（ゲームのキャラクターカード） */
+/** 記録した種のカードの枠（線がタイプの色のドット絵の枠）。枠は絵なので、色ごとのクラス名をそのまま書く */
+const TILE_FRAME: Record<Species['category'], string> = {
+  mammal: 'px-tile-mammal',
+  bird: 'px-tile-bird',
+  herp: 'px-tile-herp',
+  insect: 'px-tile-insect',
+  aqua: 'px-tile-aqua',
+  plant: 'px-tile-plant',
+};
+
+/** 「いま会えるかも」の横スクロールのカード（ゲームのキャラクターカード）。ゲットした種は線がタイプの色の枠 */
 function SeasonCard({ species, entry, featured }: { species: Species; entry?: CollectionEntry; featured: boolean }) {
   const found = !!entry;
-  const t = TYPE_META[species.category];
   return (
     <Link
       to={`/species/${species.id}`}
       onClick={() => sfx('tap')}
-      className={cn('pressable relative block w-[132px] shrink-0 rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', found ? t.border : 'border-line')}
+      className={cn('pressable relative block w-[132px] shrink-0 p-0.5', found ? TILE_FRAME[species.category] : 'px-panel')}
       aria-label={found ? `${species.name}（ゲット済み）` : `No.${speciesNo(species)} ${HIDDEN_NAME_LABEL}（${TYPE_META[species.category].label}）`}
     >
       {/* まだ見つけていない種は参考写真も出さない（名前と同じく、ゲットするまでのお楽しみ） */}
-      <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference={found} className="aspect-square w-full rounded-[10px]">
+      <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference={found} className="px-clip-2 aspect-square w-full">
         {featured && (
-          <span className="absolute left-1 top-1 rounded-full bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">PICK UP</span>
+          <span className="px-clip-1 absolute left-1 top-1 bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">PICK UP</span>
         )}
         {found && (
-          <span className="absolute bottom-1 right-1 rounded-full bg-xp px-1.5 pt-[1px] font-num text-[10px] leading-4 text-[#0b3d22]">GET</span>
+          <span className="px-clip-1 absolute bottom-1 right-1 bg-xp px-1.5 pt-[1px] font-num text-[10px] leading-4 text-[#0b3d22]">GET</span>
         )}
       </SpeciesPlate>
       <span className="mt-1.5 flex items-center justify-between gap-1 px-0.5">
@@ -503,9 +514,9 @@ function RecentTile({ sighting }: { sighting: Sighting }) {
     <Link
       to={`/sighting/${sighting.id}`}
       onClick={() => sfx('tap')}
-      className={cn('pressable block w-[112px] shrink-0 select-none rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', sp ? TYPE_META[sp.category].border : 'border-line')}
+      className={cn('pressable block w-[112px] shrink-0 select-none p-0.5', sp ? TILE_FRAME[sp.category] : 'px-panel')}
     >
-      <RecordPlate sighting={sighting} className="aspect-square w-full rounded-[10px]" />
+      <RecordPlate sighting={sighting} className="px-clip-2 aspect-square w-full" />
       <span className="mt-1 block px-0.5 text-tile text-fg">
         {nickname ? (
           <span className="block truncate">{nickname}</span>
@@ -528,7 +539,7 @@ function RecordRow({ sighting }: { sighting: Sighting }) {
   return (
     <ListRow
       to={`/sighting/${sighting.id}`}
-      leading={<RecordPlate sighting={sighting} small className="h-12 w-12 shrink-0 rounded-xs" />}
+      leading={<RecordPlate sighting={sighting} small className="px-clip-2 h-12 w-12 shrink-0" />}
       thumbSize={48}
       title={sighting.nickname.trim() || !sp ? sightingName(sighting) : <SpeciesName species={sp} />}
       subtitle={

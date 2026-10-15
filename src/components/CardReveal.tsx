@@ -270,7 +270,7 @@ function Reveal({
           <>
             <div className="flex h-12 shrink-0 items-center justify-between px-2">
               {phase !== 'reward' ? (
-                <button type="button" onClick={skip} className="h-11 rounded-full px-3 text-sub font-black text-white/70 active:opacity-60">
+                <button type="button" onClick={skip} className="h-11 px-3 text-sub font-black text-white/70 active:opacity-60">
                   スキップ ›
                 </button>
               ) : (
@@ -358,23 +358,24 @@ function Reveal({
                 <m.div initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="mt-3 space-y-2.5">
                   {/* 毒のある生き物は、お祝いの中でも注意を先に見せる */}
                   {species?.danger && (
-                    <p role="note" className="flex items-start gap-2 rounded-lg border-2 border-white/30 bg-danger px-3.5 py-2.5 text-callout font-bold text-on-danger">
+                    <p role="note" className="px-stage-danger flex items-start gap-2 px-2.5 py-1.5 text-callout font-bold text-on-danger">
                       <IconWarning size={20} className="mt-0.5 shrink-0" aria-hidden />
                       {species.danger}
                     </p>
                   )}
                   {/* ポイントと XP */}
-                  <div className="rounded-lg border-2 border-white/15 bg-white/[.08] p-3.5">
+                  <div className="px-stage p-2.5">
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <LevelBadge level={shownLevel} size={52} />
                         {levelPop && (
+                          // 札は切り抜くので、厚み（金の濃い色）は外側の箱の固い影で描く
                           <m.span
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="num absolute -right-3 -top-3 rounded-full bg-gold px-2 text-[12px] leading-5 text-[#3d2a00] shadow-[0_2px_0_rgb(var(--c-gold-edge))]"
+                            className="absolute -right-3 -top-3 [filter:drop-shadow(0_3px_0_rgb(var(--c-gold-edge)))]"
                           >
-                            UP!
+                            <span className="num px-clip-1 block bg-gold px-2 text-[12px] leading-5 text-[#3d2a00]">UP!</span>
                           </m.span>
                         )}
                       </div>
@@ -405,8 +406,8 @@ function Reveal({
                     </div>
                   </div>
                   {isNew && species && (
-                    <div className="flex items-center gap-3 rounded-lg border-2 border-white/15 bg-white/[.08] px-3.5 py-2.5">
-                      <span className="rounded-full bg-capture px-2 pt-[1px] font-num text-[12px] leading-5 text-white">NEW</span>
+                    <div className="px-stage flex items-center gap-3 px-2.5 py-1.5">
+                      <span className="px-clip-1 bg-capture px-2 pt-[1px] font-num text-[12px] leading-5 text-white">NEW</span>
                       <span className="flex-1 text-sub font-black">図鑑に とうろく！</span>
                       <span className="num text-[20px] leading-6">
                         {discovered}
@@ -415,8 +416,8 @@ function Reveal({
                     </div>
                   )}
                   {completedQuests.map((q) => (
-                    <div key={q.id} className="flex items-center gap-3 rounded-lg border-2 border-gold/50 bg-gold/15 px-3.5 py-2.5">
-                      <span className="num rounded-full bg-gold px-2 text-[12px] leading-5 text-[#3d2a00]">CLEAR</span>
+                    <div key={q.id} className="px-stage-gold flex items-center gap-3 px-2.5 py-1.5">
+                      <span className="num px-clip-1 bg-gold px-2 text-[12px] leading-5 text-[#3d2a00]">CLEAR</span>
                       <span className="min-w-0 flex-1 text-sub font-black">
                         <Phrase text={`クエスト「${q.title}」`} />
                       </span>

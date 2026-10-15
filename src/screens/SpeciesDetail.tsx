@@ -32,6 +32,16 @@ import { useStore } from '../store/useStore';
 
 // 種詳細（docs/DESIGN_SYSTEM.md §8.3）
 
+/** 記録した種のカードの枠（線がタイプの色のドット絵の枠）。枠は絵なので、色ごとのクラス名をそのまま書く */
+const TILE_FRAME: Record<Species['category'], string> = {
+  mammal: 'px-tile-mammal',
+  bird: 'px-tile-bird',
+  herp: 'px-tile-herp',
+  insect: 'px-tile-insect',
+  aqua: 'px-tile-aqua',
+  plant: 'px-tile-plant',
+};
+
 /** 今年なら「10月10日」、それ以外は「2025年10月10日」 */
 function shortDate(iso: string): string {
   return formatDateJa(iso, { year: new Date(iso).getFullYear() !== new Date().getFullYear() });
@@ -118,11 +128,11 @@ function SpeciesDetail({ id }: { id: string }) {
         }
       />
 
-      {/* ───── ヒーロー（タイプの色の地に、写真か「？」のカード） ───── */}
+      {/* ───── ヒーロー（タイプの色の地に、写真か「？」のカード。カードはドット絵の枠で、ゲットした種は線がタイプの色、未発見の幻は金） ───── */}
       <div className={cn('relative -mt-[calc(56px+var(--safe-top))] overflow-hidden px-4 pb-6 pt-[calc(64px+var(--safe-top))]', t.soft)}>
         <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_55%,rgb(255_255_255/.65),transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_55%,rgb(255_255_255/.08),transparent_70%)]" />
         <div className="relative mx-auto w-[min(240px,64vw)]">
-          <div className={cn('rounded-xl border-4 bg-surface p-1.5 shadow-[0_6px_0_rgb(0_0_0/.15)]', found ? t.border : sp.rarity === 4 ? 'border-gold' : 'border-line')}>
+          <div className={cn('p-1', found ? TILE_FRAME[sp.category] : sp.rarity === 4 ? 'px-tile-legend' : 'px-panel')}>
             <SpeciesPlate
               species={sp}
               photoId={userPhoto}
@@ -131,15 +141,18 @@ function SpeciesDetail({ id }: { id: string }) {
               photoSize="full"
               patternSize="large"
               alt={found ? sp.name : HIDDEN_NAME_LABEL}
-              className={cn('aspect-square w-full rounded-[18px]', found && sp.rarity >= 3 && 'shine')}
+              className={cn('px-clip-3 aspect-square w-full', found && sp.rarity >= 3 && 'shine')}
             />
           </div>
+          {/* ステッカーと札はカードからはみ出すので、カードの兄弟にする。影は切り抜かない外側の drop-shadow */}
           {found ? (
-            <span className="num absolute -right-4 -top-3 rotate-12 rounded-full border-[3px] border-white bg-xp px-3 py-0.5 text-[18px] text-[#0b3d22] shadow-[0_3px_0_rgb(var(--c-xp-edge))]">
-              GET!
+            <span className="absolute -right-4 -top-3 rotate-12 [filter:drop-shadow(0_3px_0_rgb(var(--c-xp-edge)))]">
+              <span className="px-clip-1 block bg-white p-[3px]">
+                <span className="num px-clip-1 block bg-xp px-3 py-0.5 text-[18px] text-[#0b3d22]">GET!</span>
+              </span>
             </span>
           ) : (
-            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-line bg-surface px-3 py-1 text-caption text-fg-2 shadow-pop-sm">
+            <span className="px-tag px-drop absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 text-caption text-fg-2">
               まだ出会っていない
             </span>
           )}
@@ -166,26 +179,29 @@ function SpeciesDetail({ id }: { id: string }) {
         <div className="mt-3 flex flex-wrap gap-1.5">
           {/* 毒のある種は、名前が「？？？」でも最初に危険がわかるように、チップの先頭に出す（詳しい注意は下の Notice） */}
           {sp.danger && (
-            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-danger px-2.5 text-caption text-on-danger">
+            <span className="px-clip-1 inline-flex h-7 items-center gap-1 bg-danger px-2.5 text-caption text-on-danger">
               <IconWarning size={14} aria-hidden />
               毒あり・近づかない
             </span>
           )}
           <TypeBadge category={sp.category} />
           {sp.endemic && (
-            <span className="inline-flex h-7 items-center rounded-full bg-gold px-2.5 text-caption text-[#3d2a00]">
+            <span className="px-clip-1 inline-flex h-7 items-center bg-gold px-2.5 text-caption text-[#3d2a00]">
               {sp.endemic === 'species' ? '固有種' : '固有亜種'}
             </span>
           )}
           {sp.nocturnal && (
-            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-night px-2.5 text-caption text-white">
+            <span className="px-clip-1 inline-flex h-7 items-center gap-1 bg-night px-2.5 text-caption text-white">
               <IconMoonStarsFill size={13} aria-hidden />
               夜行性
             </span>
           )}
+          {/* 天然記念物は赤い線の札：線の色の札に、3px 内側の白い札を重ねる（線のある札は両方を切り抜く） */}
           {sp.protection?.some((p) => p.includes('天然記念物')) && (
-            <span className="inline-flex h-7 items-center rounded-full border-2 border-capture/40 bg-surface px-2.5 text-caption text-danger">
-              {sp.protection.find((p) => p.includes('特別天然記念物')) ? '特別天然記念物' : '天然記念物'}
+            <span className="px-clip-1 inline-flex h-7 bg-capture/40 p-[3px]">
+              <span className="px-clip-1 inline-flex items-center bg-surface px-2 text-caption text-danger">
+                {sp.protection.find((p) => p.includes('特別天然記念物')) ? '特別天然記念物' : '天然記念物'}
+              </span>
             </span>
           )}
         </div>
@@ -227,7 +243,7 @@ function SpeciesDetail({ id }: { id: string }) {
         }
       />
       {found ? (
-        <div className="panel mx-4 px-4 py-3.5">
+        <div className="panel mx-4 px-3 py-2.5">
           <p className="text-body font-bold text-fg">
             <Prose text={sp.description} />
           </p>
@@ -237,13 +253,13 @@ function SpeciesDetail({ id }: { id: string }) {
       )}
 
       <SectionHeader title="見られる季節" />
-      <div className="panel mx-4 px-3 pb-2.5 pt-3">
+      <div className="panel mx-4 px-2 pb-1.5 pt-2">
         <MonthBar months={sp.months} highlight={month} />
       </div>
 
       <SectionHeader title="さがしかたのコツ" />
-      <div className="mx-4 flex gap-3 rounded-md border-2 border-gold/60 bg-gold-soft/70 p-3.5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-[#3d2a00]">
+      <div className="px-notice-caution mx-4 flex gap-3 p-2.5">
+        <span className="px-circle-m grid h-9 w-9 shrink-0 place-items-center bg-gold text-[#3d2a00]">
           <IconLightbulb size={20} />
         </span>
         <p className="min-w-0 flex-1 pt-1 text-body font-bold text-fg">
@@ -287,7 +303,7 @@ function SpeciesDetail({ id }: { id: string }) {
       {sp.manner && (
         <>
           <SectionHeader title="観察マナー" />
-          <div className="panel mx-4 px-4 py-3.5">
+          <div className="panel mx-4 px-3 py-2.5">
             <p className="text-body font-bold text-fg">
               <Prose text={sp.manner} />
             </p>
@@ -298,7 +314,7 @@ function SpeciesDetail({ id }: { id: string }) {
       {sp.culture && found && (
         <>
           <SectionHeader title="シマの話" />
-          <div className="panel mx-4 px-4 py-3.5">
+          <div className="panel mx-4 px-3 py-2.5">
             <p className="text-body font-bold text-fg">
               <Prose text={sp.culture} />
             </p>
@@ -340,7 +356,7 @@ function SpeciesDetail({ id }: { id: string }) {
               key={s.id}
               to={`/sighting/${s.id}`}
               onClick={() => setRecordsOpen(false)}
-              leading={<SpeciesPlate species={sp} photoId={s.photoId} patternSize="thumb" className="h-14 w-14 shrink-0 rounded-xs" />}
+              leading={<SpeciesPlate species={sp} photoId={s.photoId} patternSize="thumb" className="px-clip-2 h-14 w-14 shrink-0" />}
               thumbSize={56}
               title={s.nickname || sp.name}
               phrase={false}
@@ -362,14 +378,14 @@ function SpeciesDetail({ id }: { id: string }) {
 /** まだ見つけていない種の図鑑の説明（鍵のかかったパネル）。説明の長さに合わせた伏せ字の帯を 3 本 */
 function LockedEntry() {
   return (
-    <div className="panel relative mx-4 overflow-hidden px-4 py-3.5">
+    <div className="panel relative mx-4 overflow-hidden px-3 py-2.5">
       <div aria-hidden className="space-y-2.5 py-1 blur-[1px]">
-        <span className="block h-3.5 w-[92%] rounded-full bg-fill-strong" />
-        <span className="block h-3.5 w-[78%] rounded-full bg-fill-strong" />
-        <span className="block h-3.5 w-[56%] rounded-full bg-fill-strong" />
+        <span className="px-clip-1 block h-3.5 w-[92%] bg-fill-strong" />
+        <span className="px-clip-1 block h-3.5 w-[78%] bg-fill-strong" />
+        <span className="px-clip-1 block h-3.5 w-[56%] bg-fill-strong" />
       </div>
       <div className="absolute inset-0 flex items-center justify-center gap-2 bg-surface/60">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-night text-gold">
+        <span className="px-circle-m grid h-9 w-9 place-items-center bg-night text-gold">
           <IconLockSimpleFill size={18} />
         </span>
         <span className="text-sub font-black text-fg-2">ゲットすると読めるよ</span>
@@ -378,16 +394,16 @@ function LockedEntry() {
   );
 }
 
-/** あなたの記録の 1 枚（104 のカード）。下にニックネームと日付 */
+/** あなたの記録の 1 枚（104 のカード。線がタイプの色のドット絵の枠）。下にニックネームと日付 */
 function RecordTile({ sighting: s, species }: { sighting: Sighting; species: Species }) {
   const date = shortDate(s.observedAt);
   return (
     <Link
       to={`/sighting/${s.id}`}
       aria-label={`${s.nickname || species.name}、${date}`}
-      className={cn('pressable block w-[112px] shrink-0 select-none rounded-md border-2 bg-surface p-1.5 shadow-pop-sm', TYPE_META[species.category].border)}
+      className={cn('pressable block w-[112px] shrink-0 select-none p-0.5', TILE_FRAME[species.category])}
     >
-      <SpeciesPlate species={species} photoId={s.photoId} className="aspect-square w-full rounded-[10px]" />
+      <SpeciesPlate species={species} photoId={s.photoId} className="px-clip-2 aspect-square w-full" />
       <span aria-hidden className="mt-1 block px-0.5">
         {s.nickname && <span className="block truncate text-tile text-fg">{s.nickname}</span>}
         <span className="num block text-[12px] text-fg-2">{date}</span>

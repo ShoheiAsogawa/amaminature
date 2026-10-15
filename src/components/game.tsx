@@ -15,6 +15,45 @@ import {
 
 // ゲームの部品（タイプ・レア度の星・レベル・XP バー・コイン・メッセージ窓・リング）。docs/DESIGN_SYSTEM.md
 
+// ───────── ドット絵の丸（docs/DESIGN_SYSTEM.md §4.1） ─────────
+
+/** 直径 d ドットの丸の、上の行から順の左右の空き（ドット数）。scripts/pixel-frames.config.mjs の circleProfile と同じ */
+function circleProfile(d: number): number[] {
+  const r = d / 2;
+  const out: number[] = [];
+  for (let i = 0; ; i++) {
+    const y = r - (i + 0.5);
+    const inset = Math.round(r - Math.sqrt(Math.max(0, r * r - y * y)));
+    if (inset <= 0) return out;
+    out.push(inset);
+  }
+}
+
+const circleClips = new Map<number, string>();
+
+/**
+ * ちょうど px の大きさの丸を、角の段々（1 ドット = 3px）で切り抜く clip-path（style の clipPath に渡す）。
+ * px-circle-s / m / l / xl と同じ求め方で、どの大きさでも丸く見える形にする（px-circle-m は 39px、l は 63px の丸の形）。
+ * 線のある丸は、3px（1 ドット）ずつ内側の要素に、その大きさの形を付けて重ねる（線が同じ太さでつながる）。
+ */
+export function pxCircleClip(px: number): string {
+  const hit = circleClips.get(px);
+  if (hit) return hit;
+  const U = 3;
+  const p = circleProfile(Math.round(px / U)).map((v) => v * U);
+  const n = p.length;
+  const pts: [number, number][] = [[0, n * U]];
+  for (let k = n - 1; k >= 0; k--) pts.push([p[k], (k + 1) * U], [p[k], k * U]);
+  for (let k = 0; k < n; k++) pts.push([px - p[k], k * U], [px - p[k], (k + 1) * U]);
+  pts.push([px, n * U], [px, px - n * U]);
+  for (let k = n - 1; k >= 0; k--) pts.push([px - p[k], px - (k + 1) * U], [px - p[k], px - k * U]);
+  for (let k = 0; k < n; k++) pts.push([p[k], px - k * U], [p[k], px - (k + 1) * U]);
+  pts.push([0, px - n * U]);
+  const clip = `polygon(${pts.map(([x, y]) => `${x}px ${y}px`).join(',')})`;
+  circleClips.set(px, clip);
+  return clip;
+}
+
 // ───────── タイプ（分類） ─────────
 
 /** 生き物のタイプ。色は Tailwind の type-* / type-soft-*（クラス名は JIT のため文字列で持つ） */
@@ -27,14 +66,14 @@ export const TYPE_META: Record<Category, { label: string; bg: string; soft: stri
   plant: { label: 'しょくぶつ', bg: 'bg-type-plant', soft: 'bg-type-soft-plant', text: 'text-type-plant', border: 'border-type-plant', icon: IconAmamiFernFill },
 };
 
-/** タイプのチップ（色の地に白い文字とアイコン） */
+/** タイプのチップ（色の地に白い文字とアイコン。角を 1 段切ったドット絵の札） */
 export function TypeBadge({ category, size = 'md', className }: { category: Category; size?: 'sm' | 'md'; className?: string }) {
   const t = TYPE_META[category];
   const Icon = t.icon;
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full font-bold text-white',
+        'px-clip-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-bold text-white',
         t.bg,
         size === 'sm' ? 'h-5 px-2 text-[10px] leading-none' : 'h-7 px-2.5 text-caption',
         className,
@@ -96,16 +135,22 @@ export function Stars({
 
 // ───────── レベル・XP ─────────
 
-/** レベルのバッジ（瑠璃の円に白い数字。下に厚み） */
+/**
+ * レベルのバッジ（瑠璃のドット絵の丸に白い数字）。外から濃い瑠璃の線（size の外に 3px）・白い縁・瑠璃の地を重ねて切り抜き、
+ * 下の厚みは切り抜かない外側の要素の drop-shadow で落とす
+ */
 export function LevelBadge({ level, size = 48, className }: { level: number; size?: number; className?: string }) {
   return (
     <span
       role="img"
       aria-label={`レベル ${level}`}
-      className={cn('relative grid shrink-0 place-items-center rounded-full border-[3px] border-white bg-brand-fill text-white', className)}
-      style={{ width: size, height: size, boxShadow: '0 3px 0 rgb(var(--c-brand-pressed)), 0 0 0 2px rgb(var(--c-brand-pressed))' }}
+      className={cn('relative grid shrink-0 place-items-center text-white [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]', className)}
+      style={{ width: size, height: size }}
     >
-      <span aria-hidden className="flex flex-col items-center leading-none">
+      <span aria-hidden className="absolute -inset-[3px] bg-brand-pressed" style={{ clipPath: pxCircleClip(size + 6) }} />
+      <span aria-hidden className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(size) }} />
+      <span aria-hidden className="absolute inset-[3px] bg-brand-fill" style={{ clipPath: pxCircleClip(size - 6) }} />
+      <span aria-hidden className="relative flex flex-col items-center leading-none">
         <span className="num text-[10px] leading-none opacity-80">Lv</span>
         <span className="num leading-none" style={{ fontSize: Math.round(size * 0.42) }}>
           {level}
@@ -119,8 +164,9 @@ const lastXp = new Map<string, number>();
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
 /**
- * XP バー（紺の溝に、斜線が流れる緑のバー）。id を渡すと、前に見た値から伸ばす。
+ * XP バー（紺のドット絵の溝 px-track-night に、斜線が流れる緑の四角いバー）。id を渡すと、前に見た値から伸ばす。
  * tone: xp（緑）/ brand（瑠璃）/ gold（金）
+ * height: 外の高さ。溝の枠（上下 3px）の中にバーが見えるよう、14px より低くしない
  */
 export function XPBar({
   value,
@@ -152,14 +198,14 @@ export function XPBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(v * 100)}
-      className={cn('relative overflow-hidden rounded-full border-2 border-night bg-night dark:border-white/10 dark:bg-black/55', className)}
-      style={{ height }}
+      className={cn('px-track-night relative overflow-hidden', className)}
+      style={{ height: Math.max(14, height) }}
     >
       <div
-        className={cn('stripes animate-stripes relative h-full rounded-full transition-[width] duration-700 ease-out', fill)}
+        className={cn('stripes animate-stripes relative h-full transition-[width] duration-700 ease-out', fill)}
         style={{ width: `${Math.max(shown > 0 ? 6 : 0, shown * 100)}%` }}
       >
-        <span aria-hidden className="absolute inset-x-1 top-[2px] h-[30%] rounded-full bg-white/45" />
+        <span aria-hidden className="absolute inset-x-[3px] top-[1px] h-[2px] bg-white/45" />
       </div>
     </div>
   );
@@ -167,15 +213,21 @@ export function XPBar({
 
 // ───────── コイン（ポイント） ─────────
 
-/** コインの印（金の円に星） */
+/**
+ * コインの印（金のドット絵の丸に星）。外の金の縁と内の金の地を重ねて切り抜く。
+ * 20px 未満の小さいコインは縁を 2px にし、内の地は角 1 段の四角（px-clip-1）にする
+ */
 export function Coin({ size = 20, className }: { size?: number; className?: string }) {
+  const small = size < 20;
+  const shade = 'inset 0 -2px 0 rgb(0 0 0 / .12), inset 0 2px 0 rgb(255 255 255 / .5)';
   return (
-    <span
-      aria-hidden
-      className={cn('grid shrink-0 place-items-center rounded-full border-2 border-gold-edge bg-gold text-[#8a5a00]', className)}
-      style={{ width: size, height: size, boxShadow: 'inset 0 -2px 0 rgb(0 0 0 / .12), inset 0 2px 0 rgb(255 255 255 / .5)' }}
-    >
-      <IconStarFill size={Math.round(size * 0.55)} />
+    <span aria-hidden className={cn('relative grid shrink-0 place-items-center text-[#8a5a00]', className)} style={{ width: size, height: size }}>
+      <span className="absolute inset-0 bg-gold-edge" style={{ clipPath: pxCircleClip(size) }} />
+      <span
+        className={cn('absolute bg-gold', small ? 'px-clip-1 inset-[2px]' : 'inset-[3px]')}
+        style={{ boxShadow: shade, clipPath: small ? undefined : pxCircleClip(size - 6) }}
+      />
+      <IconStarFill size={Math.round(size * 0.55)} className="relative" />
     </span>
   );
 }
@@ -217,7 +269,8 @@ export function Ring({
   const v = clamp01(value);
   return (
     <span className={cn('relative grid shrink-0 place-items-center', className)} style={{ width: size, height: size }}>
-      <svg aria-hidden width={size} height={size} className="absolute inset-0 -rotate-90">
+      {/* ドット絵に合わせて、線の端は四角、輪郭はにじませない */}
+      <svg aria-hidden width={size} height={size} shapeRendering="crispEdges" className="absolute inset-0 -rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
           cx={size / 2}
@@ -226,7 +279,7 @@ export function Ring({
           fill="none"
           stroke={color}
           strokeWidth={stroke}
-          strokeLinecap="round"
+          strokeLinecap="butt"
           strokeDasharray={`${c * v} ${c}`}
           className="transition-[stroke-dasharray] duration-700 ease-out"
         />
@@ -243,8 +296,8 @@ function prefersReduced(): boolean {
 }
 
 /**
- * ゲームの会話窓。文字を 1 文字ずつ出し（押すと全部出る）、出し終えたら ▼ が点滅する。
- * 読み上げは全文をまとめて読む。speaker で窓の上に名前の札を出す。
+ * ゲームの会話窓（ドット絵の飾りの窓 px-msg、枠の太さ 12px）。文字を 1 文字ずつ出し（押すと全部出る）、出し終えたら ▼ が点滅する。
+ * 読み上げは全文をまとめて読む。speaker で窓の上に名前の札（px-nametag）を出す。
  */
 export function MessageWindow({
   text,
@@ -287,14 +340,15 @@ export function MessageWindow({
   }, [n, done, speed, onDone]);
 
   return (
-    <div className={cn('relative', speaker && 'pt-3', className)}>
+    <div className={cn('relative', speaker && 'pt-[13px]', className)}>
+      {/* 名札は窓の上の枠（12px）に重ね、札の下の端を枠の内側の線にそろえる */}
       {speaker && (
-        <span className="absolute left-4 top-0 z-10 rounded-full border-[3px] border-[#1b1f3b] bg-gold px-3 py-0.5 font-sans text-caption font-black text-[#1b1f3b]">
+        <span className="px-nametag absolute left-4 top-0 z-10 px-3 py-0.5 font-sans text-caption font-black text-[#1b1f3b]">
           {speaker}
         </span>
       )}
       <div
-        className="msg-window min-h-[88px] px-4 pb-4 pt-4 text-[17px] leading-[28px]"
+        className="px-msg msg-window min-h-[88px] px-2.5 py-2 text-[17px] leading-[28px]"
         onClick={() => setN(chars.length)}
         role="presentation"
       >

@@ -166,7 +166,8 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
 
   if (!onClick) return emblem;
   return (
-    <button type="button" onClick={onClick} aria-label={label} className="pressable inline-grid shrink-0 place-items-center rounded-full">
+    // 押すと沈むだけ（.pressable の押した時の細い影は付けない。厚みは紋章の SVG が描く）
+    <button type="button" onClick={onClick} aria-label={label} className="pressable inline-grid shrink-0 place-items-center active:shadow-none">
       {emblem}
     </button>
   );

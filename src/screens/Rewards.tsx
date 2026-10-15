@@ -28,7 +28,7 @@ import { useStore } from '../store/useStore';
 
 /** 先頭のアイコンは種類で決める（§8.9）: 寄付 hand-heart、クーポン ticket、品物 gift、抽選 dice-five */
 const KIND_ICON = { donation: IconHandHeart, coupon: IconTicket, goods: IconGift, lottery: IconDiceFive } as const;
-/** 種類ごとのアイコンの地 */
+/** 種類ごとのアイコンの地（段々に切り抜いた四角 px-clip-2） */
 const KIND_TILE = {
   donation: 'bg-type-soft-plant text-type-plant',
   coupon: 'bg-brand-soft text-brand',
@@ -91,22 +91,30 @@ export default function Rewards() {
     <main className="min-h-dvh pb-[calc(40px+var(--safe-bottom))]">
       <ScreenHeader variant="nav" title="ポイントこうかんじょ" />
 
-      {/* もっているコイン（金貨の札。夜の森でも明るい金色のままにして、茶色の文字を読めるようにする） */}
-      <section className="relative mx-4 mt-1 overflow-hidden rounded-xl border-2 border-gold-edge/60 bg-gradient-to-br from-[#FFF1C7] to-[#FFD866] p-4 shadow-[0_4px_0_rgb(var(--c-gold-edge)/.7)]">
-        <Sparkles count={2} className="opacity-80" />
-        <p className="relative text-sub font-black text-[#5c3d00]">もっているポイント</p>
-        <p className="relative mt-1 flex items-center gap-2 text-[#2b1d00]" aria-label={`交換できるポイント ${balance}pt`}>
-          <Coin size={40} />
-          <NumberFlow value={balance} locales="ja-JP" className="num text-num-xl" aria-hidden />
-          <span className="mt-3 text-sub font-black" aria-hidden>
-            pt
-          </span>
-        </p>
-        <p className="relative mt-1 text-caption text-[#5c3d00]">
-          これまでに{pt(points)}獲得
-          {points - balance > 0 ? <>、{pt(points - balance)}交換しました</> : 'しました'}
-        </p>
-      </section>
+      {/*
+        もっているコイン（金貨の札。夜の森でも明るい金色のままにして、茶色の文字を読めるようにする）。
+        ドット絵の札：金の線の段々（px-clip-3）に、金のグラデーションの段々（px-clip-2）を 3px 内側に重ねる。
+        切り抜いた札は自分の影を描けないので、外側の箱に固い影（下 3px）を付ける
+      */}
+      <div className="mx-4 mt-1 [filter:drop-shadow(0_3px_0_rgb(var(--c-gold-edge)/.7))]">
+        <section className="px-clip-3 bg-gold-edge p-[3px]">
+          <div className="px-clip-2 relative bg-gradient-to-br from-[#FFF1C7] to-[#FFD866] p-3.5">
+            <Sparkles count={2} className="opacity-80" />
+            <p className="relative text-sub font-black text-[#5c3d00]">もっているポイント</p>
+            <p className="relative mt-1 flex items-center gap-2 text-[#2b1d00]" aria-label={`交換できるポイント ${balance}pt`}>
+              <Coin size={40} />
+              <NumberFlow value={balance} locales="ja-JP" className="num text-num-xl" aria-hidden />
+              <span className="mt-3 text-sub font-black" aria-hidden>
+                pt
+              </span>
+            </p>
+            <p className="relative mt-1 text-caption text-[#5c3d00]">
+              これまでに{pt(points)}獲得
+              {points - balance > 0 ? <>、{pt(points - balance)}交換しました</> : 'しました'}
+            </p>
+          </div>
+        </section>
+      </div>
 
       <SectionHeader title="こうかんできるもの" />
       <div className="grid grid-cols-2 gap-2.5 px-4">
@@ -122,13 +130,13 @@ export default function Rewards() {
                 setTarget(r);
                 setOpen(true);
               }}
-              className={cn('panel pressable relative flex flex-col p-3 text-left', !s.ok && 'opacity-[.92]')}
+              className={cn('panel pressable relative flex flex-col p-2 text-left', !s.ok && 'opacity-[.92]')}
             >
-              <span className={cn('grid h-12 w-12 place-items-center rounded-md', KIND_TILE[r.kind])}>
+              <span className={cn('px-clip-2 grid h-12 w-12 place-items-center', KIND_TILE[r.kind])}>
                 <Icon size={28} />
               </span>
               {s.locked && (
-                <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-fill-strong text-fg-3" aria-label="バッジが必要">
+                <span className="px-circle-s absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center bg-fill-strong text-fg-3" aria-label="バッジが必要">
                   <IconLockSimpleFill size={15} />
                 </span>
               )}
@@ -139,14 +147,14 @@ export default function Rewards() {
               {s.badge && s.locked && <span className="mt-1 text-caption text-fg-3">「{s.badge.title}」バッジが必要</span>}
               <span className="mt-auto pt-2.5">
                 {s.done ? (
-                  <span className="inline-flex h-8 items-center rounded-full bg-fill-strong px-3 text-caption text-fg-3">交換済み</span>
+                  <span className="px-clip-1 inline-flex h-8 items-center bg-fill-strong px-3 text-caption text-fg-3">交換済み</span>
                 ) : r.points === 0 ? (
                   // バッジで受け取る記念品はポイントを使わないので、0 pt とは出さない
-                  <span className={cn('inline-flex h-8 items-center rounded-full px-3 text-caption', s.ok ? 'bg-xp text-[#0b3d22]' : 'bg-fill-strong text-fg-3')}>
+                  <span className={cn('px-clip-1 inline-flex h-8 items-center px-3 text-caption', s.ok ? 'bg-xp text-[#0b3d22]' : 'bg-fill-strong text-fg-3')}>
                     {s.ok ? 'うけとれる！' : 'バッジで解放'}
                   </span>
                 ) : (
-                  <span className={cn('inline-flex h-8 items-center gap-1 rounded-full pl-1 pr-3', s.ok ? 'bg-gold-soft' : 'bg-fill')}>
+                  <span className={cn('px-clip-1 inline-flex h-8 items-center gap-1 pl-1 pr-3', s.ok ? 'bg-gold-soft' : 'bg-fill')}>
                     <Coin size={22} />
                     <span className={cn('num text-[17px]', s.ok ? 'text-fg' : 'text-fg-3')}>{r.points.toLocaleString()}</span>
                   </span>

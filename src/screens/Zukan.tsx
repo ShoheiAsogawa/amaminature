@@ -45,6 +45,19 @@ const SORT_OPTIONS: { value: Sort; label: string }[] = [
 const STATUS_LABEL: Record<Status, string> = { all: 'すべて', found: '記録済み', missing: '未発見' };
 
 const CATEGORIES = new Set<string>(CATEGORY_ORDER);
+
+/**
+ * 選んでいるタイプのチップの枠（タイプの色の面のドット絵の枠）。枠は絵なので、色ごとのクラス名をそのまま書く。
+ * pixel-frames.css では px-type-* が px-chip-on より後にあるので、Chip の selected の枠より優先される
+ */
+const TYPE_CHIP: Record<Category, string> = {
+  mammal: 'px-type-mammal',
+  bird: 'px-type-bird',
+  herp: 'px-type-herp',
+  insect: 'px-type-insect',
+  aqua: 'px-type-aqua',
+  plant: 'px-type-plant',
+};
 const DAY = 24 * 60 * 60 * 1000;
 
 /** その種を最後に記録した時刻（ms）。24 時間以内なら番号の後ろに点を付け、「最近記録した順」にも使う */
@@ -135,8 +148,8 @@ export default function Zukan() {
   return (
     <Page>
       <ScreenHeader variant="tab" title="アマミ図鑑" />
-      {/* コンプ率のパネル（夜空の地） */}
-      <div className="relative mx-4 overflow-hidden rounded-lg border-2 border-night bg-night p-4 text-white shadow-[0_4px_0_rgb(var(--c-edge))]">
+      {/* コンプ率のパネル（夜空の地にドット絵の枠 px-night） */}
+      <div className="px-night relative mx-4 overflow-hidden bg-night p-3 text-white">
         <Sparkles count={4} className="opacity-60" />
         <div className="relative flex items-center gap-4">
           <Ring value={found / Math.max(1, total)} size={84} stroke={10} color="rgb(var(--c-gold))" track="rgb(255 255 255 / .15)">
@@ -185,7 +198,7 @@ export default function Zukan() {
                 icon={t.icon}
                 count={`${foundInCat}/${inCat.length}`}
                 onClick={() => setCategory(active ? null : c)}
-                className={cn(active && [t.bg, 'border-transparent shadow-[0_3px_0_rgb(0_0_0/.25)]'])}
+                className={cn(active && TYPE_CHIP[c])}
                 aria-label={`${CATEGORY_META[c].label}（${foundInCat}/${inCat.length}）`}
               >
                 {t.label}

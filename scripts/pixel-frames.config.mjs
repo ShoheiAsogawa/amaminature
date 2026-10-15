@@ -206,7 +206,13 @@ export const FRAMES = {
   // ── チップ ──
   'chip-on': raised({ O: 'brand-pressed', F: 'brand-fill', L: 'brand-pressed' }, { note: 'チップ（選んでいる）' }),
   'chip-well': raised({ O: 'line', F: 'fill', L: 'edge' }, { note: 'チップ（グループ・シートの中）' }),
+  'panel-danger': raised({ O: 'danger', F: 'surface', L: 'edge' }, { note: '取り消したもの（線が赤）' }),
+  'gold-ticket': pixelBox({ note: '金のチケット（地の金のグラデーションを見せる。線は金の縁、内に金の光）', bands: ['O', 'H'], fillCenter: false, colors: { O: 'gold-edge', H: 'gold', F: 'gold', L: 'gold-edge' } }),
+  // ── スイッチの溝（切 / 入） ──
+  'switch-off': pixelBox({ note: 'スイッチの溝（切）', corner: [1], lip: 0, colors: { O: 'line', F: 'fill-strong' } }),
+  'switch-on': pixelBox({ note: 'スイッチの溝（入）', corner: [1], lip: 0, colors: { O: 'xp-edge', F: 'xp' } }),
   // ── 小さな枠つきのタグ（角 1 段、線 1 ドット = 枠の太さ 3px） ──
+  'tag-danger': pixelBox({ note: '赤い線の小さなタグ（天然記念物など）', corner: [1], lip: 0, colors: { O: 'capture', F: 'surface' } }),
   nametag: pixelBox({ note: 'メッセージ窓の名札（金）', corner: [1], lip: 0, colors: { O: '#1B1F3B', F: '#FFC12E' } }),
   tag: pixelBox({ note: '枠つきの小さなタグ（白）', corner: [1], lip: 0, colors: { O: INK, F: 'surface' } }),
   'pill-gold': raised({ O: 'gold-edge', F: 'gold-soft', L: 'gold-edge/0.55' }, { note: 'コインの数（金の淡い地）' }),

@@ -7,15 +7,24 @@ import type { Sighting } from './types';
 
 // 共有画像（トレーディングカード風）。1080×1350。テーマに関係なく常にひるの島の色。
 // アプリの図鑑カード（CollectibleCard）と同じ作り：タイプの色の枠、名前と番号、写真の窓、タイプと星、GET! のシール。
+// 角はアプリの箱と同じドット絵の段々（角丸は使わない）。
 // canvas は CSS 変数を読めないので、色は src/styles/palette.ts の値を使う。
 
 const W = 1080;
 const H = 1350;
-/** 枠の太さと、白い面の角丸 */
+/** 1 ドットの大きさ。アプリの 1 ドット（3px）を、図鑑カード（幅 280）と共有画像（幅 1080）の比で大きくした値 */
+const DOT = 12;
+/**
+ * 角の段々。上の行から順に、角を何ドット引っ込めるか（CSS の px-clip-* と同じ形）。
+ * 3 段は白い面と写真の窓の線、2 段は写真、1 段は札（タイプ・ニックネーム）と GET! のシールの中
+ */
+const CLIP_3 = [3, 2, 1] as const;
+const CLIP_2 = [2, 1] as const;
+const CLIP_1 = [1] as const;
+/** 枠の太さ */
 const FRAME = 40;
-const INNER_R = 44;
-/** 写真の窓（5:4） */
-const PHOTO = { x: 84, y: 200, w: 912, h: 730, radius: 30, border: 12 } as const;
+/** 写真の窓（5:4）。線は 1 ドット */
+const PHOTO = { x: 84, y: 200, w: 912, h: 730, border: DOT } as const;
 
 const FONT_JP = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 const FONT_NUM = '"Lilita One", "M PLUS Rounded 1c", "Hiragino Sans", sans-serif';
@@ -32,13 +41,40 @@ const TYPE_LABEL: Record<Category, string> = {
 // 種のシルエット（src/art/sil/{species.id}.svg）。SpeciesTile.tsx と同じ置き場所を読む
 const SILHOUETTES = import.meta.glob<string>('../art/sil/*.svg', { eager: true, query: '?url', import: 'default' });
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+/**
+ * 角を段々に切った四角の道を作る（ドット絵の箱。CSS の px-clip-* の polygon と同じ順で、左上から時計回り）。
+ * steps は上の行から順の引っ込み（ドットの数）。1 行の高さは dot。線のある箱は、外の道（線の色）の 1 ドット内側に、
+ * 1 段少ない道（中の色）を重ねると、角でも線の太さがそろう
+ */
+function pixelRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, steps: readonly number[], dot = DOT) {
+  const n = steps.length;
+  const r = x + w;
+  const b = y + h;
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
+  // 左上
+  ctx.moveTo(x, y + n * dot);
+  for (let i = n - 1; i >= 0; i--) {
+    ctx.lineTo(x + steps[i] * dot, y + (i + 1) * dot);
+    ctx.lineTo(x + steps[i] * dot, y + i * dot);
+  }
+  // 右上
+  for (let i = 0; i < n; i++) {
+    ctx.lineTo(r - steps[i] * dot, y + i * dot);
+    ctx.lineTo(r - steps[i] * dot, y + (i + 1) * dot);
+  }
+  ctx.lineTo(r, y + n * dot);
+  // 右下
+  ctx.lineTo(r, b - n * dot);
+  for (let i = n - 1; i >= 0; i--) {
+    ctx.lineTo(r - steps[i] * dot, b - (i + 1) * dot);
+    ctx.lineTo(r - steps[i] * dot, b - i * dot);
+  }
+  // 左下
+  for (let i = 0; i < n; i++) {
+    ctx.lineTo(x + steps[i] * dot, b - i * dot);
+    ctx.lineTo(x + steps[i] * dot, b - (i + 1) * dot);
+  }
+  ctx.lineTo(x, b - n * dot);
   ctx.closePath();
 }
 
@@ -130,11 +166,11 @@ function drawStars(ctx: CanvasRenderingContext2D, rarity: Rarity, right: number,
   }
 }
 
-/** 角丸の札（タイプ・ニックネーム）を描いて、幅を返す */
+/** 角を 1 段切ったドット絵の札（タイプ）を描いて、幅を返す。段々がにじまないよう幅は整数の px にそろえる */
 function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, h: number, bg: string, fg: string, font: string, padX = 30) {
   ctx.font = font;
-  const w = ctx.measureText(text).width + padX * 2;
-  roundRect(ctx, x, y, w, h, h / 2);
+  const w = Math.ceil(ctx.measureText(text).width + padX * 2);
+  pixelRect(ctx, x, y, w, h, CLIP_1);
   ctx.fillStyle = bg;
   ctx.fill();
   ctx.fillStyle = fg;
@@ -215,10 +251,10 @@ export async function renderShareCard(opts: {
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // 枠と白い面
+  // 枠と白い面（角は 3 段の段々）
   ctx.fillStyle = frameFill(ctx, species);
   ctx.fillRect(0, 0, W, H);
-  roundRect(ctx, FRAME, FRAME, W - FRAME * 2, H - FRAME * 2, INNER_R);
+  pixelRect(ctx, FRAME, FRAME, W - FRAME * 2, H - FRAME * 2, CLIP_3);
   ctx.fillStyle = '#FFFFFF';
   ctx.fill();
 
@@ -238,12 +274,12 @@ export async function renderShareCard(opts: {
     ctx.textAlign = 'left';
   }
 
-  // 写真の窓（タイプの色の枠）
-  roundRect(ctx, PHOTO.x - PHOTO.border, PHOTO.y - PHOTO.border, PHOTO.w + PHOTO.border * 2, PHOTO.h + PHOTO.border * 2, PHOTO.radius + PHOTO.border);
+  // 写真の窓（タイプの色の 1 ドットの線。外の 3 段の段々の内側に、2 段の段々で写真を切り抜く）
+  pixelRect(ctx, PHOTO.x - PHOTO.border, PHOTO.y - PHOTO.border, PHOTO.w + PHOTO.border * 2, PHOTO.h + PHOTO.border * 2, CLIP_3);
   ctx.fillStyle = typeColor;
   ctx.fill();
   ctx.save();
-  roundRect(ctx, PHOTO.x, PHOTO.y, PHOTO.w, PHOTO.h, PHOTO.radius);
+  pixelRect(ctx, PHOTO.x, PHOTO.y, PHOTO.w, PHOTO.h, CLIP_2);
   ctx.clip();
   let drewPhoto = false;
   if (photoUrl) {
@@ -261,14 +297,14 @@ export async function renderShareCard(opts: {
   if (!drewPhoto) await drawPlate(ctx, species);
   ctx.restore();
 
-  // GET! のシール（写真の右上、少し傾ける）
+  // GET! のシール（写真の右上、少し傾ける）。白い 1 ドットの縁（2 段の段々）の内側に、1 段の段々の地
   ctx.save();
   ctx.translate(W - 150, PHOTO.y + 20);
   ctx.rotate((10 * Math.PI) / 180);
-  roundRect(ctx, -110, -46, 220, 92, 46);
+  pixelRect(ctx, -108, -48, 216, 96, CLIP_2);
   ctx.fillStyle = '#FFFFFF';
   ctx.fill();
-  roundRect(ctx, -100, -36, 200, 72, 36);
+  pixelRect(ctx, -108 + DOT, -48 + DOT, 216 - DOT * 2, 96 - DOT * 2, CLIP_1);
   ctx.fillStyle = GAME.xp;
   ctx.fill();
   ctx.fillStyle = GAME.xpInk;
@@ -288,7 +324,7 @@ export async function renderShareCard(opts: {
   // ニックネーム
   if (nickname) {
     ctx.font = `900 40px ${FONT_JP}`;
-    roundRect(ctx, 84, rowY + 90, W - 168, 76, 38);
+    pixelRect(ctx, 84, rowY + 90, W - 168, 76, CLIP_1);
     ctx.fillStyle = LIGHT.fill;
     ctx.fill();
     ctx.fillStyle = LIGHT.fg;

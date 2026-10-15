@@ -108,7 +108,7 @@ export function ExperienceItem({ exp, onOpen }: { exp: Experience; onOpen: () =>
   return (
     <div className="relative px-4 py-3">
       <button type="button" onClick={onOpen} className="block w-full text-left active:opacity-[.72]">
-        <img src={image.src} alt="" draggable={false} loading="lazy" className="photo aspect-video w-full rounded-md bg-fill object-cover" />
+        <img src={image.src} alt="" draggable={false} loading="lazy" className="photo px-clip-2 aspect-video w-full bg-fill object-cover" />
         {image.credit && <span className="mt-1 block text-right text-caption text-fg-3">© {image.credit}</span>}
         <span className="mt-2 block text-headline text-fg">
           <Phrase text={exp.title} />

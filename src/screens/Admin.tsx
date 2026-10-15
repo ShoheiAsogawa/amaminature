@@ -225,15 +225,19 @@ export default function Admin() {
       <header className="pt-safe relative overflow-hidden bg-night text-white">
         <Sparkles count={5} className="opacity-60" />
         <div className="relative mx-auto flex max-w-[960px] items-center gap-3 px-4 pb-5 pt-5">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-[3px] border-white bg-brand-fill shadow-[0_3px_0_rgb(var(--c-brand-pressed))]">
-            <LogoMark size={24} className="text-white" />
+          {/* ドット絵の丸：白い丸に瑠璃の丸を 3px 内側に重ねる。切り抜いた丸は影を描けないので、影は外側の箱の filter で落とす */}
+          <span className="grid h-11 w-11 shrink-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
+            <span className="px-circle-m relative grid place-items-center bg-white">
+              <span aria-hidden className="px-circle-m absolute inset-[3px] bg-brand-fill" />
+              <LogoMark size={24} className="relative text-white" />
+            </span>
           </span>
           <div className="min-w-0 flex-1">
             <p className="num truncate text-[11px] tracking-[0.1em] text-gold sm:text-[13px]">AMAMI NATURE · ADMIN</p>
             {/* スマホ幅でも1行に収める */}
             <h1 className="truncate text-headline font-black leading-7 sm:text-title sm:leading-8">運営ダッシュボード</h1>
           </div>
-          <span className={cn('hidden rounded-full px-3 py-1 text-caption sm:inline-flex', demo ? 'bg-white/15 text-white' : 'bg-xp text-[#0b3d22]')}>
+          <span className={cn('px-clip-1 hidden px-3 py-1 text-caption sm:inline-flex', demo ? 'bg-white/15 text-white' : 'bg-xp text-[#0b3d22]')}>
             {demo ? 'デモデータ' : '本番データ'}
           </span>
           {demo ? (
@@ -262,7 +266,7 @@ export default function Admin() {
                   sfx('tap');
                   setTab(t.id);
                 }}
-                count={badges[t.id] ? <span className="rounded-full bg-capture px-1.5 text-[11px] text-white opacity-100">{badges[t.id]}</span> : undefined}
+                count={badges[t.id] ? <span className="px-clip-1 bg-capture px-1.5 text-[11px] text-white opacity-100">{badges[t.id]}</span> : undefined}
               >
                 {t.label}
               </Chip>
@@ -467,7 +471,7 @@ function SectionTitle({ children, right }: { children: ReactNode; right?: ReactN
   return (
     <div className="mb-3 mt-7 flex items-center justify-between gap-3 first:mt-0">
       <h2 className="flex items-center gap-2 text-section text-fg">
-        <span aria-hidden className="h-5 w-1.5 rounded-full bg-brand-fill" />
+        <span aria-hidden className="h-5 w-1.5 bg-brand-fill" />
         {children}
       </h2>
       {right}
@@ -477,8 +481,8 @@ function SectionTitle({ children, right }: { children: ReactNode; right?: ReactN
 
 function Empty({ icon: Icon = IconSealCheckFill, title, body }: { icon?: IconComponent; title: string; body?: string }) {
   return (
-    <div className="panel flex flex-col items-center px-5 py-8 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-full bg-xp/15 text-xp">
+    <div className="panel flex flex-col items-center px-4 py-7 text-center">
+      <span className="px-circle-l grid h-14 w-14 place-items-center bg-xp/15 text-xp">
         <Icon size={30} />
       </span>
       <p className="mt-3 text-headline font-black text-fg">{title}</p>
@@ -491,7 +495,7 @@ function StatusPill({ children, tone }: { children: ReactNode; tone: 'open' | 'd
   return (
     <span
       className={cn(
-        'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-caption',
+        'px-clip-1 inline-flex h-6 shrink-0 items-center px-2.5 text-caption',
         tone === 'open' && 'bg-capture text-white',
         tone === 'done' && 'bg-xp text-[#0b3d22]',
         tone === 'muted' && 'bg-fill-strong text-fg-2',
@@ -522,7 +526,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
   return (
     <>
       {/* きょうのやること（ミッション） */}
-      <SectionTitle right={<span className="num rounded-full bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2">{done}/{todos.length}</span>}>
+      <SectionTitle right={<span className="num px-clip-1 bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2">{done}/{todos.length}</span>}>
         きょうのやること
       </SectionTitle>
       <div className="panel overflow-hidden">
@@ -537,7 +541,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
             }}
             className="flex w-full items-center gap-3 border-b-2 border-sep px-4 py-3 text-left last:border-b-0 active:bg-fill"
           >
-            <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-full', t.n === 0 ? 'bg-xp text-white' : 'bg-brand-soft text-brand')}>
+            <span className={cn('px-circle-m grid h-11 w-11 shrink-0 place-items-center', t.n === 0 ? 'bg-xp text-white' : 'bg-brand-soft text-brand')}>
               {t.n === 0 ? <IconCheck size={22} /> : <t.icon size={22} />}
             </span>
             <span className="min-w-0 flex-1">
@@ -545,9 +549,9 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
               <span className="mt-0.5 block text-caption text-fg-2">{t.sub}</span>
             </span>
             {t.n === 0 ? (
-              <span className="num rounded-full bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
+              <span className="num px-clip-1 bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
             ) : (
-              <span className="num shrink-0 rounded-full bg-capture px-3 py-0.5 text-[18px] text-white">{t.n}</span>
+              <span className="num px-clip-1 shrink-0 bg-capture px-3 py-0.5 text-[18px] text-white">{t.n}</span>
             )}
           </button>
         ))}
@@ -568,12 +572,12 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
 
       {/* 14 日の記録 */}
       <SectionTitle>この2週間の記録</SectionTitle>
-      <div className="panel px-4 pb-3 pt-4">
+      <div className="panel px-3 pb-2 pt-3">
         <div className="flex h-40 items-end gap-1.5" role="img" aria-label={`この2週間の記録数。${s.daily.map((d) => `${d.day.slice(5)} ${d.sightings}件`).join('、')}`}>
           {s.daily.map((d) => (
             <div key={d.day} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
               <span className="num text-[11px] text-fg-2">{d.sightings}</span>
-              <div className="stripes w-full rounded-t-[8px] bg-brand-fill" style={{ height: `${Math.max(4, (d.sightings / max) * 120)}px` }} />
+              <div className="stripes w-full bg-brand-fill" style={{ height: `${Math.max(4, (d.sightings / max) * 120)}px` }} />
             </div>
           ))}
         </div>
@@ -600,8 +604,8 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
                   <span className="truncate text-callout font-black text-fg">{speciesName(t.speciesId)}</span>
                   {sp && <Stars rarity={sp.rarity} size={11} />}
                 </span>
-                <span className="mt-1 block h-2.5 overflow-hidden rounded-full bg-fill-strong">
-                  <span className={cn('block h-full rounded-full', sp ? TYPE_META[sp.category].bg : 'bg-fg-3')} style={{ width: `${(t.n / topMax) * 100}%` }} />
+                <span className="px-clip-1 mt-1 block h-2.5 overflow-hidden bg-fill-strong">
+                  <span className={cn('block h-full', sp ? TYPE_META[sp.category].bg : 'bg-fg-3')} style={{ width: `${(t.n / topMax) * 100}%` }} />
                 </span>
               </span>
               <span className="num shrink-0 text-[17px] text-fg">{t.n}</span>
@@ -617,9 +621,9 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
 function Kpi({ icon: Icon, label, value, sub, tone }: { icon: IconComponent; label: string; value: number; sub: string; tone: 'brand' | 'xp' | 'gold' | 'capture' }) {
   const toneCls = { brand: 'bg-brand-soft text-brand', xp: 'bg-xp/15 text-success', gold: 'bg-gold-soft text-gold-edge', capture: 'bg-capture/10 text-capture' }[tone];
   return (
-    <div className="panel p-3.5">
+    <div className="panel p-2.5">
       <div className="flex items-center gap-2">
-        <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full', toneCls)}>
+        <span className={cn('px-circle-m grid h-8 w-8 shrink-0 place-items-center', toneCls)}>
           <Icon size={18} />
         </span>
         <span className="min-w-0 truncate text-caption text-fg-2">{label}</span>
@@ -663,8 +667,8 @@ function RedemptionsTab({
           const reward = REWARDS.find((x) => x.id === r.rewardId);
           const Icon = reward ? KIND_ICON[reward.kind] : IconGift;
           return (
-            <div key={r.id} className="panel flex flex-wrap items-center gap-3 p-3.5">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-gold-soft text-gold-edge">
+            <div key={r.id} className="panel flex flex-wrap items-center gap-3 p-2.5">
+              <span className="px-clip-2 grid h-12 w-12 shrink-0 place-items-center bg-gold-soft text-gold-edge">
                 <Icon size={26} />
               </span>
               <div className="min-w-0 flex-1">
@@ -847,29 +851,33 @@ function SightingCard({ s, adminKey, onRevoke, onRestore }: { s: AdminSighting; 
   const sp = s.speciesId ? SPECIES_BY_ID[s.speciesId] : null;
   const photo = useAdminPhoto(adminKey, s.id, s.hasPhoto);
   return (
-    <div className={cn('panel flex flex-col overflow-hidden p-2', s.revokedAt && 'border-danger/50')}>
+    // 取り消した記録は、赤い線の枠（px-panel-danger）にする
+    <div className={cn('flex flex-col overflow-hidden p-1', s.revokedAt ? 'px-panel-danger' : 'panel')}>
       <div className="relative">
         {photo === 'failed' ? (
-          <div className="grid aspect-[4/3] w-full place-items-center rounded-[12px] bg-fill text-sub font-bold text-fg-3">写真を読み込めませんでした</div>
+          <div className="px-clip-2 grid aspect-[4/3] w-full place-items-center bg-fill text-sub font-bold text-fg-3">写真を読み込めませんでした</div>
         ) : photo ? (
-          <img src={photo} alt="" className="aspect-[4/3] w-full rounded-[12px] object-cover" />
+          <img src={photo} alt="" className="px-clip-2 aspect-[4/3] w-full object-cover" />
         ) : s.hasPhoto && adminKey ? (
           // 写真を読み込んでいる間は、写真と同じ大きさの枠を出す（あとから縦にずれない）
-          <div className="aspect-[4/3] w-full animate-pulse rounded-[12px] bg-fill" />
+          <div className="px-clip-2 aspect-[4/3] w-full animate-pulse bg-fill" />
         ) : sp ? (
           // 写真のない記録は確かめる写真がないので、低い帯にする
-          <SpeciesPlate species={sp} discovered className="h-24 w-full rounded-[12px]" />
+          <SpeciesPlate species={sp} discovered className="px-clip-2 h-24 w-full" />
         ) : (
-          <div className="h-24 w-full rounded-[12px] bg-fill" />
+          <div className="px-clip-2 h-24 w-full bg-fill" />
         )}
         <span className="absolute left-2 top-2 flex flex-wrap gap-1">
-          {sp && sp.rarity >= 3 && <span className="num rounded-full bg-rare-3 px-2 text-[11px] leading-5 text-white">{sp.rarity === 4 ? 'LEGEND' : 'RARE'}</span>}
-          {s.roadReport && <span className="rounded-full bg-danger px-2 text-[11px] font-black leading-5 text-on-danger">路上</span>}
-          {!s.hasPhoto && <span className="rounded-full bg-fill-strong px-2 text-[11px] font-black leading-5 text-fg-2">写真なし</span>}
+          {sp && sp.rarity >= 3 && <span className="num px-clip-1 bg-rare-3 px-2 text-[11px] leading-5 text-white">{sp.rarity === 4 ? 'LEGEND' : 'RARE'}</span>}
+          {s.roadReport && <span className="px-clip-1 bg-danger px-2 text-[11px] font-black leading-5 text-on-danger">路上</span>}
+          {!s.hasPhoto && <span className="px-clip-1 bg-fill-strong px-2 text-[11px] font-black leading-5 text-fg-2">写真なし</span>}
         </span>
         {s.revokedAt && (
-          <span className="absolute inset-0 grid place-items-center rounded-[12px] bg-night/60">
-            <span className="rotate-[-8deg] rounded-full border-[3px] border-white bg-danger px-4 py-1 text-headline font-black text-white">取り消し済み</span>
+          <span className="px-clip-2 absolute inset-0 grid place-items-center bg-night/60">
+            {/* 傾けたスタンプ：白い段々の四角に、赤い段々の四角を 3px 内側に重ねる */}
+            <span className="px-clip-2 rotate-[-8deg] bg-white p-[3px]">
+              <span className="px-clip-1 block bg-danger px-4 py-1 text-headline font-black text-white">取り消し済み</span>
+            </span>
           </span>
         )}
       </div>
@@ -976,9 +984,9 @@ function RoadTab({
       <div className="mt-4 space-y-2.5">
         {items.length === 0 && <Empty icon={IconCarProfileFill} title={status === 'new' ? '新しい路上レポートはありません' : 'レポートはありません'} />}
         {items.map((r) => (
-          <div key={r.id} className={cn('panel p-3.5', r.revokedAt && 'opacity-60')}>
+          <div key={r.id} className={cn('panel p-2.5', r.revokedAt && 'opacity-60')}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={cn('inline-flex h-7 items-center rounded-full px-3 text-caption', ROAD_TYPE[r.type].cls)}>{ROAD_TYPE[r.type].label}</span>
+              <span className={cn('px-clip-1 inline-flex h-7 items-center px-3 text-caption', ROAD_TYPE[r.type].cls)}>{ROAD_TYPE[r.type].label}</span>
               <span className="text-headline font-black text-fg">{speciesName(r.speciesId, '種類不明')}</span>
               <span className="ml-auto">
                 <StatusPill tone={r.status === 'new' ? 'open' : r.status === 'forwarded' ? 'muted' : 'done'}>{ROAD_STATUS_LABEL[r.status]}</StatusPill>
@@ -1083,8 +1091,8 @@ function PartnersTab({
       <div className="space-y-2.5">
         {items.length === 0 && <Empty icon={IconKey} title="提携先はまだありません" />}
         {items.map((p) => (
-          <div key={p.id} className="panel flex items-center gap-3 p-3.5">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+          <div key={p.id} className="panel flex items-center gap-3 p-2.5">
+            <span className="px-circle-m grid h-11 w-11 shrink-0 place-items-center bg-brand-soft text-brand">
               <IconKey size={22} />
             </span>
             <div className="min-w-0 flex-1">
@@ -1103,10 +1111,10 @@ function PartnersTab({
       <Sheet open={open} onClose={() => setOpen(false)} title={issued ? 'キーを発行しました' : '提携先を追加'} keyboard>
         {issued ? (
           <>
-            <div className="relative overflow-hidden rounded-lg border-2 border-gold-edge/60 bg-gold-soft p-4">
+            <div className="px-notice-caution relative overflow-hidden p-3">
               <Sparkles count={3} />
               <p className="text-sub font-black text-fg">このキーは、この画面でしか表示されません</p>
-              <p className="mt-2 break-all rounded-sm bg-surface px-3 py-2 font-mono text-[14px] font-bold text-fg">{issued}</p>
+              <p className="px-clip-2 mt-2 break-all bg-surface px-3 py-2 font-mono text-[14px] font-bold text-fg">{issued}</p>
             </div>
             <Button
               variant="gold"
@@ -1201,12 +1209,15 @@ function UsersTab({
       <div className="mt-4 space-y-2.5">
         {items.length === 0 && <Empty icon={IconUsers} title="ユーザーが見つかりません" />}
         {items.map((u) => (
-          <div key={u.id} className="panel flex flex-wrap items-center gap-3 p-3.5">
-            <span className="relative shrink-0">
+          <div key={u.id} className="panel flex flex-wrap items-center gap-3 p-2.5">
+            {/* アバター：ドット絵の丸を 3 枚重ねる（外に line の線 3px、白い縁 3px、写真）。レベルは切り抜かない兄弟に置く */}
+            <span className="relative h-12 w-12 shrink-0">
+              <span aria-hidden className="px-circle-m absolute -inset-[3px] bg-line" />
+              <span aria-hidden className="px-circle-m absolute inset-0 bg-white" />
               {u.pictureUrl ? (
-                <img src={u.pictureUrl} alt="" className="h-12 w-12 rounded-full border-[3px] border-white object-cover shadow-[0_0_0_2px_rgb(var(--c-line))]" />
+                <img src={u.pictureUrl} alt="" className="px-circle-m absolute left-[3px] top-[3px] h-[42px] w-[42px] object-cover" />
               ) : (
-                <span className="grid h-12 w-12 place-items-center rounded-full border-[3px] border-white bg-brand-soft text-brand shadow-[0_0_0_2px_rgb(var(--c-line))]">
+                <span className="px-circle-m absolute inset-[3px] grid place-items-center bg-brand-soft text-brand">
                   <IconUser size={24} />
                 </span>
               )}
@@ -1216,8 +1227,8 @@ function UsersTab({
               <p className="flex flex-wrap items-center gap-1.5">
                 <span className="truncate text-callout font-black text-fg">{u.nickname || u.displayName || '（名前なし）'}</span>
                 {u.nickname && u.displayName && u.nickname !== u.displayName && <span className="text-caption text-fg-3">LINE: {u.displayName}</span>}
-                {u.plus && <span className="num rounded-full bg-gold px-2 text-[11px] leading-5 text-[#3d2a00]">PLUS</span>}
-                {u.isFriend && <span className="rounded-full bg-line-green px-2 text-[11px] font-black leading-5 text-white">友だち</span>}
+                {u.plus && <span className="num px-clip-1 bg-gold px-2 text-[11px] leading-5 text-[#3d2a00]">PLUS</span>}
+                {u.isFriend && <span className="px-clip-1 bg-line-green px-2 text-[11px] font-black leading-5 text-white">友だち</span>}
               </p>
               <p className="mt-0.5 text-caption text-fg-2">
                 記録 {u.sightings} ・ {u.species} 種 ・ 最終 {ago(u.lastSeenAt ?? u.createdAt)}

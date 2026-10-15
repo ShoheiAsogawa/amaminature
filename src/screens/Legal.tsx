@@ -121,7 +121,7 @@ export function ConsentUpdate() {
   const [reading, setReading] = useState<LegalKind | null>(null);
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-page px-4 pb-[calc(24px+var(--safe-bottom))] pt-[calc(32px+var(--safe-top))]">
-      <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-brand">
+      <span className="px-circle-l mx-auto grid h-16 w-16 place-items-center bg-brand-soft text-brand">
         <IconShieldCheck size={36} />
       </span>
       <h1 className="balance mt-4 text-center text-title font-black text-fg">

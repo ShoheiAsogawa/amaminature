@@ -120,7 +120,7 @@ function Tip({ rows, style, className }: { rows: TipRow[]; style?: CSSProperties
     <span
       aria-hidden
       className={cn(
-        'pointer-events-none absolute z-10 flex flex-col whitespace-nowrap rounded-sm bg-toast px-3 py-1.5 text-sub text-toast-fg shadow-toast dark:shadow-none',
+        'px-toast pointer-events-none absolute z-10 flex flex-col whitespace-nowrap px-2 py-0.5 text-sub text-toast-fg',
         className,
       )}
       style={style}
@@ -193,7 +193,7 @@ function HBars({
                   {d.label}
                 </span>
                 <span className="flex min-w-0 flex-1 items-center transition-opacity" style={{ opacity: active && !on ? 0.4 : 1 }}>
-                  <span className="h-3 shrink-0 rounded-r-bar" style={{ width: `${(d.value / max) * 80}%`, background: color }} />
+                  <span className="h-3 shrink-0" style={{ width: `${(d.value / max) * 80}%`, background: color }} />
                   <span className="num ml-2 shrink-0 text-caption text-fg-2">{fmt(d.value)}</span>
                 </span>
               </button>
@@ -238,7 +238,7 @@ function Columns({
   const peak = values.reduce((best, v, i) => (v > values[best] ? i : best), 0);
   const axis = axisLabels ?? labels;
 
-  // ツールチップの位置（棒の上。端の列では内側に寄せて、グループの角で切れないようにする）
+  // ツールチップの位置（棒の上。端の列では内側に寄せて、グループの端で切れないようにする）
   let tipStyle: CSSProperties | undefined;
   if (active !== null) {
     const x = (active + 0.5) / n;
@@ -283,7 +283,7 @@ function Columns({
                 className="relative flex h-full min-w-0 flex-1 items-end justify-center"
               >
                 <span
-                  className="block w-[72%] max-w-6 rounded-t-bar transition-opacity"
+                  className="block w-[72%] max-w-6 transition-opacity"
                   style={{ height: `${h}%`, background: color, opacity: active !== null && active !== i ? 0.4 : 1 }}
                 />
                 {/* 値を書くのは最大の 1 本だけ。ほかは目盛り・ツールチップ・表で読む */}
@@ -354,7 +354,7 @@ function ReportType({ type }: { type: string }) {
   const t = REPORT_TYPE[type] ?? { label: type, dot: 'bg-fg-3' };
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0 rounded-full', t.dot)} />
+      <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0', t.dot)} />
       {t.label}
     </span>
   );
@@ -478,13 +478,16 @@ function Kpis({ totals }: { totals: PartnerSummary['totals'] }) {
     { label: '記録された種', value: totals.species },
   ];
   return (
-    <Group className="mt-6" boxClassName="grid grid-cols-2 gap-px bg-sep sm:grid-cols-4">
-      {items.map((k) => (
-        <div key={k.label} className="bg-fill px-4 pb-3.5 pt-3">
-          <div className="text-sub text-fg-2">{k.label}</div>
-          <div className="num mt-1 text-num-kpi text-fg">{fmt(k.value)}</div>
-        </div>
-      ))}
+    <Group className="mt-6">
+      {/* 区切りの線は、格子の地（sep）を 1px のすき間から見せる。パネルの面はドット絵の枠が塗るので、地は内側の格子に敷く */}
+      <div className="grid grid-cols-2 gap-px bg-sep sm:grid-cols-4">
+        {items.map((k) => (
+          <div key={k.label} className="bg-fill px-4 pb-3.5 pt-3">
+            <div className="text-sub text-fg-2">{k.label}</div>
+            <div className="num mt-1 text-num-kpi text-fg">{fmt(k.value)}</div>
+          </div>
+        ))}
+      </div>
     </Group>
   );
 }
@@ -521,14 +524,14 @@ function Charts({ data, onSelectArea }: { data: PartnerSummary; onSelectArea: (i
   return (
     <>
       <SectionHeader title="市町村別の記録" note="多い順。押すとその市町村の路上レポートを表示します" />
-      <Group boxClassName="p-4">
+      <Group boxClassName="p-3">
         <HBars data={areas} color="var(--chart-1)" labelWidth={56} onSelect={onSelectArea} />
       </Group>
 
       <div className="md:grid md:grid-cols-2">
         <div>
           <SectionHeader title="時間帯別の記録" note="網かけは夜間（18時〜翌5時）" />
-          <Group boxClassName="p-4">
+          <Group boxClassName="p-3">
             <Columns
               values={data.byHour.map((d) => d.sightings)}
               labels={data.byHour.map((d) => `${d.hour}時`)}
@@ -541,7 +544,7 @@ function Charts({ data, onSelectArea }: { data: PartnerSummary; onSelectArea: (i
         </div>
         <div>
           <SectionHeader title="月別のロードキル報告" note="事故で死んでいた、またはけがをしていた生き物" />
-          <Group boxClassName="p-4">
+          <Group boxClassName="p-3">
             <Columns
               values={data.byMonth.map((d) => d.roadkill)}
               labels={months.map((m) => `${m}月`)}
@@ -559,7 +562,7 @@ function Charts({ data, onSelectArea }: { data: PartnerSummary; onSelectArea: (i
       </div>
 
       <SectionHeader title="よく記録される生き物" />
-      <Group boxClassName="p-4">
+      <Group boxClassName="p-3">
         <HBars data={species} color="var(--chart-1)" labelWidth={116} />
       </Group>
     </>

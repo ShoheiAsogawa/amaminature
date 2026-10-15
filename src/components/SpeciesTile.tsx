@@ -172,7 +172,7 @@ export function SpeciesPlate({
 }
 
 /**
- * 行のサムネイル（40 / 48 / 56、rounded-xs）。ListRow の leading に置き、thumbSize に同じ大きさを渡す。
+ * 行のサムネイル（40 / 48 / 56、角は 2 段の段々 px-clip-2）。ListRow の leading に置き、thumbSize に同じ大きさを渡す。
  * 記録の名前を選ぶ段階は showReference（利用者の写真 → 参考写真 → シルエット →「？」の順）。
  */
 export function SpeciesThumb({
@@ -197,12 +197,22 @@ export function SpeciesThumb({
       discovered={discovered}
       showReference={showReference}
       patternSize="thumb"
-      className={cn('shrink-0 rounded-xs', size === 56 ? 'h-14 w-14' : size === 48 ? 'h-12 w-12' : 'h-10 w-10', className)}
+      className={cn('px-clip-2 shrink-0', size === 56 ? 'h-14 w-14' : size === 48 ? 'h-12 w-12' : 'h-10 w-10', className)}
     />
   );
 }
 
 // ───────── 種タイル ─────────
+
+/** 記録済みのタイルの枠（線がタイプの色のドット絵の枠）。枠は絵なので、色ごとのクラス名をそのまま書く */
+const TILE_FRAME: Record<Species['category'], string> = {
+  mammal: 'px-tile-mammal',
+  bird: 'px-tile-bird',
+  herp: 'px-tile-herp',
+  insect: 'px-tile-insect',
+  aqua: 'px-tile-aqua',
+  plant: 'px-tile-plant',
+};
 
 export type SpeciesTileProps = {
   species: Species;
@@ -218,8 +228,8 @@ export type SpeciesTileProps = {
 };
 
 /**
- * 図鑑のタイル（ゲームのカード）。白い面に 2px の線と厚み。記録済みはタイプの色の枠になり、
- * めずらしい・幻は光が横切る。未発見は「？」のプレートで、名前は「？？？」（記録すると名前がわかる）。
+ * 図鑑のタイル（ゲームのカード）。白い面にドット絵の枠（線と厚み）。記録済みは線がタイプの色の枠（px-tile-*）、
+ * 未発見の幻は金の線（px-tile-legend）になり、めずらしい・幻は光が横切る。未発見は「？」のプレートで、名前は「？？？」（記録すると名前がわかる）。
  */
 export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = false }: SpeciesTileProps) {
   const legendary = species.rarity === 4;
@@ -233,19 +243,16 @@ export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = f
       to={`/species/${species.id}`}
       aria-label={label}
       onClick={() => sfx('tap')}
-      className={cn(
-        'pressable block select-none rounded-md border-2 bg-surface p-1.5 shadow-pop-sm',
-        discovered ? t.border : legendary ? 'border-gold/70' : 'border-line',
-      )}
+      className={cn('pressable block select-none p-0.5', discovered ? TILE_FRAME[species.category] : legendary ? 'px-tile-legend' : 'px-panel')}
     >
       <SpeciesPlate
         species={species}
         photoId={discovered ? photoId : null}
         discovered={discovered}
-        className={cn('aspect-square w-full rounded-[10px]', discovered && species.rarity >= 3 && 'shine')}
+        className={cn('px-clip-2 aspect-square w-full', discovered && species.rarity >= 3 && 'shine')}
       >
         {isNew && (
-          <span aria-hidden className="absolute right-1 top-1 animate-pop-in rounded-full bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">
+          <span aria-hidden className="px-clip-1 absolute right-1 top-1 animate-pop-in bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">
             NEW
           </span>
         )}
@@ -269,7 +276,8 @@ export function SpeciesGrid({ children, className }: { children: ReactNode; clas
 // ───────── 見られる季節（§8.3） ─────────
 
 /**
- * 12 か月の見頃のバー。12 本、高さ 24、間隔 2、rounded-bar。見頃は brand、それ以外は fill。
+ * 12 か月の見頃のバー。12 本、高さ 24、間隔 2、角は 1 段の段々（px-clip-1）。見頃は brand、それ以外は fill。
+ * 今月のバーは金の四角い線で囲む（切り抜くと線も消えるので、線は外側の箱の outline で描く）。
  * 月の数字は caption の fg-3、今月だけ「10月」を fg の 600。通年の種はバーを出さず「一年中見られます」。
  */
 export function MonthBar({ months, highlight }: { months: number[]; highlight?: number }) {
@@ -279,14 +287,9 @@ export function MonthBar({ months, highlight }: { months: number[]; highlight?: 
     <div role="img" aria-label={`見頃は${months.map((m) => `${m}月`).join('、')}`}>
       <div className="grid grid-cols-12 gap-0.5" aria-hidden>
         {all.map((m) => (
-          <div
-            key={m}
-            className={cn(
-              'h-7 rounded-[6px]',
-              months.includes(m) ? 'stripes bg-brand-fill' : 'bg-fill-strong',
-              m === highlight && 'ring-2 ring-gold ring-offset-2 ring-offset-surface',
-            )}
-          />
+          <div key={m} className={cn(m === highlight && 'outline outline-2 outline-offset-2 outline-gold')}>
+            <div className={cn('px-clip-1 h-7', months.includes(m) ? 'stripes bg-brand-fill' : 'bg-fill-strong')} />
+          </div>
         ))}
       </div>
       <div className="mt-1 grid grid-cols-12 gap-0.5 text-center" aria-hidden>

@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { sfx } from '../lib/sfx';
+import { pxCircleClip } from './game';
 import {
   IconBookOpenText,
   IconBookOpenTextFill,
@@ -26,13 +27,14 @@ const TABS: (Tab | null)[] = [
 
 /**
  * タブバー（docs/DESIGN_SYSTEM.md）。/ /zukan /explore /me だけで出す。
- * 下に浮いた白いバー（2px の線と厚み）。中央は大きな赤い「きろく」ボタン（白い縁、波紋が広がる）。
- * 選択中のタブはアイコンを瑠璃の丸に入れ、少し跳ねる。
+ * 下に浮いた白いバー（ドット絵の枠 px-panel、線と厚みは枠の絵）。中央は大きな赤い「きろく」ボタン
+ * （白い縁のドット絵の丸。厚みは切り抜かない外側の drop-shadow、波紋は丸の兄弟の px-ring-capture）。
+ * 選択中のタブはアイコンを淡い瑠璃の四角（角を段々に切り抜く）に入れ、少し跳ねる。
  */
 export function TabBar() {
   return (
     <nav aria-label="メインメニュー" className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] px-3 pb-[calc(10px+var(--safe-bottom))]">
-      <div className="grid h-16 grid-cols-5 rounded-xl border-2 border-line bg-surface shadow-[0_4px_0_rgb(var(--c-edge)),0_10px_24px_rgb(20_27_66/.12)]">
+      <div className="px-panel grid h-16 grid-cols-5">
         {TABS.map((t) =>
           t === null ? (
             <div key="capture" className="relative grid place-items-center">
@@ -40,12 +42,17 @@ export function TabBar() {
                 to="/capture"
                 aria-label="記録する"
                 onClick={() => sfx('tap')}
-                className="absolute -top-7 grid h-[66px] w-[66px] place-items-center rounded-full border-4 border-surface bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge)),0_8px_18px_rgb(240_69_58/.35)] transition-transform duration-75 active:translate-y-[3px]"
+                className="absolute -top-8 grid h-[66px] w-[66px] place-items-center text-white transition-transform duration-75 active:translate-y-[3px]"
               >
-                <span aria-hidden className="absolute inset-0 animate-ring-pulse rounded-full border-4 border-capture" />
-                <IconCameraFill size={30} />
+                {/* 波紋は切り抜いた丸の外に広がるので、丸の兄弟にして下に置く */}
+                <span aria-hidden className="px-ring-capture absolute inset-0 animate-ring-pulse" />
+                <span aria-hidden className="absolute inset-0 [filter:drop-shadow(0_4px_0_rgb(var(--c-capture-edge)))]">
+                  <span className="absolute inset-0 bg-surface" style={{ clipPath: pxCircleClip(66) }} />
+                  <span className="absolute inset-[6px] bg-capture" style={{ clipPath: pxCircleClip(54) }} />
+                </span>
+                <IconCameraFill size={30} className="relative" />
               </Link>
-              <span aria-hidden className="absolute bottom-[7px] text-tab text-capture">
+              <span aria-hidden className="absolute bottom-px text-tab text-capture">
                 きろく
               </span>
             </div>
@@ -65,8 +72,8 @@ export function TabBar() {
                   <>
                     <span
                       className={cn(
-                        'grid h-8 w-12 place-items-center rounded-full transition-colors',
-                        isActive && 'animate-pop-in bg-brand-soft',
+                        'grid h-8 w-12 place-items-center transition-colors',
+                        isActive && 'px-clip-2 animate-pop-in bg-brand-soft',
                       )}
                     >
                       <Icon size={24} />

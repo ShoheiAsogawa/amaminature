@@ -3,7 +3,7 @@ import { cn } from '../lib/cn';
 import { countsForCollection } from '../lib/progress';
 import { useProgress } from '../store/useProgress';
 import { useStore } from '../store/useStore';
-import { CoinCount, LevelBadge, XPBar } from './game';
+import { CoinCount, LevelBadge, pxCircleClip, XPBar } from './game';
 import { IconUser } from './icons';
 import { usePhotoUrl } from './PhotoImg';
 
@@ -12,7 +12,10 @@ export function usePlayerName(): string {
   return useStore((s) => s.settings.name) || 'レンジャー';
 }
 
-/** アバター: 利用者の最初の記録の写真。なければ LINE のプロフィール画像、それもなければ人のアイコン */
+/**
+ * アバター: 利用者の最初の記録の写真。なければ LINE のプロフィール画像、それもなければ人のアイコン。
+ * ドット絵の丸：墨の線（size の外に 3px）・白い縁・写真を 1 ドット（3px）ずつ内側に重ねて切り抜く
+ */
 export function PlayerAvatar({ size = 64, className }: { size?: number; className?: string }) {
   const sightings = useStore((s) => s.sightings);
   const pictureUrl = useStore((s) => s.account.pictureUrl);
@@ -20,11 +23,13 @@ export function PlayerAvatar({ size = 64, className }: { size?: number; classNam
   const firstPhotoId = [...sightings].reverse().find((s) => s.photoId && countsForCollection(s) && s.syncState !== 'rejected')?.photoId ?? null;
   const url = usePhotoUrl(firstPhotoId, 'thumb');
   const src = url ?? (firstPhotoId ? null : pictureUrl);
-  const box = cn('shrink-0 rounded-full border-[3px] border-white bg-brand-soft shadow-[0_0_0_2px_rgb(var(--c-line))]', className);
-  if (src) return <img src={src} alt="" className={cn('photo object-cover', box)} style={{ width: size, height: size }} draggable={false} />;
   return (
-    <span className={cn('grid place-items-center text-brand', box)} style={{ width: size, height: size }}>
-      <IconUser size={Math.round(size * 0.5)} />
+    <span className={cn('relative block shrink-0', className)} style={{ width: size, height: size }}>
+      <span aria-hidden className="absolute -inset-[3px] bg-[rgb(var(--c-ink))]" style={{ clipPath: pxCircleClip(size + 6) }} />
+      <span aria-hidden className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(size) }} />
+      <span className="absolute inset-[3px] grid place-items-center overflow-hidden bg-brand-soft text-brand" style={{ clipPath: pxCircleClip(size - 6) }}>
+        {src ? <img src={src} alt="" className="photo absolute inset-0 h-full w-full object-cover" draggable={false} /> : <IconUser size={Math.round(size * 0.5)} />}
+      </span>
     </span>
   );
 }
@@ -37,7 +42,7 @@ export function PlayerHud({ className }: { className?: string }) {
   const name = usePlayerName();
   const { level, rank, balance } = useProgress();
   return (
-    <div className={cn('panel p-3.5', className)}>
+    <div className={cn('panel p-2.5', className)}>
       <div className="flex items-center gap-3">
         <Link to="/me" className="flex min-w-0 flex-1 items-center gap-3 active:opacity-80">
           <span className="relative shrink-0">
@@ -46,7 +51,7 @@ export function PlayerHud({ className }: { className?: string }) {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-headline font-black text-fg">{name}</span>
-            <span className="mt-0.5 inline-flex max-w-full items-center rounded-full bg-brand-soft px-2 py-[1px] text-caption text-brand">
+            <span className="px-clip-1 mt-0.5 inline-flex max-w-full items-center bg-brand-soft px-2 py-[1px] text-caption text-brand">
               <span className="truncate">{rank.current.title}</span>
             </span>
           </span>
@@ -54,7 +59,7 @@ export function PlayerHud({ className }: { className?: string }) {
         <Link
           to="/rewards"
           aria-label={`ポイント ${balance}pt。ポイント交換へ`}
-          className="pressable flex h-10 shrink-0 items-center rounded-full border-2 border-gold-edge/40 bg-gold-soft pl-1.5 pr-3 shadow-[0_3px_0_rgb(var(--c-gold-edge)/.5)]"
+          className="px-pill-gold pressable flex h-10 shrink-0 items-center pl-0.5 pr-2"
         >
           <CoinCount value={balance} size={24} numClassName="text-[18px] leading-none text-fg" />
         </Link>

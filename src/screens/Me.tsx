@@ -79,7 +79,7 @@ function BadgeCell({ badge, earned, size, onOpen }: { badge: Badge; earned: bool
       type="button"
       onClick={() => onOpen(badge)}
       aria-label={`${badge.title}${earned ? '' : '（未獲得）'}`}
-      className="pressable flex min-w-0 flex-col items-center gap-1.5 rounded-sm px-0.5 pb-1 pt-1.5"
+      className="pressable flex min-w-0 flex-col items-center gap-1.5 px-0.5 pb-1 pt-1.5"
     >
       <BadgeEmblem badge={badge} earned={earned} size={size} />
       <span aria-hidden className={`line-clamp-2 text-center text-[10px] font-black leading-[13px] ${earned ? 'text-fg' : 'text-fg-3'}`}>
@@ -89,11 +89,17 @@ function BadgeCell({ badge, earned, size, onOpen }: { badge: Badge; earned: bool
   );
 }
 
-/** オン・オフのスイッチ（行の trailing。行全体が role="switch"） */
+/**
+ * オン・オフのスイッチ（行の trailing。行全体が role="switch"）。ドット絵の溝：線の色の段々（px-clip-2）に、面の色の段々（px-clip-1）を 3px 内側に重ねる。
+ * つまみは 20px の白い四角（px-clip-1）で、溝の面の中に 3px あけて置く（オフ left 6px、オン left 26px）。影は切り抜かない外側の drop-shadow
+ */
 function Switch({ on }: { on: boolean }) {
   return (
-    <span aria-hidden className={cn('relative h-8 w-[52px] shrink-0 rounded-full border-2 transition-colors', on ? 'border-xp-edge bg-xp' : 'border-line bg-fill-strong')}>
-      <span className={cn('absolute top-[2px] h-6 w-6 rounded-full bg-white shadow-[0_2px_0_rgb(0_0_0/.2)] transition-[left]', on ? 'left-[22px]' : 'left-[2px]')} />
+    <span aria-hidden className={cn('px-clip-2 relative h-8 w-[52px] shrink-0 transition-colors', on ? 'bg-xp-edge' : 'bg-line')}>
+      <span className={cn('px-clip-1 absolute inset-[3px] transition-colors', on ? 'bg-xp' : 'bg-fill-strong')} />
+      <span className={cn('absolute top-[6px] h-5 w-5 transition-[left] [filter:drop-shadow(0_3px_0_rgb(0_0_0/.2))]', on ? 'left-[26px]' : 'left-[6px]')}>
+        <span className="px-clip-1 block h-full w-full bg-white" />
+      </span>
     </span>
   );
 }
@@ -200,12 +206,12 @@ export default function Me() {
     <Page>
       <ScreenHeader variant="tab" title="マイページ" right={<HeaderButton icon={IconPencilSimple} label="レンジャーネームを変更" onClick={() => setNameSheet(true)} />} />
 
-      {/* レンジャーカード（トレーナーカード） */}
-      <section aria-label="レンジャーカード" className="relative mx-4 overflow-hidden rounded-xl border-[3px] border-brand-pressed text-white shadow-[0_5px_0_rgb(var(--c-brand-pressed))]" style={TATSUGO_STYLE}>
-        <div className="relative bg-gradient-to-br from-brand-fill/95 via-brand-fill/85 to-brand-pressed/95 p-4">
+      {/* レンジャーカード（トレーナーカード）。龍郷柄の地にドット絵の枠 px-night（面を描かない枠なので、地の柄とグラデーションが見える） */}
+      <section aria-label="レンジャーカード" className="px-night relative mx-4 overflow-hidden text-white" style={TATSUGO_STYLE}>
+        <div className="relative bg-gradient-to-br from-brand-fill/95 via-brand-fill/85 to-brand-pressed/95 p-3">
           <div className="flex items-center justify-between">
             <span className="num text-[13px] tracking-[0.1em] text-white/80">RANGER CARD</span>
-            <span className="num rounded-full bg-white/15 px-2 text-[12px] leading-5 text-gold">AMAMI NATURE</span>
+            <span className="px-clip-1 num bg-white/15 px-2 text-[12px] leading-5 text-gold">AMAMI NATURE</span>
           </div>
           <div className="mt-3 flex items-center gap-3.5">
             <span className="relative shrink-0">
@@ -214,7 +220,7 @@ export default function Me() {
             </span>
             <div className="min-w-0 flex-1">
               <h1 className="break-words text-title font-black">{displayName}</h1>
-              <p className="mt-1 inline-flex rounded-full bg-gold px-2.5 py-[1px] text-caption text-[#3d2a00]">{rank.current.title}</p>
+              <p className="px-clip-1 mt-1 inline-flex bg-gold px-2.5 py-[1px] text-caption text-[#3d2a00]">{rank.current.title}</p>
             </div>
           </div>
           <div className="mt-3.5 flex items-center gap-2">
@@ -229,7 +235,7 @@ export default function Me() {
               { v: `${stats.areas.size}`, l: '市町村/12' },
               { v: badges.size, l: 'バッジ' },
             ].map((x) => (
-              <div key={x.l} className="rounded-sm bg-white/[.14] px-1 py-2 text-center">
+              <div key={x.l} className="px-clip-2 bg-white/[.14] px-1 py-2 text-center">
                 <div className="num text-[22px] leading-6">{x.v}</div>
                 <div className="mt-0.5 text-[10px] font-black leading-3 text-white/80">{x.l}</div>
               </div>
@@ -241,7 +247,7 @@ export default function Me() {
       {/* ポイント（コイン） */}
       <Link
         to="/rewards"
-        className="pressable mx-4 mt-4 flex items-center gap-3 rounded-lg border-2 border-gold-edge/50 bg-gold-soft p-3.5 shadow-[0_4px_0_rgb(var(--c-gold-edge)/.6)]"
+        className="px-pill-gold pressable mx-4 mt-4 flex items-center gap-3 p-2.5"
       >
         <Coin size={40} />
         <span className="min-w-0 flex-1">
@@ -258,13 +264,14 @@ export default function Me() {
       <SectionHeader
         title="バッジケース"
         action={
-          <span className="num rounded-full bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${BADGES.length}個中${badges.size}個`}>
+          <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${BADGES.length}個中${badges.size}個`}>
             {badges.size}/{BADGES.length}
           </span>
         }
       />
-      <div className="mx-4 rounded-lg border-2 border-night bg-gradient-to-b from-night to-night-2 p-2.5 shadow-[0_4px_0_rgb(var(--c-edge))]">
-        <div className="grid grid-cols-4 gap-1 rounded-md bg-surface/95 p-1.5 dark:bg-surface">
+      {/* 夜空のグラデーションのケース（ドット絵の枠 px-night）に、段々に切り抜いた白い台（px-clip-2） */}
+      <div className="px-night mx-4 bg-gradient-to-b from-night to-night-2 p-1.5">
+        <div className="px-clip-2 grid grid-cols-4 gap-1 bg-surface/95 p-1.5 dark:bg-surface">
           {BADGES.map((b) => (
             <BadgeCell key={b.id} badge={b} earned={badges.has(b.id)} size={56} onOpen={setBadge} />
           ))}
