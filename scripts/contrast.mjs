@@ -57,6 +57,8 @@ for (const [theme, t] of [
   checks.push({ theme, fg: 'brand', bg: 'fill', min: 3, t, note: '細いバー' });
   checks.push({ theme, fg: 'capture', bg: 'page', min: 3, t, note: '撮るボタン' });
   checks.push({ theme, fg: 'xp', bg: 'night', min: 3, t, note: 'XP バー（紺の溝）' });
+  // ドット絵の枠の墨の線（パネル・チップ・白いボタンの形がわかる）
+  checks.push({ theme, fg: 'ink', bg: 'page', min: 3, t, note: 'ドット絵の枠の線' });
   // コインの地の上の墨の文字
   checks.push({ theme, fg: 'fg', bg: 'gold', min: 4.5, t: { ...t, fg: light.fg } });
   // タイプのチップ（白い文字）とレア度の星（面の上の図形）

@@ -217,6 +217,6 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 
 ## 11. 確認
 
-- `npm run typecheck`、`npm test`、`npm run contrast`（文字 4.5:1、部品 3:1、タイプのチップの白文字）。
+- `npm run typecheck`、`npm test`、`npm run contrast`（文字 4.5:1、部品 3:1、タイプのチップの白文字、ドット絵の枠の線）、`npm run frames -- --check`（`pixel-frames.css` が config と色から作り直されているか）。
 - `npm run build` の主なチャンク（`index-*.js`）は gzip 204KB 以内。
 - `npm run screenshots`（ひるの島・よるの森の全画面、横スクロールなし、共有画像の保存まで）と `npm run e2e`（記録 → ゲット！ → バッジ → サーバー同期）。
