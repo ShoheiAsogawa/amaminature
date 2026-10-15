@@ -28,7 +28,7 @@ const TABS: (Tab | null)[] = [
 /**
  * タブバー（docs/DESIGN_SYSTEM.md）。/ /zukan /explore /me だけで出す。
  * 下に浮いた白いバー（ドット絵の枠 px-panel、線と厚みは枠の絵）。中央は大きな赤い「きろく」ボタン
- * （白い縁のドット絵の丸。厚みは切り抜かない外側の drop-shadow、波紋は丸の兄弟の px-ring-capture）。
+ * （墨の線と白い縁のドット絵の丸。厚みは切り抜かない外側の drop-shadow、波紋は丸の兄弟の px-ring-capture）。
  * 選択中のタブはアイコンを淡い瑠璃の四角（角を段々に切り抜く）に入れ、少し跳ねる。
  */
 export function TabBar() {
@@ -46,8 +46,10 @@ export function TabBar() {
               >
                 {/* 波紋は切り抜いた丸の外に広がるので、丸の兄弟にして下に置く */}
                 <span aria-hidden className="px-ring-capture absolute inset-0 animate-ring-pulse" />
-                <span aria-hidden className="absolute inset-0 [filter:drop-shadow(0_4px_0_rgb(var(--c-capture-edge)))]">
-                  <span className="absolute inset-0 bg-surface" style={{ clipPath: pxCircleClip(66) }} />
+                {/* 墨の線 → 白い縁 → 赤い面。線があるので、厚み（drop-shadow）がボタンにつながって見える */}
+                <span aria-hidden className="absolute inset-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-capture-edge)))]">
+                  <span className="absolute inset-0 bg-ink" style={{ clipPath: pxCircleClip(66) }} />
+                  <span className="absolute inset-[3px] bg-surface" style={{ clipPath: pxCircleClip(60) }} />
                   <span className="absolute inset-[6px] bg-capture" style={{ clipPath: pxCircleClip(54) }} />
                 </span>
                 <IconCameraFill size={30} className="relative" />

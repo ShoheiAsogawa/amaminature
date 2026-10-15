@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LogoMark } from '../components/Brand';
 import { TATSUGO_STYLE } from '../components/CollectibleCard';
-import { Coin, MessageWindow, Sparkles } from '../components/game';
+import { Coin, MessageWindow, pxCircleClip, Sparkles } from '../components/game';
 import { IconCarProfile, IconEyeSlash, IconHandHeart, IconTicket } from '../components/icons';
 import { Phrase } from '../components/Phrase';
 import { BadgeEmblem, BadgeName, Button, cn, CTA_PADDING, CtaBar, Field, Input, StampSeal } from '../components/ui';
@@ -20,8 +20,8 @@ function TitleLogo() {
     <div className="flex items-center gap-2.5">
       {/* 白い線の瑠璃のドット絵の丸（白い丸に瑠璃の丸を 3px 内側に重ねる）。下の厚みは切り抜かない外側の drop-shadow で落とす */}
       <span className="shrink-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
-        <span className="px-circle-m relative grid h-11 w-11 place-items-center bg-white">
-          <span className="px-circle-m absolute inset-[3px] bg-brand-fill" />
+        <span className="relative grid h-[45px] w-[45px] place-items-center bg-white" style={{ clipPath: pxCircleClip(45) }}>
+          <span className="absolute inset-[3px] bg-brand-fill" style={{ clipPath: pxCircleClip(39) }} />
           <LogoMark size={26} className="relative text-white" />
         </span>
       </span>
@@ -52,8 +52,8 @@ function CardFan() {
         <div className="px-clip-3 grid h-[214px] w-[152px] animate-float bg-white p-1.5" style={{ animationDelay: delay }}>
           <div className="px-clip-1 grid place-items-center" style={TATSUGO_STYLE}>
             {/* 白い線の紋章（白い丸に瑠璃の丸を 3px 内側に重ねる） */}
-            <span className="px-circle-l relative grid h-16 w-16 place-items-center bg-white">
-              <span className="px-circle-l absolute inset-[3px] bg-brand-pressed" />
+            <span className="relative grid h-[63px] w-[63px] place-items-center bg-white" style={{ clipPath: pxCircleClip(63) }}>
+              <span className="absolute inset-[3px] bg-brand-pressed" style={{ clipPath: pxCircleClip(57) }} />
               <LogoMark size={32} className="relative text-white" />
             </span>
           </div>
@@ -100,7 +100,7 @@ function StampsAndReward() {
   const yesterday = new Date(today.getTime() - 864e5);
   return (
     <div className="w-full max-w-[358px] px-4">
-      <div className="px-clip-2 grid grid-cols-4 justify-items-center bg-white/90 py-3">
+      <div className="px-clip-2 grid grid-cols-4 justify-items-center bg-surface py-3">
         <StampSeal name="奄美市" visited date={yesterday} />
         <StampSeal name="龍郷町" visited date={today} />
         <StampSeal name="徳之島町" visited={false} />

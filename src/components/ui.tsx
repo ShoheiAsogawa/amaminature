@@ -570,8 +570,8 @@ export function ListRow({
  */
 export function InfoRow({ label, children, trailing, className }: { label: ReactNode; children: ReactNode; trailing?: ReactNode; className?: string }) {
   return (
-    <div className={cn('group/row flex pl-4', className)}>
-      <div className="flex min-h-12 min-w-0 flex-1 items-start gap-3 border-b-2 border-sep py-3 pr-4 group-last/row:border-b-0">
+    <div className={cn('group/row flex pl-3', className)}>
+      <div className="flex min-h-12 min-w-0 flex-1 items-start gap-3 border-b-2 border-sep py-3 pr-3 group-last/row:border-b-0">
         <span className="w-24 shrink-0 text-callout font-bold text-fg-2">{label}</span>
         <span className="min-w-0 flex-1 text-callout font-bold text-fg">{children}</span>
         {trailing && <span className="-my-1 shrink-0 self-center">{trailing}</span>}
@@ -681,7 +681,7 @@ export function CheckMark({ checked, size = 24, className }: { checked: boolean;
       className={cn('grid shrink-0', checked && '[filter:drop-shadow(0_3px_0_rgb(var(--c-xp-edge)))]', className)}
       style={{ width: size, height: size }}
     >
-      <span className={cn('relative grid place-items-center', pxCircle(size), checked ? 'bg-xp text-white' : 'bg-line')}>
+      <span className={cn('relative grid place-items-center', pxCircle(size), checked ? 'bg-xp text-white' : 'bg-fg-3')}>
         {checked ? <IconCheck size={Math.round(size * 0.62)} /> : <span className={cn('absolute inset-[3px] bg-surface', pxCircle(size - 6))} />}
       </span>
     </m.span>
@@ -704,8 +704,9 @@ export function RadioMark({ checked, className }: { checked: boolean; className?
       transition={{ duration: 0.12 }}
       className={cn('grid h-6 w-6 shrink-0', checked && '[filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]', className)}
     >
-      <span className={cn('px-circle-s relative grid place-items-center', checked ? 'bg-brand-fill' : 'bg-line')}>
-        {checked ? <span className="px-clip-1 h-3 w-3 bg-on-brand" /> : <span className="px-circle-s absolute inset-[3px] bg-surface" />}
+      <span className={cn('px-circle-s relative grid place-items-center', checked ? 'bg-brand-fill' : 'bg-fg-3')}>
+        {/* 中の点は 2×2 ドットの四角（角を切ると十字に見える） */}
+        {checked ? <span className="h-1.5 w-1.5 bg-on-brand" /> : <span className="px-circle-s absolute inset-[3px] bg-surface" />}
       </span>
     </m.span>
   );

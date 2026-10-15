@@ -123,8 +123,8 @@ export function CollectibleCard({
         className={cn('px-clip-3 relative flex min-h-[392px] w-[280px] shrink-0 flex-col p-1.5 transition-transform duration-150 ease-out', className)}
         style={frameStyle}
       >
-        {/* 白い面の縁（1 ドット。面の色に白を 70% 重ねた明るい線）。カードの段々の 2 ドット内側に、1 段の段々で重ねて枠の太さをそろえる */}
-        <div className="px-clip-1 flex flex-1 flex-col bg-surface bg-[linear-gradient(rgb(255_255_255/.7),rgb(255_255_255/.7))] p-[3px]">
+        {/* 白い面の縁（1 ドット。枠の色に白を 70% 重ねた明るい線）。カードの段々の 2 ドット内側に、1 段の段々で重ねて枠の太さをそろえる */}
+        <div className="px-clip-1 flex flex-1 flex-col bg-white/70 p-[3px]">
           <div className="relative flex flex-1 flex-col overflow-hidden bg-surface">
             {/* 名前の帯 */}
             <div className="flex items-center gap-2 px-3 pb-1.5 pt-2">

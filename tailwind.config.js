@@ -49,6 +49,9 @@ export default {
         sep: v('sep'),
         line: v('line'),
         edge: v('edge'),
+        // ドット絵の枠の線と、飾りの窓の帯（docs/DESIGN_SYSTEM.md §4.1）
+        ink: v('ink'),
+        band: v('band'),
         fg: { DEFAULT: v('fg'), 2: v('fg-2'), 3: v('fg-3') },
         brand: { DEFAULT: v('brand'), fill: v('brand-fill'), pressed: v('brand-pressed'), soft: v('brand-soft') },
         'on-brand': v('on-brand'),

@@ -379,13 +379,13 @@ function SpeciesDetail({ id }: { id: string }) {
 function LockedEntry() {
   return (
     <div className="panel relative mx-4 overflow-hidden px-3 py-2.5">
-      <div aria-hidden className="space-y-2.5 py-1 blur-[1px]">
+      <div aria-hidden className="space-y-2.5 py-1">
         <span className="px-clip-1 block h-3.5 w-[92%] bg-fill-strong" />
         <span className="px-clip-1 block h-3.5 w-[78%] bg-fill-strong" />
         <span className="px-clip-1 block h-3.5 w-[56%] bg-fill-strong" />
       </div>
       <div className="absolute inset-0 flex items-center justify-center gap-2 bg-surface/60">
-        <span className="px-circle-m grid h-9 w-9 place-items-center bg-night text-gold">
+        <span className="px-circle-m grid h-9 w-9 place-items-center bg-night text-gold dark:bg-night-2">
           <IconLockSimpleFill size={18} />
         </span>
         <span className="text-sub font-black text-fg-2">ゲットすると読めるよ</span>

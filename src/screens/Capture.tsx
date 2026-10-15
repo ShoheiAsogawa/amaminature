@@ -14,7 +14,7 @@ import {
   IconGpsFix,
   IconHandHeart,
   IconImageSquare,
-  IconInfo,
+  IconLightbulb,
   IconMapPin,
   IconMicrophone,
   IconScan,
@@ -606,9 +606,9 @@ function CaptureFlow() {
                     type="button"
                     onClick={() => setTipsSheet(true)}
                     aria-label="撮影の注意"
-                    className="grid h-11 w-11 place-items-center text-white active:opacity-60"
+                    className="px-btn-stage pressable ml-2 grid h-11 w-11 place-items-center text-white"
                   >
-                    <IconInfo size={24} />
+                    <IconLightbulb size={22} />
                   </button>
                 </div>
               </div>
@@ -667,7 +667,7 @@ function CaptureFlow() {
                   >
                     {/* 白い縁の赤いドット絵の丸（白い丸に 6px 内側の赤い丸を重ねる）。厚みは切り抜かない外側の drop-shadow。
                         波紋は切り抜いた丸の外に広がるので、丸の兄弟にして下に置く */}
-                    <span aria-hidden className="px-ring-capture absolute inset-0 animate-ring-pulse" />
+                    <span aria-hidden className="px-ring-capture-l absolute inset-0 animate-ring-pulse" />
                     <span aria-hidden className="absolute inset-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-capture-edge)))]">
                       <span className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(80) }} />
                       <span className="absolute inset-[6px] bg-capture" style={{ clipPath: pxCircleClip(68) }} />

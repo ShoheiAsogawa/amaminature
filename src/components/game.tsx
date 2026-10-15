@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { RARITY_META } from '../data/species';
 import type { Category, Rarity } from '../data/types';
 import { cn } from '../lib/cn';
@@ -29,17 +29,13 @@ function circleProfile(d: number): number[] {
   }
 }
 
-const circleClips = new Map<number, string>();
+const circleClips = new Map<string, string>();
 
-/**
- * ちょうど px の大きさの丸を、角の段々（1 ドット = 3px）で切り抜く clip-path（style の clipPath に渡す）。
- * px-circle-s / m / l / xl と同じ求め方で、どの大きさでも丸く見える形にする（px-circle-m は 39px、l は 63px の丸の形）。
- * 線のある丸は、3px（1 ドット）ずつ内側の要素に、その大きさの形を付けて重ねる（線が同じ太さでつながる）。
- */
-export function pxCircleClip(px: number): string {
-  const hit = circleClips.get(px);
-  if (hit) return hit;
-  const U = 3;
+/** 20px 未満の丸は 1 ドット = 2px で描く（3px だと角が 1 段だけになり、十字に見える） */
+const dotFor = (px: number) => (px < 20 ? 2 : 3);
+
+/** ちょうど px の大きさの段々の丸の輪郭（左上が 0, 0 の点の列。時計回り） */
+function pxCirclePoints(px: number, U = dotFor(px)): [number, number][] {
   const p = circleProfile(Math.round(px / U)).map((v) => v * U);
   const n = p.length;
   const pts: [number, number][] = [[0, n * U]];
@@ -49,9 +45,29 @@ export function pxCircleClip(px: number): string {
   for (let k = n - 1; k >= 0; k--) pts.push([px - p[k], px - (k + 1) * U], [px - p[k], px - k * U]);
   for (let k = 0; k < n; k++) pts.push([p[k], px - k * U], [p[k], px - (k + 1) * U]);
   pts.push([0, px - n * U]);
-  const clip = `polygon(${pts.map(([x, y]) => `${x}px ${y}px`).join(',')})`;
-  circleClips.set(px, clip);
+  return pts;
+}
+
+/**
+ * ちょうど px の大きさの丸を、角の段々（1 ドット = 3px、20px 未満は 2px）で切り抜く clip-path（style の clipPath に渡す）。
+ * px-circle-s / m / l / xl と同じ求め方で、どの大きさでも丸く見える形にする（px-circle-m は 39px、l は 63px の丸の形）。
+ * 線のある丸は、3px（1 ドット）ずつ内側の要素に、その大きさの形を付けて重ねる（線が同じ太さでつながる）。
+ */
+export function pxCircleClip(px: number, U = dotFor(px)): string {
+  const key = `${px}/${U}`;
+  const hit = circleClips.get(key);
+  if (hit) return hit;
+  const clip = `polygon(${pxCirclePoints(px, U)
+    .map(([x, y]) => `${x}px ${y}px`)
+    .join(',')})`;
+  circleClips.set(key, clip);
   return clip;
+}
+
+/** 太さ w の段々の輪（外の丸から内の丸をくり抜く clip-path） */
+function pxRingClip(px: number, w: number): string {
+  const sub = (pts: [number, number][], d: number) => `M${pts.map(([x, y]) => `${x + d} ${y + d}`).join(' L')} Z`;
+  return `path(evenodd, '${sub(pxCirclePoints(px), 0)} ${sub(pxCirclePoints(px - w * 2), w)}')`;
 }
 
 // ───────── タイプ（分類） ─────────
@@ -119,7 +135,7 @@ export function Stars({
             className={cn(
               '-mx-[1px]',
               i <= rarity ? STAR_COLOR[rarity] : onDark ? 'text-white/20' : 'text-fill-strong',
-              i <= rarity && rarity >= 3 && 'drop-shadow-[0_0_4px_currentColor]',
+              i <= rarity && rarity >= 3 && 'drop-shadow-[0_2px_0_rgb(0_0_0/.22)]',
             )}
           />
         ))}
@@ -166,7 +182,7 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v))
 /**
  * XP バー（紺のドット絵の溝 px-track-night に、斜線が流れる緑の四角いバー）。id を渡すと、前に見た値から伸ばす。
  * tone: xp（緑）/ brand（瑠璃）/ gold（金）
- * height: 外の高さ。溝の枠（上下 3px）の中にバーが見えるよう、14px より低くしない
+ * height: 外の高さ。溝の枠（上下 3px）の中にバーが見えるよう、12px より低くしない
  */
 export function XPBar({
   value,
@@ -199,7 +215,7 @@ export function XPBar({
       aria-valuemax={100}
       aria-valuenow={Math.round(v * 100)}
       className={cn('px-track-night relative overflow-hidden', className)}
-      style={{ height: Math.max(14, height) }}
+      style={{ height: Math.max(12, height) }}
     >
       <div
         className={cn('stripes animate-stripes relative h-full transition-[width] duration-700 ease-out', fill)}
@@ -224,8 +240,8 @@ export function Coin({ size = 20, className }: { size?: number; className?: stri
     <span aria-hidden className={cn('relative grid shrink-0 place-items-center text-[#8a5a00]', className)} style={{ width: size, height: size }}>
       <span className="absolute inset-0 bg-gold-edge" style={{ clipPath: pxCircleClip(size) }} />
       <span
-        className={cn('absolute bg-gold', small ? 'px-clip-1 inset-[2px]' : 'inset-[3px]')}
-        style={{ boxShadow: shade, clipPath: small ? undefined : pxCircleClip(size - 6) }}
+        className={cn('absolute bg-gold', small ? 'inset-[2px]' : 'inset-[3px]')}
+        style={{ boxShadow: shade, clipPath: small ? pxCircleClip(size - 4, 2) : pxCircleClip(size - 6) }}
       />
       <IconStarFill size={Math.round(size * 0.55)} className="relative" />
     </span>
@@ -264,26 +280,23 @@ export function Ring({
   children?: ReactNode;
   className?: string;
 }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
+  // 太さはドット（3px）の倍数にする
+  const w = Math.max(3, Math.round(stroke / 3) * 3);
   const v = clamp01(value);
   return (
     <span className={cn('relative grid shrink-0 place-items-center', className)} style={{ width: size, height: size }}>
-      {/* ドット絵に合わせて、線の端は四角、輪郭はにじませない */}
-      <svg aria-hidden width={size} height={size} shapeRendering="crispEdges" className="absolute inset-0 -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="butt"
-          strokeDasharray={`${c * v} ${c}`}
-          className="transition-[stroke-dasharray] duration-700 ease-out"
-        />
-      </svg>
+      {/* ドット絵の段々の輪。進んだ分は上から時計回りの扇形の色（--ring は index.css の @property で動く） */}
+      <span
+        aria-hidden
+        className="absolute inset-0 transition-[--ring] duration-700 ease-out"
+        style={
+          {
+            '--ring': `${v * 360}deg`,
+            background: `conic-gradient(${color} 0deg var(--ring), ${track} var(--ring) 360deg)`,
+            clipPath: pxRingClip(size, w),
+          } as CSSProperties
+        }
+      />
       <span className="relative">{children}</span>
     </span>
   );

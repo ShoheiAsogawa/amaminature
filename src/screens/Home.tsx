@@ -209,7 +209,8 @@ export default function Home() {
           {missions.map((mi) => (
             <MissionRow key={mi.id} mission={mi} />
           ))}
-          <div className={cn('flex items-center gap-2 px-4 py-2.5 text-sub font-black', allDone ? 'bg-gold-soft text-legend' : 'bg-fill text-fg-3')}>
+          {/* 地の色はパネルと同じ（ドット絵の枠の内側の 1 ドットが白いので、色の帯にすると縁が浮く）。区切り線で分ける */}
+          <div className={cn('flex items-center gap-2 border-t-2 border-sep px-4 py-2.5 text-sub font-black', allDone ? 'text-legend' : 'text-fg-3')}>
             <IconTrophyFill size={18} className={allDone ? 'text-gold-edge' : 'text-fg-3'} aria-hidden />
             {allDone ? 'コンプリート！ また明日も来てね' : `全部クリアで、連続記録をのばそう`}
           </div>
@@ -231,7 +232,7 @@ export default function Home() {
             {CATEGORY_ORDER.map((c) => {
               const v = stats.byCategory[c];
               return (
-                <span key={c} className="px-clip-1 h-[9px] flex-1 overflow-hidden bg-fill-strong">
+                <span key={c} className="h-[9px] flex-1 overflow-hidden bg-fill-strong">
                   <span className={cn('block h-full', TYPE_META[c].bg)} style={{ width: `${(v.found / v.total) * 100}%` }} />
                 </span>
               );

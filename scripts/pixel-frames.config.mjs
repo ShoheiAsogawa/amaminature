@@ -142,6 +142,8 @@ export const CLIPS = {
 
 // 色の短縮（ドット絵の線・飾りの帯）
 const INK = 'ink';
+// 下の厚み（白い面の箱）。よるの森では面（紺）と線（藤色）のあいだの色にして、厚みが「すき間」に見えないようにする
+const LIP = { light: 'edge', dark: '#28336F' };
 const SKY = 'band';
 
 const raised = (colors, o = {}) => pixelBox({ colors, ...o });
@@ -149,7 +151,7 @@ const flat = (colors, o = {}) => pixelBox({ lip: 0, colors, ...o });
 
 export const FRAMES = {
   // ── パネル・カード ──
-  panel: raised({ O: INK, F: 'surface', L: 'edge' }, { note: 'パネル（白い面、墨の線、下に厚み）。.panel も同じ', alias: ['.panel'] }),
+  panel: raised({ O: INK, F: 'surface', L: LIP }, { note: 'パネル（白い面、墨の線、下に厚み）。.panel も同じ', alias: ['.panel'] }),
   'panel-flat': flat({ O: INK, F: 'surface' }, { note: '平らなパネル（厚みなし）' }),
   well: flat({ O: 'line', F: 'fill' }, { note: 'くぼみ（セグメントの溝、グループの中のチップ）' }),
   selected: raised({ O: 'brand', F: 'brand-soft', L: 'brand-pressed' }, { note: '選んでいる行・カード' }),
@@ -175,7 +177,7 @@ export const FRAMES = {
     colors: { O: '#1B1F3B', S: '#9FB4E8', I: '#1B1F3B', F: '#FFFFFF', L: 'rgba(0,0,0,0.28)', G: '#FFC12E' },
     lipOutside: true,
   }),
-  night: pixelBox({ note: '夜空のパネル（地のグラデーションを見せる。線は墨と紺の光）', bands: ['O', 'H'], fillCenter: false, colors: { O: { light: INK, dark: '#04071A' }, H: 'night-2', F: 'night', L: 'edge' } }),
+  night: pixelBox({ note: '夜空のパネル（地のグラデーションを見せる。線は墨と紺の光、厚みは夜空より暗い紺）', bands: ['O', 'H'], fillCenter: false, colors: { O: INK, H: 'night-2', F: 'night', L: { light: '#0A0F2C', dark: '#04071A' } } }),
   // 夜空の舞台（記録の演出）の上の半透明のパネル
   stage: flat({ O: 'rgba(255,255,255,0.28)', F: 'rgba(255,255,255,0.08)' }, { note: '舞台の上の半透明のパネル' }),
   'stage-gold': flat({ O: 'rgba(255,193,46,0.6)', F: 'rgba(255,193,46,0.15)' }, { note: '舞台の上の金のパネル（クエスト CLEAR）' }),
@@ -195,18 +197,18 @@ export const FRAMES = {
   'track-night': pixelBox({ note: 'XP バーの紺の溝', corner: [1], lip: 0, colors: { O: { light: 'night', dark: '#04071A' }, F: { light: 'night', dark: 'rgba(0,0,0,0.55)' } } }),
   // ── ボタン（押すと沈む）。H は内側の光の線 ──
   'btn-primary': raised({ O: 'brand-pressed', H: { light: '#5A8BF2', dark: '#5C88F5' }, F: 'brand-fill', L: 'brand-pressed' }, { bands: ['O', 'H'], note: 'ボタン（瑠璃）' }),
-  'btn-secondary': raised({ O: INK, F: 'surface', L: 'edge' }, { note: 'ボタン（白）' }),
+  'btn-secondary': raised({ O: INK, F: 'surface', L: LIP }, { note: 'ボタン（白）' }),
   'btn-gold': raised({ O: 'gold-edge', H: '#FFE08A', F: 'gold', L: 'gold-edge' }, { bands: ['O', 'H'], note: 'ボタン（金）' }),
   'btn-capture': raised({ O: 'capture-edge', H: '#FF8A80', F: 'capture', L: 'capture-edge' }, { bands: ['O', 'H'], note: 'ボタン（撮る・赤）' }),
   'btn-danger': raised({ O: '#78140E', H: { light: '#E0564B', dark: '#FFB0A8' }, F: 'danger', L: '#78140E' }, { bands: ['O', 'H'], note: 'ボタン（消す）' }),
   'btn-line': raised({ O: '#049640', H: '#4ADB86', F: 'line-green', L: '#049640' }, { bands: ['O', 'H'], note: 'ボタン（LINE）' }),
-  'btn-stage': raised({ O: 'rgba(255,255,255,0.32)', F: 'rgba(255,255,255,0.12)', L: 'rgba(0,0,0,0.35)' }, { note: 'ボタン（夜空の上）' }),
+  'btn-stage': raised({ O: 'rgba(255,255,255,0.32)', F: 'rgba(255,255,255,0.12)', L: 'rgba(255,255,255,0.05)' }, { note: 'ボタン（夜空・黒い舞台の上。厚みは面より暗い半透明の白）' }),
   // 押せないボタン。ほかのボタンと同じ大きさの絵にする（index.css が :disabled で枠の絵だけ替える）
   'btn-disabled': raised({ O: 'line', F: 'fill-strong', L: 'fill-strong' }, { note: 'ボタン（押せない）' }),
   // ── チップ ──
   'chip-on': raised({ O: 'brand-pressed', F: 'brand-fill', L: 'brand-pressed' }, { note: 'チップ（選んでいる）' }),
-  'chip-well': raised({ O: 'line', F: 'fill', L: 'edge' }, { note: 'チップ（グループ・シートの中）' }),
-  'panel-danger': raised({ O: 'danger', F: 'surface', L: 'edge' }, { note: '取り消したもの（線が赤）' }),
+  'chip-well': raised({ O: 'line', F: 'fill', L: LIP }, { note: 'チップ（グループ・シートの中）' }),
+  'panel-danger': raised({ O: 'danger', F: 'surface', L: LIP }, { note: '取り消したもの（線が赤）' }),
   'gold-ticket': pixelBox({ note: '金のチケット（地の金のグラデーションを見せる。線は金の縁、内に金の光）', bands: ['O', 'H'], fillCenter: false, colors: { O: 'gold-edge', H: 'gold', F: 'gold', L: 'gold-edge' } }),
   // ── スイッチの溝（切 / 入） ──
   'switch-off': pixelBox({ note: 'スイッチの溝（切）', corner: [1], lip: 0, colors: { O: 'line', F: 'fill-strong' } }),
@@ -218,13 +220,14 @@ export const FRAMES = {
   'pill-gold': raised({ O: 'gold-edge', F: 'gold-soft', L: 'gold-edge/0.55' }, { note: 'コインの数（金の淡い地）' }),
   // ── 図鑑のタイル（線はタイプの色。記録した種） ──
   ...Object.fromEntries(
-    ['mammal', 'bird', 'herp', 'insect', 'aqua', 'plant'].map((t) => [`tile-${t}`, raised({ O: `type-${t}`, F: 'surface', L: 'edge' }, { note: `図鑑のタイル（${t}）` })]),
+    ['mammal', 'bird', 'herp', 'insect', 'aqua', 'plant'].map((t) => [`tile-${t}`, raised({ O: `type-${t}`, F: 'surface', L: LIP }, { note: `図鑑のタイル（${t}）` })]),
   ),
-  'tile-legend': raised({ O: 'gold-edge', F: 'surface', L: 'edge' }, { note: '図鑑のタイル（幻・未発見）' }),
+  'tile-legend': raised({ O: 'gold-edge', F: 'surface', L: LIP }, { note: '図鑑のタイル（幻・未発見）' }),
   // ── タイプの色の面（選んだタイプのチップなど）。線と厚みはタイプの色を暗くした色 ──
   ...Object.fromEntries(
     ['mammal', 'bird', 'herp', 'insect', 'aqua', 'plant'].map((t) => [`type-${t}`, raised({ O: `type-${t}*0.62`, F: `type-${t}`, L: `type-${t}*0.62` }, { note: `タイプの色の面（${t}）` })]),
   ),
   // ── 丸い線（中は透明）。記録ボタンの波紋 ──
   'ring-capture': pixelBox({ note: '記録ボタンの波紋（66px の丸）', corner: circleProfile(22), lip: 0, fillCenter: false, fill: '.', colors: { O: 'capture' } }),
+  'ring-capture-l': pixelBox({ note: 'シャッターの波紋（80px の丸）', corner: circleProfile(27), lip: 0, fillCenter: false, fill: '.', colors: { O: 'capture' } }),
 };

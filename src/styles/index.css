@@ -284,8 +284,8 @@
     max-height: 90dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
-    /* 枠は px-sheet（上だけ飾りのドット絵の枠。左右と上の枠の太さ 12px） */
-    padding: 0 4px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
+    /* 枠は px-sheet（上だけ飾りのドット絵の枠。左右と上の枠の太さ 12px）。中身は枠の内側の線から 12px 離す */
+    padding: 0 12px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
     transform: translateY(calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px)));
     transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -300,7 +300,7 @@
     width: 42px;
     height: 6px;
     background: rgb(var(--c-fill-strong));
-    margin: 0 auto 10px;
+    margin: 8px auto 10px;
   }
 
   /* ───────── ドット絵の枠の状態と、切り抜いた形の影（docs/DESIGN_SYSTEM.md §4） ───────── */
@@ -355,6 +355,13 @@
 }
 [data-theme='dark'] .stage .photo {
   filter: none;
+}
+
+/* リング（Ring）の進んだ角度。登録しておくと角度が transition で動く */
+@property --ring {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
 @media (prefers-reduced-motion: reduce) {
