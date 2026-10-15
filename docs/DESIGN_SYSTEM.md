@@ -93,7 +93,7 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 
 - 枠を付けた要素には `rounded-*`・`border-*`（太さと色）・`shadow-pop*`・`shadow-[0_Npx_0_…]`・面の `bg-*` を付けない。面の色・線・厚みは枠の絵が描く（`background-clip: padding-box`、面の色は透明になる）。
 - 枠の太さはレイアウトに入る（box-sizing は border-box）。ふつうの枠は上下左右 6px（2 ドット）、飾りの窓は 12px。高さを決めた要素は中が 12px（飾りは 24px）せまくなる。20px 未満の物には枠を付けず、切り抜き（`px-clip-*`）にする。
-- 厚み（1 ドット = 3px）は箱の外（下）に描き、レイアウトに入らない。`.pressable` を付けると、押した時に厚みの分だけ沈む絵に替わる（`[data-pressed]` でも同じ）。
+- 厚み（1 ドット = 3px）は箱の外（下）に描き、レイアウトに入らない。厚みの色はひるの島では `edge`、よるの森では面と線のあいだの紺（すき間に見えないように）。`.pressable` を付けると、押した時に厚みの分だけ沈む絵に替わる（`[data-pressed]` でも同じ）。
 - `overflow-hidden` は中身を枠の内側（padding box）で切る。枠の段々の角は枠の絵が描くので、中の写真や行の背景が角からはみ出さない。
 - 状態で色を変える時は、枠を替える（`px-field` は入力中に `px-field-focus` の線になる。選んでいる行は `px-selected`）。
 
@@ -117,14 +117,18 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 | `px-chip-on` / `px-chip-well` | 6px＋厚み | チップ（選んでいる / グループ・シートの中） |
 | `px-type-{mammal,bird,herp,insect,aqua,plant}` | 6px＋厚み | タイプの色の面（選んだタイプのチップ） |
 | `px-tile-{mammal,…,plant}` / `px-tile-legend` | 6px＋厚み | 線がタイプの色（記録した種のタイル・カード）/ 金（幻） |
-| `px-tag` / `px-pill-gold` | 3px / 6px＋厚み | 線のある小さなタグ / コインの数 |
-| `px-ring-capture` | 線 3px（中は透明） | 記録ボタンの波紋 |
+| `px-tag` / `px-tag-danger` / `px-pill-gold` | 3px / 3px / 6px＋厚み | 線のある小さなタグ（白 / 赤い線）/ コインの数 |
+| `px-panel-danger` | 6px＋厚み | 取り消したもの（線が赤） |
+| `px-gold-ticket` | 6px＋厚み（面は描かない） | 金のグラデーションの地を見せるチケット |
+| `px-switch-off` / `px-switch-on` | 3px | スイッチの溝（切 / 入） |
+| `px-ring-capture` / `px-ring-capture-l` | 線 3px（中は透明） | 記録ボタン（66px）/ シャッター（80px）の波紋 |
 
 **切り抜き（`px-clip-*`・`px-circle-*`）** は `clip-path` で角を段々に切る。線も厚みも描かないので、地の色（`bg-*`）をそのまま使う。
 
 - 四角: `px-clip-1`（角 1 段。高さ 28px 以下のタグ・ピル・バーの中身）、`px-clip-2`（写真・サムネイル・カードの中の面）、`px-clip-3`（大きなカード）。
 - 丸: `px-circle-s`（〜28px）、`px-circle-m`（32〜48px）、`px-circle-l`（52〜72px）、`px-circle-xl`（76px〜）。
-- 線のある丸は、外側の要素（線の色）と内側の要素（`inset-[3px]`、中の色）を重ね、両方を切り抜く。
+- 線のある丸は、外側の要素（線の色）と内側の要素（`inset-[3px]`、中の色）を重ね、両方を切り抜く。大きさがクラスの丸と合わない時は、`components/game.tsx` の `pxCircleClip(px)`（ちょうど px の丸。20px 未満は 1 ドット = 2px）を style の clipPath に渡すと、線の太さがそろう。
+- 進み具合の丸（`Ring`）は、段々の輪（外の丸から内の丸をくり抜いた clip-path）に、上から時計回りの扇形（conic-gradient）を塗る。
 - 切り抜いた要素は自分の影（box-shadow・drop-shadow）が消える。影は親に `px-drop`（`edge` の 3px）か `px-drop-dark` を付ける。
 - 切り抜いた要素からはみ出す子（バッジ・波紋）は見えなくなる。はみ出す物は兄弟にする。
 
