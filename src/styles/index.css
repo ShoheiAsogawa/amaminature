@@ -57,6 +57,9 @@
   --c-rare-2: 31 127 214;     /* #1F7FD6 */
   --c-rare-3: 147 51 234;     /* #9333EA */
   --c-rare-4: 232 154 0;      /* #E89A00 */
+  /* ドット絵の枠（scripts/pixel-frames.config.mjs）：墨の線と、飾りの窓の空色の帯 */
+  --c-ink: 43 51 96;          /* #2B3360 */
+  --c-band: 159 180 232;      /* #9FB4E8 */
   --scrim: rgb(10 14 40 / 0.5);
   /* 記録の演出とバッジ獲得の舞台（両モード共通の夜の空） */
   --stage: radial-gradient(120% 80% at 50% 30%, #2a3d8f 0%, #141b42 55%, #080b20 100%);
@@ -107,6 +110,8 @@
   --c-type-insect-soft: 48 60 14;  /* #303C0E */
   --c-type-aqua-soft: 20 52 100;   /* #143464 */
   --c-type-plant-soft: 22 64 34;   /* #164022 */
+  --c-ink: 82 99 184;         /* #5263B8 */
+  --c-band: 46 62 133;        /* #2E3E85 */
   --scrim: rgb(0 0 0 / 0.6);
   --dot: rgb(255 255 255 / 0.05);
   color-scheme: dark;
@@ -181,14 +186,8 @@
     }
   }
 
-  /* パネル（白い面に 2px の線と 4px の厚み）。ゲームの「カード」 */
-  .panel {
-    background: rgb(var(--c-surface));
-    border: 2px solid rgb(var(--c-line));
-    border-radius: 18px;
-    box-shadow: 0 4px 0 rgb(var(--c-edge));
-  }
-  /* 押せる面。押すと厚みの分だけ沈む */
+  /* パネル（.panel）は src/styles/pixel-frames.css のドット絵の枠（px-panel と同じ）。白い面、墨の線、下に 1 ドットの厚み */
+  /* 押せる面。押すと厚みの分だけ沈む（ドット絵の枠は pixel-frames.css が押した時の絵に替える） */
   .pressable {
     transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.15s;
   }
@@ -197,14 +196,10 @@
     box-shadow: 0 1px 0 rgb(var(--c-edge));
   }
 
-  /* メッセージウィンドウ（ゲームの会話窓。ドット文字、二重の枠） */
+  /* メッセージウィンドウ（ゲームの会話窓）の文字。枠は px-msg（ドット絵の飾りの窓） */
   .msg-window {
     position: relative;
-    background: rgb(255 255 255);
     color: #1b1f3b;
-    border: 3px solid #1b1f3b;
-    border-radius: 14px;
-    box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 5px #9fb4e8, 0 6px 0 rgb(0 0 0 / 0.25);
     font-family: DotGothic16, var(--font-ui);
     font-weight: 400;
     font-feature-settings: normal;
@@ -289,11 +284,8 @@
     max-height: 90dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
-    background: rgb(var(--c-surface));
-    border-radius: 28px 28px 0 0;
-    border-top: 3px solid rgb(var(--c-line));
-    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18);
-    padding: 8px 16px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
+    /* 枠は px-sheet（上だけ飾りのドット絵の枠。左右と上の枠の太さ 12px） */
+    padding: 0 4px calc(24px + var(--safe-bottom) + var(--drawer-keyboard-inset, 0px));
     transform: translateY(calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px)));
     transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -304,15 +296,31 @@
   .sheet-popup[data-ending-style] {
     transform: translateY(100%);
   }
-  [data-theme='dark'] .sheet-popup {
-    box-shadow: none;
-  }
   .sheet-grabber {
-    width: 44px;
+    width: 42px;
     height: 6px;
-    border-radius: 3px;
     background: rgb(var(--c-fill-strong));
-    margin: 0 auto 12px;
+    margin: 0 auto 10px;
+  }
+
+  /* ───────── ドット絵の枠の状態と、切り抜いた形の影（docs/DESIGN_SYSTEM.md §4） ───────── */
+  /* 入力中の欄は線を瑠璃にする */
+  .px-field:focus-within,
+  .px-field:focus {
+    border-image-source: var(--pf-field-focus);
+  }
+  /* 押せないボタンは灰色の平らな枠（沈まない） */
+  [class*='px-btn-']:disabled,
+  [class*='px-btn-'][aria-disabled='true'] {
+    border-image-source: var(--pf-btn-disabled) !important;
+    transform: none !important;
+  }
+  /* clip-path で切り抜いた形（px-clip-*・px-circle-*）は自分の影を描けないので、親に付けて段々に沿った影を落とす */
+  .px-drop {
+    filter: drop-shadow(0 3px 0 rgb(var(--c-edge)));
+  }
+  .px-drop-dark {
+    filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.35));
   }
 
   /* 横スクロールの行 */

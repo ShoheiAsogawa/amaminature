@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "icons": "node scripts/generate-icons.mjs",
     "icons:ui": "node scripts/build-ui-icons.mjs",
+    "frames": "node scripts/build-pixel-frames.mjs",
     "contrast": "node scripts/contrast.mjs",
     "check:sil": "node scripts/check-silhouettes.mjs",
     "check:legal": "node scripts/check-legal.mjs",

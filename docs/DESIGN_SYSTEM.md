@@ -6,6 +6,7 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 
 - 2026-10: 前のデザインシステム「瑠璃の野帳」（白い紙と墨、瑠璃 1 色の静かな図鑑）を廃止した。依頼は「もっとドパガキ向けの、ポケモンのゲームみたいな UI/UX」。中高生〜若い大人が、ゲームと同じ手ざわりで遊べることを優先する。
 - 方向: 空色の盤面に白いパネル、押せる厚みのあるボタン、生き物のタイプ（分類）とレア度の色、丸ゴシックの太い文字、ゲットの演出・効果音・紙吹雪・レベルアップ。
+- 2026-10: 「ドット絵の文字なんやから、BOX も丸っぽいのじゃなくてドットに。ポケモンみたいな装飾ドット BOX」の依頼で、角丸をやめ、すべての箱をドット絵の枠（§4.1）にした。
 - ポケモンそのもの（モンスターボール、キャラクター、ロゴ、専用フォント、「ポケモン」「図鑑」以外の固有名詞）は使わない。手ざわりだけを借り、図柄はすべてオリジナル（§9）。
 
 ## 1. 原則
@@ -71,11 +72,11 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 
 ## 4. 形と部品
 
-- 角丸: `xs` 10、`thumb` 12、`sm` 14、`md` 18、`lg` 24、`xl` 28。
-- `.panel`: 白い面、2px の `line` の枠、4px の `edge` の厚み。`.pressable` で押すと沈む。
+- 角丸は使わない。箱はすべてドット絵の枠（§4.1）。丸い物（アバター・コイン・記録ボタン・ラジオ）はドット絵の丸（`px-circle-*`）。
+- `.panel`（＝ `px-panel`）: 白い面、墨の線、1 ドットの厚み。`.pressable` で押すと沈む。
 - ボタン（`button()`）: `primary`（瑠璃）、`secondary`（白）、`gold`（交換・お祝い）、`capture`（撮る）、`line`、`danger`、`on-stage`（夜空の上）、`text`。高さ 56 / 44。文字は 900。
 - リスト: グループ（`Group`）の中は線で区切る。グループの外の `ListRow` は 1 行ずつのカード。
-- チップ: 丸いピル、選択中は瑠璃（タイプのチップはタイプの色）。
+- チップ: ドット絵の箱（`px-panel`）、選択中は瑠璃（`px-chip-on`）、タイプのチップはタイプの色（`px-type-*`）。
 - 進み具合: `XPBar`（紺の溝に斜線が流れるバー。xp / brand / gold）、`Ring`（コンプ率）、`ProgressBar`。
 - `game.tsx`: `TypeBadge`、`Stars`、`LevelBadge`、`XPBar`、`Coin` / `CoinCount`、`Ring`、`MessageWindow`、`Sparkles`、`TYPE_META`。
 - `Player.tsx`: `PlayerHud`（アバター・レベル・称号・コイン・XP）、`PlayerAvatar`。
@@ -83,6 +84,56 @@ Google Fonts から読み込む（`index.html`）。文字サイズは `tailwind
 - 図鑑カード（`CollectibleCard`）: トレーディングカード。名前と No.、写真の窓、タイプと星、ニックネーム、図鑑の説明、日付と市町村。めずらしい・幻はホロと傾き。
 - バッジ（`BadgeEmblem`）: ジムバッジのようなメダル。記録の節目＝金の六角、生き物＝紫の円、島と季節＝緑のひし形、守る＝赤の盾、幻＝金。
 - タブバー: 下に浮いた白いバー。中央に赤い「きろく」ボタン（波紋が広がる）。
+
+### 4.1 ドット絵の枠（ピクセルフレーム）
+
+1 ドット = 3px。枠は `scripts/pixel-frames.config.mjs` に文字の絵（角の段々・線の重なり・中の色・下の厚み）で描き、`npm run frames` で `src/styles/pixel-frames.css` を作る（手で直さない）。色は `index.css` の `--c-*` から、ひるの島・よるの森の両方を作る。枠は CSS の `border-image`（9 分割）なので、色は枠ごとに決まっている（`currentColor` や `bg-*` では変わらない）。
+
+**枠（`px-*`）の決まり**
+
+- 枠を付けた要素には `rounded-*`・`border-*`（太さと色）・`shadow-pop*`・`shadow-[0_Npx_0_…]`・面の `bg-*` を付けない。面の色・線・厚みは枠の絵が描く（`background-clip: padding-box`、面の色は透明になる）。
+- 枠の太さはレイアウトに入る（box-sizing は border-box）。ふつうの枠は上下左右 6px（2 ドット）、飾りの窓は 12px。高さを決めた要素は中が 12px（飾りは 24px）せまくなる。20px 未満の物には枠を付けず、切り抜き（`px-clip-*`）にする。
+- 厚み（1 ドット = 3px）は箱の外（下）に描き、レイアウトに入らない。`.pressable` を付けると、押した時に厚みの分だけ沈む絵に替わる（`[data-pressed]` でも同じ）。
+- `overflow-hidden` は中身を枠の内側（padding box）で切る。枠の段々の角は枠の絵が描くので、中の写真や行の背景が角からはみ出さない。
+- 状態で色を変える時は、枠を替える（`px-field` は入力中に `px-field-focus` の線になる。選んでいる行は `px-selected`）。
+
+| 枠 | 太さ | 使う所 |
+|---|---|---|
+| `px-panel`（`.panel`） | 6px＋厚み | パネル、グループ、1 行のカード、チップ（ふつう）、タブバー |
+| `px-panel-flat` | 6px | 厚みのいらないパネル |
+| `px-well` | 6px | くぼみ（セグメントの溝） |
+| `px-selected` | 6px＋厚み | 選んでいる行・カード |
+| `px-deco` | 12px＋影 | 飾りの窓：確認ダイアログ、大事なお知らせ |
+| `px-sheet` | 12px（下は開く） | ボトムシート |
+| `px-bar` | 6px（下は開く） | 画面の下に固定するバー（`CtaBar`） |
+| `px-msg` | 12px＋影 | メッセージ窓（テーマに関係なく白）。名札は `px-nametag` |
+| `px-night` | 6px＋厚み（面は描かない） | 夜空のグラデーションのパネル（地は `bg-*` で塗る） |
+| `px-stage` / `px-stage-gold` / `px-stage-danger` | 6px | 記録の演出（夜空の舞台）の上の半透明のパネル |
+| `px-notice-info` / `-caution` / `-danger` / `-night` / `-demo` | 6px | お知らせ（`Notice`） |
+| `px-toast` | 6px | トースト |
+| `px-field`（入力中 `px-field-focus`） | 6px | 入力欄・検索 |
+| `px-track` / `px-track-night` | 3px | 進み具合のバーの溝 / XP バーの紺の溝（中のバーは四角のまま） |
+| `px-btn-primary` / `-secondary` / `-gold` / `-capture` / `-danger` / `-line` / `-stage` / `-disabled` | 6px＋厚み | ボタン（`button()` の variant）、丸かったアイコンボタン（`px-btn-secondary` の四角） |
+| `px-chip-on` / `px-chip-well` | 6px＋厚み | チップ（選んでいる / グループ・シートの中） |
+| `px-type-{mammal,bird,herp,insect,aqua,plant}` | 6px＋厚み | タイプの色の面（選んだタイプのチップ） |
+| `px-tile-{mammal,…,plant}` / `px-tile-legend` | 6px＋厚み | 線がタイプの色（記録した種のタイル・カード）/ 金（幻） |
+| `px-tag` / `px-pill-gold` | 3px / 6px＋厚み | 線のある小さなタグ / コインの数 |
+| `px-ring-capture` | 線 3px（中は透明） | 記録ボタンの波紋 |
+
+**切り抜き（`px-clip-*`・`px-circle-*`）** は `clip-path` で角を段々に切る。線も厚みも描かないので、地の色（`bg-*`）をそのまま使う。
+
+- 四角: `px-clip-1`（角 1 段。高さ 28px 以下のタグ・ピル・バーの中身）、`px-clip-2`（写真・サムネイル・カードの中の面）、`px-clip-3`（大きなカード）。
+- 丸: `px-circle-s`（〜28px）、`px-circle-m`（32〜48px）、`px-circle-l`（52〜72px）、`px-circle-xl`（76px〜）。
+- 線のある丸は、外側の要素（線の色）と内側の要素（`inset-[3px]`、中の色）を重ね、両方を切り抜く。
+- 切り抜いた要素は自分の影（box-shadow・drop-shadow）が消える。影は親に `px-drop`（`edge` の 3px）か `px-drop-dark` を付ける。
+- 切り抜いた要素からはみ出す子（バッジ・波紋）は見えなくなる。はみ出す物は兄弟にする。
+
+**ほかの決まり**
+
+- ぼかした影（`shadow-sheet`・`shadow-toast`・`shadow-object`・`0 8px 18px` など）は使わない。影は 3px ずらした固い影（`px-drop`）。
+- 区切り線（`border-b-2 border-sep`）と、文字だけのボタン（`text`・`danger-text`）はそのまま。
+- `transform: rotate` や小数の `scale` をかけた枠はにじむ。ステッカー（GET! など）の傾きは残してよい。
+- canvas の共有画像（`src/lib/share.ts`）の角も段々にする。
 
 ## 5. ゲームの仕組み
 

@@ -45,7 +45,7 @@ export function DrawerSheet({ open, onClose, title, label, children, keyboard = 
       <Drawer.Backdrop className="sheet-backdrop" />
       {/* 全画面の大きさを持たせる（Base UI はこの要素の高さを基準に snapPoints の割合を計算する） */}
       <Drawer.Viewport className="fixed inset-0">
-        <Drawer.Popup className={cn('sheet-popup text-fg outline-none', className)}>
+        <Drawer.Popup className={cn('sheet-popup px-sheet text-fg outline-none', className)}>
           <div className="sheet-grabber" aria-hidden />
           <Drawer.Content>
             {/* タイトルがない時は閉じるボタンだけを右上に重ね、中身を上に詰める */}
@@ -58,7 +58,7 @@ export function DrawerSheet({ open, onClose, title, label, children, keyboard = 
                 <Drawer.Title className="sr-only">{label}</Drawer.Title>
               ) : null}
               <Drawer.Close aria-label="閉じる" className="-mr-1.5 grid h-11 w-11 shrink-0 place-items-center text-fg">
-                <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-line bg-surface shadow-pop-sm">
+                <span className="px-btn-secondary grid h-9 w-9 place-items-center">
                   <IconX size={16} />
                 </span>
               </Drawer.Close>
@@ -102,7 +102,7 @@ export type ConfirmDialogProps = {
 
 /**
  * 確認ダイアログ（§7.17、@base-ui/react/alert-dialog）。中央に表示、幅 min(320px, 100% - 48px)、
- * rounded-lg、surface、shadow-sheet、パディング 20。ボタンは縦に 2 つ（上 danger-text、下 secondary）。
+ * 飾りの窓（px-deco）、パディング 16。ボタンは縦に 2 つ（上 danger-text、下 secondary）。
  */
 export function AlertDialogImpl({
   open,
@@ -123,7 +123,7 @@ export function AlertDialogImpl({
     >
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="sheet-backdrop" />
-        <AlertDialog.Popup className="fixed left-1/2 top-1/2 w-[min(320px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-line bg-surface p-5 text-fg shadow-sheet outline-none transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 dark:shadow-none">
+        <AlertDialog.Popup className="px-deco fixed left-1/2 top-1/2 w-[min(320px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 p-4 text-fg outline-none transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0">
           <AlertDialog.Title className="balance text-headline font-black text-fg [font-feature-settings:normal]">
             <Phrase text={title} />
           </AlertDialog.Title>
