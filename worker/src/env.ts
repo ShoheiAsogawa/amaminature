@@ -17,7 +17,10 @@ export interface Env {
   LINE_CHANNEL_ACCESS_TOKEN: string;
   /** セッショントークン署名用のランダム文字列（32文字以上） */
   SESSION_SECRET: string;
-  ANTHROPIC_API_KEY: string;
+  /** OpenAI の API キー（AI判定）。未設定なら AI判定は 503 */
+  OPENAI_API_KEY: string;
+  /** AI判定に使う OpenAI のモデル（省略時は identify.ts の DEFAULT_MODEL） */
+  OPENAI_MODEL?: string;
 
   /** 運営の管理画面のキーの SHA-256（16 進数）。未設定なら /api/admin は 503 */
   ADMIN_KEY_SHA256?: string;

@@ -1,6 +1,6 @@
 # LINE公式アカウント × Cloudflare 公開手順
 
-所要時間の目安：初回 1〜2時間。必要なもの：LINEビジネスID、Cloudflareアカウント、Claude APIキー（AI判定を使う場合）。
+所要時間の目安：初回 1〜2時間。必要なもの：LINEビジネスID、Cloudflareアカウント、OpenAI の API キー（AI判定を使う場合）。
 
 ## 0. 全体像
 
@@ -11,7 +11,7 @@ LINEアプリ
  └─ LIFF（アプリ画面） ─────────────────▶ Cloudflare Worker  （静的配信 + /api/*）
                                               ├─ D1：ユーザー・記録・路上レポート・ポイント
                                               ├─ R2：写真・共有カード・トークで受け取った写真
-                                              └─ Claude API：AI判定
+                                              └─ OpenAI API：AI判定（同意した人だけ）
 ```
 
 > **重要**：Messaging APIチャネルとLINEログインチャネルは**同じプロバイダー**に作成してください。
@@ -43,7 +43,7 @@ npx wrangler d1 migrations apply amami-nature --remote
 npx wrangler secret put LINE_CHANNEL_SECRET
 npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
 npx wrangler secret put SESSION_SECRET            # 32文字以上のランダム文字列（例: openssl rand -hex 32）
-npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put OPENAI_API_KEY        # platform.openai.com で作ったキー。AI判定を使う時だけ
 ```
 
 `wrangler.toml` の `[vars]` に `LIFF_ID` / `LINE_LOGIN_CHANNEL_ID` / `PUBLIC_BASE_URL` を記入します。

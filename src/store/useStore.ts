@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: Settings = {
   visitDates: [],
   consent: null,
   roadConsent: null,
+  aiConsent: null,
 };
 
 function loadSettings(): Settings {

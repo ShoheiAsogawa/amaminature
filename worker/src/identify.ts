@@ -1,15 +1,19 @@
 /**
- * 写真から奄美のいきもの候補を返す（Claude のビジョン）
+ * 写真から奄美のいきもの候補を返す（OpenAI の画像入力つきモデル。Responses API を fetch で呼ぶ）
  *
  * 判定は図鑑に載っている種の中からだけ選ばせ、自信がなければ "unknown" を返させる。
- * 呼び出し側（index.ts）で回数上限とPlus状態を確認してから使うこと。
+ * 呼び出し側（index.ts）で回数上限・Plus・AI判定の同意を確認してから使うこと。
+ * モデルは wrangler.toml の OPENAI_MODEL で変えられる（正答率と費用を見て決める）。
  */
-import Anthropic from '@anthropic-ai/sdk';
 import { AREA_BY_ID } from '../../src/data/areas';
 import { SPECIES } from '../../src/data/species';
 
-const MODEL = 'claude-opus-5-5';
-export const MAX_IMAGE_BASE64_LENGTH = 6_500_000; // 約4.8MB（Claudeの画像上限5MBの手前）
+/** 既定のモデル（大量に使う用途向けの安いモデル）。OPENAI_MODEL で上書きする */
+export const DEFAULT_MODEL = 'gpt-6-luna';
+const ENDPOINT = 'https://api.openai.com/v1/responses';
+/** 判定を待つ上限。超えたら upstream_error（回数は返す） */
+const TIMEOUT_MS = 25_000;
+export const MAX_IMAGE_BASE64_LENGTH = 6_500_000; // 約4.8MB
 
 const SPECIES_IDS = SPECIES.map((s) => s.id);
 const KNOWN = new Set(SPECIES_IDS);
@@ -27,7 +31,8 @@ ${CATALOG}
 - confidence は 0〜1 の数値。写真から判断できる特徴にもとづいて控えめに見積もる。
 - 生き物が写っていない、ぼやけて判断できない、図鑑リストにない生き物だと考えられる場合は speciesId を "unknown" にした候補を1件だけ返す。
 - reason には判断の決め手になった特徴を、日本語で40字以内で書く。
-- 撮影月や地域の情報があれば、季節性・分布の参考にする（ただし写真の特徴を優先する）。`;
+- 撮影月や地域の情報があれば、季節性・分布の参考にする（ただし写真の特徴を優先する）。
+- 写真に人の顔や車のナンバーなどが写っていても、それについては何も書かない。`;
 
 const OUTPUT_SCHEMA = {
   type: 'object',
@@ -64,58 +69,80 @@ export class IdentifyError extends Error {
 
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 
+/** Responses API の返り値のうち、使うところだけ */
+interface ResponsesResult {
+  status?: string;
+  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
+}
+
+/** 返り値から、構造化出力の JSON の文字列を取り出す（断られた時は refused） */
+export function extractOutputText(result: ResponsesResult): string {
+  for (const item of result.output ?? []) {
+    if (item.type !== 'message') continue;
+    for (const part of item.content ?? []) {
+      if (part.type === 'refusal') throw new IdentifyError('refused');
+      if (part.type === 'output_text' && typeof part.text === 'string') return part.text;
+    }
+  }
+  throw new IdentifyError('unparseable_response');
+}
+
 export async function identifySpecies(opts: {
   apiKey: string;
+  model?: string;
   imageBase64: string;
   mediaType?: ImageMediaType;
   month?: number;
   areaId?: string | null;
 }): Promise<Candidate[]> {
-  const client = new Anthropic({ apiKey: opts.apiKey });
   const hints: string[] = [];
   if (opts.month && opts.month >= 1 && opts.month <= 12) hints.push(`撮影月: ${opts.month}月`);
   const area = opts.areaId ? AREA_BY_ID[opts.areaId] : undefined;
   if (area) hints.push(`地域: ${area.name}（${area.island}）`);
 
-  let response;
+  let res: Response;
   try {
-    response = await client.beta.messages.create({
-      model: MODEL,
-      max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: {
-        effort: 'low',
-        format: { type: 'json_schema', schema: OUTPUT_SCHEMA },
-      },
-      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: opts.mediaType ?? 'image/jpeg', data: opts.imageBase64 } },
-            {
-              type: 'text',
-              text: `この写真の生き物を図鑑リストから同定してください。${hints.length ? `\n${hints.join(' / ')}` : ''}`,
-            },
-          ],
-        },
-      ],
+    res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: opts.model || DEFAULT_MODEL,
+        instructions: SYSTEM,
+        input: [
+          {
+            role: 'user',
+            content: [
+              { type: 'input_image', image_url: `data:${opts.mediaType ?? 'image/jpeg'};base64,${opts.imageBase64}`, detail: 'high' },
+              { type: 'input_text', text: `この写真の生き物を図鑑リストから同定してください。${hints.length ? `\n${hints.join(' / ')}` : ''}` },
+            ],
+          },
+        ],
+        text: { format: { type: 'json_schema', name: 'species_candidates', strict: true, schema: OUTPUT_SCHEMA } },
+        max_output_tokens: 2000,
+        // 写真と判定の結果を OpenAI 側に保存させない（Responses API の既定は保存する）
+        store: false,
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-  } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) throw new IdentifyError('rate_limited');
-    if (error instanceof Anthropic.APIError) throw new IdentifyError('upstream_error');
-    throw error;
+  } catch {
+    // 時間切れ・通信の失敗
+    throw new IdentifyError('upstream_error');
+  }
+  if (res.status === 429) throw new IdentifyError('rate_limited');
+  if (!res.ok) {
+    console.warn('openai identify failed', res.status, (await res.text().catch(() => '')).slice(0, 300));
+    throw new IdentifyError('upstream_error');
   }
 
-  if (response.stop_reason === 'refusal') throw new IdentifyError('refused');
-  const text = response.content.find((b) => b.type === 'text');
-  if (!text || text.type !== 'text') throw new IdentifyError('unparseable_response');
-
+  const result = (await res.json().catch(() => null)) as ResponsesResult | null;
+  if (!result) throw new IdentifyError('unparseable_response');
+  // 出力の上限に当たるなどして途中で止まった
+  if (result.status && result.status !== 'completed') throw new IdentifyError('unparseable_response');
   let parsed: { candidates?: Candidate[] };
   try {
-    parsed = JSON.parse(text.text) as { candidates?: Candidate[] };
-  } catch {
+    parsed = JSON.parse(extractOutputText(result)) as { candidates?: Candidate[] };
+  } catch (e) {
+    if (e instanceof IdentifyError) throw e;
     throw new IdentifyError('unparseable_response');
   }
   return normalizeCandidates(parsed.candidates ?? []);

@@ -72,6 +72,8 @@ export interface Settings {
    * version が null は「同意しない・撤回した」（at はその日時。端末どうしで新しい方に合わせる）
    */
   roadConsent: { version: string | null; at: string } | null;
+  /** AI判定で写真を米国の事業者（OpenAI）に送ることへの同意（null はまだ聞いていない。version が null は同意しない・撤回） */
+  aiConsent: { version: string | null; at: string } | null;
 }
 
 export interface DailyLog {

@@ -562,7 +562,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
         <Kpi icon={IconRoadHorizonFill} label="路上レポート" value={s.roadReports.total} sub={`未対応 ${s.roadReports.open}`} tone="capture" />
         <Kpi icon={IconSealCheckFill} label="LINE友だち" value={s.users.friends} sub={`登録率 ${Math.round((s.users.friends / Math.max(1, s.users.total)) * 100)}%`} tone="xp" />
         <Kpi icon={IconCrownSimpleFill} label="Plus 会員" value={s.users.plus} sub="有料プラン" tone="gold" />
-        <Kpi icon={IconScan} label="AI判定（きょう）" value={s.aiToday} sub="Claude による判定" tone="brand" />
+        <Kpi icon={IconScan} label="AI判定（きょう）" value={s.aiToday} sub="OpenAI による判定" tone="brand" />
         <Kpi icon={IconCoinsFill} label="交換で使われた pt" value={s.redemptions.fulfilledPoints} sub={`取り消し済みの記録 ${s.sightings.revoked}`} tone="gold" />
       </div>
 

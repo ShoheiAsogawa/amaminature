@@ -30,7 +30,7 @@ src/        LIFFアプリ（React 18 + TypeScript + Vite + Tailwind CSS、PWA対
   lib/      ポイント/バッジ計算・位置の保護・画像処理・API/LIFFクライアント
   store/    状態管理（zustand）とオフラインファーストのサーバー同期
   screens/  各画面
-worker/     Cloudflare Workers（Hono）：API・LINE Webhook・AI判定（Claude）・提携先API
+worker/     Cloudflare Workers（Hono）：API・LINE Webhook・AI判定（OpenAI）・提携先API
   migrations/  D1スキーマ
 scripts/    アイコン/リッチメニュー生成、スクリーンショット、APIスモークテスト、E2E
 tests/      ユニットテスト（Vitest）

@@ -29,7 +29,7 @@ import {
   toast,
 } from '../components/ui';
 import { SPECIES, SPECIES_DISCLAIMER } from '../data/species';
-import { hasRoadConsent, RoadConsentSheet, setRoadConsent } from '../components/RoadConsentSheet';
+import { AiConsentSheet, hasAiConsent, hasRoadConsent, RoadConsentSheet, setAiConsent, setRoadConsent } from '../components/ConsentSheets';
 import { DELETE_ACCOUNT } from '../data/consentTexts';
 import { api, errorMessage } from '../lib/api';
 import { exportBackup, importBackup } from '../lib/db';
@@ -118,9 +118,11 @@ export default function Me() {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [roadSheet, setRoadSheet] = useState(false);
+  const [aiConsentSheet, setAiConsentSheet] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const roadAgreed = hasRoadConsent(settings.roadConsent);
+  const aiAgreed = hasAiConsent(settings.aiConsent);
 
   /** 退会：クラウドのデータを消し、ログインを外し、この端末のデータも消す */
   const leave = async () => {
@@ -309,6 +311,12 @@ export default function Me() {
           chevron
           onClick={() => setRoadSheet(true)}
         />
+        <ListRow
+          title="AI判定の写真の送信"
+          value={aiAgreed ? '同意している' : settings.aiConsent ? '送らない' : '未設定'}
+          chevron
+          onClick={() => setAiConsentSheet(true)}
+        />
       </Group>
 
       {/* データ */}
@@ -418,6 +426,18 @@ export default function Me() {
           setRoadConsent(agree);
           setRoadSheet(false);
           toast(agree ? '路上レポートの正確な位置を送ります' : 'これからの路上レポートは、位置を市町村までにします');
+        }}
+      />
+
+      {/* AI判定で写真を米国の事業者に送ること（同意・撤回） */}
+      <AiConsentSheet
+        open={aiConsentSheet}
+        settings={{ agreed: aiAgreed }}
+        onClose={() => setAiConsentSheet(false)}
+        onDecide={(agree) => {
+          void setAiConsent(agree);
+          setAiConsentSheet(false);
+          toast(agree ? 'AI判定を使えるようにしました' : 'AI判定に写真を送らないようにしました');
         }}
       />
 

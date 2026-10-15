@@ -27,7 +27,15 @@ export interface Me {
   /** お問い合わせ番号（AN-XXXXXXXX）。問い合わせの時に運営がアカウントを探すのに使う */
   supportCode: string;
   /** 同意した版（未同意は null） */
-  consents: { terms: string | null; privacy: string | null; road: string | null; roadAt: string | null };
+  consents: {
+    terms: string | null;
+    privacy: string | null;
+    road: string | null;
+    roadAt: string | null;
+    /** AI判定で写真を米国の事業者に送ることへの同意 */
+    ai: string | null;
+    aiAt: string | null;
+  };
   displayName: string;
   pictureUrl: string | null;
   nickname: string;
@@ -63,6 +71,7 @@ const MESSAGES: Record<string, string> = {
   badge_required: '交換条件のバッジをまだ持っていません。',
   ai_quota_exceeded: '今日のAI判定の回数を使い切りました。',
   ai_unavailable: 'AI判定は現在ご利用いただけません。図鑑から選んでください。',
+  ai_consent_required: 'AI判定を使うには、写真の送信への同意が必要です。',
   unauthorized: 'ログインの有効期限が切れました。もう一度ひらき直してください。',
   already_redeemed: 'この景品はもう交換しています（1人1回まで）。',
   invalid_date: '宣言できる日を過ぎています。',
@@ -109,6 +118,8 @@ export const api = {
       consent?: { terms: string; privacy: string };
       /** 路上レポートの位置の提供に同意した版（null で撤回） */
       roadConsent?: string | null;
+      /** AI判定の写真の送信に同意した版（null で撤回） */
+      aiConsent?: string | null;
     },
   ) => request<Me>('/api/me', json(patch, 'PATCH')),
 

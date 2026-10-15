@@ -32,8 +32,11 @@ PUBLIC_BASE_URL = "https://amami-nature.uken-shohei.workers.dev"
 # 決済連携前の Plus 体験API（本番の課金開始時は "false" に）
 DEMO_PLUS = "true"
 
+# AI判定に使う OpenAI のモデル（変える時はここだけ直して deploy）
+OPENAI_MODEL = "gpt-6-luna"
+
 # secrets（`npx wrangler secret put <NAME>`）:
-#   LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN / SESSION_SECRET / ANTHROPIC_API_KEY
+#   LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN / SESSION_SECRET / OPENAI_API_KEY / ADMIN_KEY_SHA256
 
 [observability]
 enabled = true

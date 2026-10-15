@@ -216,6 +216,11 @@ export function adoptServerConsent(me: Me) {
   if (roadAt && (!local || Date.parse(roadAt) > Date.parse(local.at)) && (local?.version ?? null) !== road) {
     updateSettings({ roadConsent: { version: road, at: roadAt } });
   }
+  const { ai, aiAt } = me.consents;
+  const localAi = settings.aiConsent;
+  if (aiAt && (!localAi || Date.parse(aiAt) > Date.parse(localAi.at)) && (localAi?.version ?? null) !== ai) {
+    updateSettings({ aiConsent: { version: ai, at: aiAt } });
+  }
 }
 
 /** 端末とサーバーの同意を揃える。新しい方に合わせる（同意も撤回も） */
@@ -228,6 +233,10 @@ async function syncConsents(me: Me) {
   const r = settings.roadConsent;
   if (r && (r.version ?? null) !== me.consents.road && (!me.consents.roadAt || Date.parse(r.at) >= Date.parse(me.consents.roadAt))) {
     patch.roadConsent = r.version;
+  }
+  const a = settings.aiConsent;
+  if (a && (a.version ?? null) !== me.consents.ai && (!me.consents.aiAt || Date.parse(a.at) >= Date.parse(me.consents.aiAt))) {
+    patch.aiConsent = a.version;
   }
   if (Object.keys(patch).length) setAccount({ me: await api.updateMe(patch) });
 }

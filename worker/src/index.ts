@@ -12,7 +12,7 @@ import { REWARDS } from '../../src/data/rewards';
 import { computePoints, computeStats, currentMonth, earnedBadges } from '../../src/lib/progress';
 import type { Sighting } from '../../src/lib/types';
 import { adminApp } from './admin';
-import { ROAD_CONSENT_VERSION } from '../../src/data/legalVersions';
+import { AI_CONSENT_VERSION, ROAD_CONSENT_VERSION } from '../../src/data/legalVersions';
 import { jstDate, jstMidnightIso, readSession, sha256Hex, signSession, toBase64, verifyLineSignature } from './crypto';
 import type { AppEnv, Env } from './env';
 import { IdentifyError, identifySpecies, MAX_IMAGE_BASE64_LENGTH, type ImageMediaType } from './identify';
@@ -100,6 +100,12 @@ async function releaseAi(env: Env, userId: string, date: string) {
   await env.DB.prepare('UPDATE ai_usage SET count = MAX(0, count - 1) WHERE user_id = ? AND date = ?').bind(userId, date).run();
 }
 
+/** AI判定で写真を米国の事業者に送ることに、いまの版で同意しているか */
+async function hasAiConsent(env: Env, userId: string): Promise<boolean> {
+  const row = await env.DB.prepare('SELECT ai_consent_version AS v FROM users WHERE id = ?').bind(userId).first<{ v: string | null }>();
+  return row?.v === AI_CONSENT_VERSION;
+}
+
 async function aiLimitFor(env: Env, userId: string): Promise<number> {
   const user = await env.DB.prepare('SELECT plus_until FROM users WHERE id = ?').bind(userId).first<Record<string, unknown>>();
   return isPlus(user) ? LIMITS.aiPlusPerDay : LIMITS.aiFreePerDay;
@@ -142,6 +148,9 @@ async function buildMe(env: Env, userId: string) {
         road: (user?.road_consent_version as string | null) ?? null,
         /** 同意・撤回した日時（端末どうしで新しい方に合わせる） */
         roadAt: (user?.road_consent_at as string | null) ?? null,
+        /** AI判定で写真を米国の事業者に送ることへの同意 */
+        ai: (user?.ai_consent_version as string | null) ?? null,
+        aiAt: (user?.ai_consent_at as string | null) ?? null,
       },
       displayName: (user?.display_name as string) ?? '',
       pictureUrl: (user?.picture_url as string | null) ?? null,
@@ -202,7 +211,7 @@ app.get('/api/me', auth, async (c) => {
 });
 
 app.patch('/api/me', auth, async (c) => {
-  const body = await c.req.json<{ nickname?: unknown; pledged?: unknown; consent?: unknown; roadConsent?: unknown }>();
+  const body = await c.req.json<{ nickname?: unknown; pledged?: unknown; consent?: unknown; roadConsent?: unknown; aiConsent?: unknown }>();
   const userId = c.get('userId');
   // 同意などを書く前に、利用者の行があることを確かめる（ログインより後にデータベースを作り直した時など）
   await c.env.DB.prepare('INSERT OR IGNORE INTO users (id, created_at, last_seen_at, support_code) VALUES (?1, ?2, ?2, ?3)')
@@ -219,6 +228,11 @@ app.patch('/api/me', auth, async (c) => {
   if (body.roadConsent === null || typeof body.roadConsent === 'string') {
     const version = typeof body.roadConsent === 'string' ? body.roadConsent.slice(0, 20) : null;
     await c.env.DB.prepare('UPDATE users SET road_consent_version = ?, road_consent_at = ? WHERE id = ?').bind(version, nowIso(), userId).run();
+  }
+  // AI判定で写真を米国の事業者に送ることへの同意（null で撤回）
+  if (body.aiConsent === null || typeof body.aiConsent === 'string') {
+    const version = typeof body.aiConsent === 'string' ? body.aiConsent.slice(0, 20) : null;
+    await c.env.DB.prepare('UPDATE users SET ai_consent_version = ?, ai_consent_at = ? WHERE id = ?').bind(version, nowIso(), userId).run();
   }
   if (typeof body.nickname === 'string') {
     await c.env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(body.nickname.trim().slice(0, 20), userId).run();
@@ -424,7 +438,9 @@ app.post('/api/identify', auth, async (c) => {
   const body = await c.req.json<{ image?: string; month?: number; areaId?: string | null }>();
   if (typeof body.image !== 'string' || !body.image) return c.json({ error: 'image_required' }, 400);
   if (body.image.length > MAX_IMAGE_BASE64_LENGTH) return c.json({ error: 'image_too_large' }, 413);
-  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: 'ai_unavailable' }, 503);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: 'ai_unavailable' }, 503);
+  // 写真を米国の事業者に送るので、同意した人だけ（個人情報保護法 28 条）
+  if (!(await hasAiConsent(c.env, userId))) return c.json({ error: 'ai_consent_required' }, 403);
 
   const limit = await aiLimitFor(c.env, userId);
   const slot = await reserveAi(c.env, userId, limit);
@@ -432,7 +448,8 @@ app.post('/api/identify', auth, async (c) => {
 
   try {
     const candidates = await identifySpecies({
-      apiKey: c.env.ANTHROPIC_API_KEY,
+      apiKey: c.env.OPENAI_API_KEY,
+      model: c.env.OPENAI_MODEL,
       imageBase64: body.image,
       month: body.month,
       areaId: typeof body.areaId === 'string' && AREA_BY_ID[body.areaId] ? body.areaId : null,
@@ -653,8 +670,20 @@ async function handleEvent(env: Env, event: line.WebhookEvent) {
 
     const recordOnly = line.menuMessage(env.LIFF_ID, 'この写真を図鑑に記録しますか？', '記録する', `/capture?inbox=${messageId}`);
     const base64 = toBase64(content.body);
-    if (!env.ANTHROPIC_API_KEY || base64.length > MAX_IMAGE_BASE64_LENGTH) {
+    if (!env.OPENAI_API_KEY || base64.length > MAX_IMAGE_BASE64_LENGTH) {
       await line.reply(event.replyToken, [line.textMessage('この写真はAI判定できませんでした。図鑑から選んで記録できます。'), recordOnly], token);
+      return;
+    }
+    // AI判定は、写真を米国の事業者に送ることに同意した人だけ。まだの人はアプリで同意してから調べてもらう
+    if (!(await hasAiConsent(env, userId))) {
+      await line.reply(
+        event.replyToken,
+        [
+          line.textMessage('AI判定では、写真を米国の事業者（OpenAI）に送ります。アプリで同意すると、この写真をAIで調べられます。'),
+          line.menuMessage(env.LIFF_ID, 'アプリで同意して、この写真を調べますか？', 'アプリで調べる', `/capture?inbox=${messageId}&ai=1`),
+        ],
+        token,
+      );
       return;
     }
     // 何枚まとめて送られても、1日の回数を超えないよう判定の前に1回分を確保する
@@ -671,7 +700,7 @@ async function handleEvent(env: Env, event: line.WebhookEvent) {
     let candidates;
     try {
       const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(content.type) ? content.type : 'image/jpeg') as ImageMediaType;
-      candidates = await identifySpecies({ apiKey: env.ANTHROPIC_API_KEY, imageBase64: base64, mediaType, month: currentMonth() });
+      candidates = await identifySpecies({ apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL, imageBase64: base64, mediaType, month: currentMonth() });
     } catch (e) {
       console.warn('identify failed', e);
       await releaseAi(env, userId, slot.date);

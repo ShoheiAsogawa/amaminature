@@ -2,7 +2,7 @@
 LINE_CHANNEL_SECRET=dev-channel-secret
 LINE_CHANNEL_ACCESS_TOKEN=dev-access-token
 SESSION_SECRET=dev-session-secret-change-me-0123456789
-ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
 DEV_AUTH=true
 
 # 運営の管理画面のキーの SHA-256（`npm run admin:key` で作る）。ローカルのキーは dev-admin-key-0123456789abcdef

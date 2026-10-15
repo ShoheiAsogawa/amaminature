@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jstDate, jstMidnightIso, readSession, signSession, verifyLineSignature, verifySession } from '../worker/src/crypto';
-import { normalizeCandidates } from '../worker/src/identify';
+import { extractOutputText, identifySpecies, normalizeCandidates } from '../worker/src/identify';
 import { identifyResultMessage } from '../worker/src/line';
 import { parseSightingMeta, ValidationError } from '../worker/src/validate';
 
@@ -112,6 +112,43 @@ describe('AI candidates', () => {
     };
     expect(msg.altText).toContain('ルリカケス');
     expect(msg.contents.footer.contents[0].action.uri).toBe('https://liff.line.me/1234-abcd/capture?inbox=987&species=rurikakesu');
+  });
+});
+
+describe('OpenAI identify', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const message = (text: string) => ({ status: 'completed', output: [{ type: 'reasoning' }, { type: 'message', content: [{ type: 'output_text', text }] }] });
+
+  it('reads the structured output and maps refusals', () => {
+    expect(extractOutputText(message('{"candidates":[]}'))).toBe('{"candidates":[]}');
+    expect(() => extractOutputText({ output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }] })).toThrow('refused');
+    expect(() => extractOutputText({ output: [] })).toThrow('unparseable_response');
+  });
+
+  it('sends the photo without storing it and returns normalised candidates', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
+      Response.json(message(JSON.stringify({ candidates: [{ speciesId: 'rurikakesu', confidence: 0.9, reason: '瑠璃色の翼' }] }))),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await identifySpecies({ apiKey: 'sk-test', imageBase64: 'AAAA', month: 5, areaId: null });
+    expect(out).toEqual([{ speciesId: 'rurikakesu', confidence: 0.9, reason: '瑠璃色の翼' }]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sk-test');
+    const body = JSON.parse(init.body as string);
+    expect(body.store).toBe(false);
+    expect(body.model).toBe('gpt-6-luna');
+    expect(body.text.format).toMatchObject({ type: 'json_schema', strict: true });
+    expect(body.input[0].content[0]).toEqual({ type: 'input_image', image_url: 'data:image/jpeg;base64,AAAA', detail: 'high' });
+    expect(body.input[0].content[1].text).toContain('撮影月: 5月');
+  });
+
+  it('maps upstream failures to error codes', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('slow down', { status: 429 })));
+    await expect(identifySpecies({ apiKey: 'k', imageBase64: 'AAAA' })).rejects.toMatchObject({ code: 'rate_limited' });
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'incomplete', output: [] })));
+    await expect(identifySpecies({ apiKey: 'k', imageBase64: 'AAAA', model: 'gpt-other' })).rejects.toMatchObject({ code: 'unparseable_response' });
   });
 });
 

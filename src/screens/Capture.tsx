@@ -1,7 +1,7 @@
 import { AnimatePresence, m, type Variants } from 'framer-motion';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useBlocker, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { hasRoadConsent, RoadConsentSheet, setRoadConsent } from '../components/RoadConsentSheet';
+import { AiConsentSheet, hasAiConsent, hasRoadConsent, RoadConsentSheet, setAiConsent, setRoadConsent } from '../components/ConsentSheets';
 import {
   IconCameraFill,
   IconCaretLeft,
@@ -145,6 +145,8 @@ function CaptureFlow() {
   const roadMode = params.get('mode') === 'road';
   const preset = params.get('species');
   const inboxId = params.get('inbox');
+  /** LINE のトークから「アプリで調べる」で来た時（名前の段階で AI 判定を始める） */
+  const aiRequested = params.get('ai') === '1';
 
   const sightings = useStore((s) => s.sightings);
   const settings = useStore((s) => s.settings);
@@ -173,6 +175,8 @@ function CaptureFlow() {
     candidates: null,
   });
   const [aiSheet, setAiSheet] = useState(false);
+  /** AI判定で写真を送る前の同意のシート */
+  const [aiAsk, setAiAsk] = useState(false);
   /** 路上レポートの正確な位置を送る前の同意のシート */
   const [roadAsk, setRoadAsk] = useState(false);
   const [tipsSheet, setTipsSheet] = useState(false);
@@ -321,10 +325,16 @@ function CaptureFlow() {
     }
   }
 
-  async function runAi() {
+  /** consented: 同意のシートで同意した直後（設定の反映を待たずに走らせる） */
+  async function runAi(consented = false) {
     if (!photo) return;
     if (account.mode !== 'line') {
       setAiSheet(true);
+      return;
+    }
+    // 写真を米国の事業者に送るので、いまの版の同意がない時は先に聞く
+    if (!consented && !hasAiConsent(settings.aiConsent)) {
+      setAiAsk(true);
       return;
     }
     const forPhoto = photo;
@@ -337,19 +347,24 @@ function CaptureFlow() {
     } catch (e) {
       if (photoRef.current !== forPhoto) return;
       setAi({ loading: false, candidates: null });
-      if ((e as { code?: string }).code === 'ai_quota_exceeded') setAiSheet(true);
+      const code = (e as { code?: string }).code;
+      if (code === 'ai_quota_exceeded') setAiSheet(true);
+      // 同意がサーバーに届いていない（別の端末で同意をやめた、など）
+      else if (code === 'ai_consent_required') setAiAsk(true);
       else toast(errorMessage(e));
     }
   }
 
-  // Plus の時は、名前の段階に来たら AI の候補を自動で出す（写真 1 枚につき 1 回）
+  // Plus で AI判定に同意している時（または LINE のトークから「アプリで調べる」で来た時）は、
+  // 名前の段階に来たら AI の候補を自動で出す（写真 1 枚につき 1 回。同意がまだなら同意のシートを出す）
+  const autoAi = (plus && hasAiConsent(settings.aiConsent)) || (aiRequested && !!inboxId);
   useEffect(() => {
-    if (step !== 'identify' || !photo || !plus || account.mode !== 'line') return;
+    if (step !== 'identify' || !photo || !autoAi || account.mode !== 'line') return;
     if (aiTriedFor.current === photo) return;
     aiTriedFor.current = photo;
     void runAi();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, photo, plus, account.mode]);
+  }, [step, photo, autoAi, account.mode]);
 
   const list = useMemo(() => searchSpecies(query).filter((s) => !cat || s.category === cat), [query, cat]);
   // 「この季節に多い生き物」は今月が見頃の種だけ（一年中見られる種は含めない。ホームの speciesInSeason と同じ考え方）
@@ -714,9 +729,15 @@ function CaptureFlow() {
                   <ListRow
                     icon={IconScan}
                     title="AIで名前を調べる"
-                    subtitle={plus ? '1日30回まで' : '1日1回まで無料（Plusは1日30回）'}
+                    subtitle={
+                      settings.aiConsent && settings.aiConsent.version === null
+                        ? '写真の送信に同意すると使えます'
+                        : plus
+                          ? '1日30回まで'
+                          : '1日1回まで無料（Plusは1日30回）'
+                    }
                     chevron
-                    onClick={runAi}
+                    onClick={() => void runAi()}
                   />
                 </div>
               ))}
@@ -920,6 +941,18 @@ function CaptureFlow() {
           setRoadConsent(agree);
           setRoadAsk(false);
           void save({ precise: agree });
+        }}
+      />
+
+      <AiConsentSheet
+        open={aiAsk}
+        onClose={() => setAiAsk(false)}
+        onDecide={async (agree) => {
+          setAiAsk(false);
+          // サーバーに同意が届いてから調べる（届く前に送ると、同意がないと断られる）
+          await setAiConsent(agree);
+          if (agree) void runAi(true);
+          else toast('図鑑から選んで記録できます');
         }}
       />
 

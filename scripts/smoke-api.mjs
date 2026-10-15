@@ -144,9 +144,20 @@ check('redeem badge-gated → 403', r5.status === 403, JSON.stringify(r5.data));
 const r6 = await call('POST', '/api/redeem', { body: { rewardId: 'donate' } });
 check('redeem donate (100pt)', r6.status === 200 && r6.data.balance === 20, JSON.stringify(r6.data));
 
-// AI判定の回数制限（APIキー未設定でも上限チェックは先に効く）
+// AI判定：写真を米国の事業者に送るので、同意した人だけ（APIキー未設定の時は 503）
+const AI_CONSENT_VERSION = (await readFile(new URL('../src/data/legalVersions.ts', import.meta.url), 'utf8')).match(/AI_CONSENT_VERSION = '([^']+)'/)[1];
+const ai0 = await call('POST', '/api/identify', { body: { image: 'AAAA', month: 10 } });
+check(
+  'identify without AI consent → 403 (or 503 when no API key)',
+  (ai0.status === 403 && ai0.data.error === 'ai_consent_required') || (ai0.status === 503 && ai0.data.error === 'ai_unavailable'),
+  `${ai0.status} ${JSON.stringify(ai0.data)}`,
+);
+const aiYes = await call('PATCH', '/api/me', { body: { aiConsent: AI_CONSENT_VERSION } });
+check('AI consent is recorded on the server', aiYes.data.consents?.ai === AI_CONSENT_VERSION && !!aiYes.data.consents?.aiAt, JSON.stringify(aiYes.data.consents));
 const ai = await call('POST', '/api/identify', { body: { image: 'AAAA', month: 10 } });
 check('identify: model result, or 503 when no API key', ai.status === 200 || (ai.status === 503 && ai.data.error === 'ai_unavailable'), `${ai.status} ${JSON.stringify(ai.data)}`);
+const aiNo = await call('PATCH', '/api/me', { body: { aiConsent: null } });
+check('AI consent can be withdrawn', aiNo.data.consents?.ai === null && !!aiNo.data.consents?.aiAt, JSON.stringify(aiNo.data.consents));
 
 // 提携先API（正確な位置つき）
 const p0 = await fetch(`${BASE}/api/partner/summary`, { headers: { 'X-Partner-Key': 'wrong' } });
