@@ -1,4 +1,4 @@
-import { Fragment, useId, type SVGProps } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { BADGES, type Badge, type BadgeFamily, type BadgeIcon } from '../lib/progress';
 import {
@@ -65,17 +65,99 @@ const FAMILY: Record<BadgeFamily, { from: string; to: string; edge: string }> = 
 };
 const LEGEND = { from: '#FFF3B0', to: '#F5A400', edge: '#8A5A00' };
 
-function Shape({ family, ...p }: { family: BadgeFamily } & SVGProps<SVGPathElement & SVGCircleElement>) {
-  switch (family) {
-    case 'milestone':
-      return <path d="M32 2.5 57.5 17v30L32 61.5 6.5 47V17z" strokeLinejoin="round" {...p} />;
-    case 'place':
-      return <path d="M32 2.5 61.5 32 32 61.5 2.5 32z" strokeLinejoin="round" {...p} />;
-    case 'protect':
-      return <path d="M32 3 57 11v19c0 15.5-11 25.5-25 31C18 55.5 7 45.5 7 30V11z" strokeLinejoin="round" {...p} />;
-    default:
-      return <circle cx="32" cy="32" r="29.5" {...p} />;
+/** 形（64 × 64 の座標）。円は path で書く（Path2D に渡すため） */
+const SHAPE: Record<BadgeFamily, string> = {
+  milestone: 'M32 2.5 57.5 17v30L32 61.5 6.5 47V17z',
+  place: 'M32 2.5 61.5 32 32 61.5 2.5 32z',
+  protect: 'M32 3 57 11v19c0 15.5-11 25.5-25 31C18 55.5 7 45.5 7 30V11z',
+  creature: 'M32 2.5a29.5 29.5 0 1 0 0.001 0z',
+};
+
+/** 1 ドット = 3px */
+const DOT = 3;
+
+/** <html data-theme> の切り替え（未獲得の灰色はテーマの色で描く） */
+function useThemeName() {
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'light');
+  useEffect(() => {
+    const ob = new MutationObserver(() => setTheme(document.documentElement.dataset.theme ?? 'light'));
+    ob.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => ob.disconnect();
+  }, []);
+  return theme;
+}
+
+const token = (name: string) => `rgb(${getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim().split(/\s+/).join(',')})`;
+
+/**
+ * メダルの地を、1 ドット = 1 画素の小さな canvas に描く（表示は 3 倍に拡大して image-rendering: pixelated）。
+ * 線は 1 ドット、下の厚みは 1 ドット、ふちのにじみ（半透明の画素）は消して、ドット絵の硬いふちにする。
+ */
+function drawMedal(cv: HTMLCanvasElement, n: number, family: BadgeFamily, c: { from: string; to: string; edge: string }, earned: boolean) {
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const k = n / 64; // 64 の座標 → ドット
+  const one = 1 / k; // 1 ドットを 64 の座標で
+  const shape = new Path2D(SHAPE[family]);
+  const shrunk = (d: number) => {
+    // 中心から d ドット内側に縮めた形
+    const sc = (64 - 2 * d * one) / 64;
+    ctx.translate(32, 32);
+    ctx.scale(sc, sc);
+    ctx.translate(-32, -32);
+  };
+  ctx.scale(k, k);
+  if (earned) {
+    // 下の厚み（1 ドット下にずらした縁の色）
+    ctx.save();
+    ctx.translate(0, one);
+    ctx.fillStyle = c.edge;
+    ctx.fill(shape);
+    ctx.restore();
+    // 縁（1 ドット）と、グラデーションの面
+    ctx.fillStyle = c.edge;
+    ctx.fill(shape);
+    ctx.save();
+    shrunk(1);
+    const g = ctx.createLinearGradient(0, 0, 64, 64);
+    g.addColorStop(0, c.from);
+    g.addColorStop(1, c.to);
+    ctx.fillStyle = g;
+    ctx.fill(shape);
+    ctx.restore();
+    // 内側の白い輪と、左上の光（ドットの四角い光）
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = one;
+    ctx.beginPath();
+    ctx.arc(32, 32, 19.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(16, 12, 3 * one, one);
+    ctx.fillRect(16 - one, 12 + one, one, 2 * one);
+  } else {
+    ctx.fillStyle = token('fg-3');
+    ctx.globalAlpha = 0.35;
+    ctx.fill(shape);
+    ctx.globalAlpha = 1;
+    ctx.save();
+    shrunk(1);
+    ctx.fillStyle = token('fill-strong');
+    ctx.fill(shape);
+    ctx.restore();
+    ctx.strokeStyle = token('line');
+    ctx.lineWidth = one;
+    ctx.setLineDash([2 * one, 2 * one]);
+    ctx.beginPath();
+    ctx.arc(32, 32, 19.5, 0, Math.PI * 2);
+    ctx.stroke();
   }
+  // ふちのにじみを消す（半分より薄い画素は透明、それ以外は不透明に）
+  const img = ctx.getImageData(0, 0, cv.width, cv.height);
+  const d = img.data;
+  for (let i = 3; i < d.length; i += 4) d[i] = d[i] < 128 ? 0 : 255;
+  ctx.putImageData(img, 0, 0);
 }
 
 export type BadgeEmblemProps = {
@@ -92,7 +174,7 @@ export type BadgeEmblemProps = {
 /**
  * バッジの紋章（ゲームのジムバッジのようなメダル）。系統ごとに形と色が違う
  * （記録の節目＝金の六角、生き物＝紫の円、島と季節＝緑のひし形、守る＝赤の盾。幻は金）。
- * 獲得済みは金属の光沢とハイライト。未獲得は灰色で、図柄だけ薄く見せる。
+ * メダルの地はドット絵（1 ドット = 3px の canvas、縁と厚みは 1 ドット）。獲得済みは金属のグラデーションと光、未獲得は灰色で、図柄だけ薄く見せる。
  */
 export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: BadgeEmblemProps) {
   const def = BADGE_BY_ID.get(badge.id);
@@ -100,7 +182,13 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
   const family: BadgeFamily = def?.family ?? 'milestone';
   const legend = badge.id === 'legend';
   const c = legend ? LEGEND : FAMILY[family];
-  const id = useId().replace(/:/g, '');
+  const theme = useThemeName();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // ドットの数（紋章の大きさを 3px のドットで割る）。厚みの 1 ドットを下に足す
+  const n = Math.max(8, Math.floor(size / DOT));
+  useLayoutEffect(() => {
+    if (canvasRef.current) drawMedal(canvasRef.current, n, family, c, earned);
+  }, [n, family, c, earned, theme]);
   const glyphColor = earned ? 'text-white' : 'text-fg-3/60';
   const label = `${badge.title}${earned ? '' : '（未獲得）'}`;
 
@@ -111,30 +199,16 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
       role={onClick ? undefined : 'img'}
       aria-label={onClick ? undefined : label}
     >
+      {/* メダルの地（ドット絵）。1 ドット = 3px で、紋章の真ん中に置く。厚みの 1 ドットは下にはみ出す */}
+      <canvas
+        ref={canvasRef}
+        width={n}
+        height={n + 1}
+        aria-hidden
+        className="absolute [image-rendering:pixelated]"
+        style={{ width: n * DOT, height: (n + 1) * DOT, left: Math.floor((size - n * DOT) / 2), top: Math.floor((size - n * DOT) / 2) }}
+      />
       <svg viewBox="0 0 64 64" width={size} height={size} className="absolute inset-0 overflow-visible" aria-hidden="true" focusable="false">
-        <defs>
-          <linearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor={c.from} />
-            <stop offset="1" stopColor={c.to} />
-          </linearGradient>
-        </defs>
-        {earned ? (
-          <>
-            {/* 下の厚み */}
-            <g transform="translate(0 2.5)">
-              <Shape family={family} fill={c.edge} />
-            </g>
-            <Shape family={family} fill={`url(#g${id})`} stroke={c.edge} strokeWidth={1.5} />
-            <circle cx="32" cy="32" r="19.5" fill="none" stroke="white" strokeOpacity={0.45} strokeWidth={1.6} />
-            {/* 光沢 */}
-            <ellipse cx="24" cy="18" rx="13" ry="6" fill="white" opacity={0.35} transform="rotate(-30 24 18)" />
-          </>
-        ) : (
-          <>
-            <Shape family={family} fill="currentColor" className="text-fill-strong" stroke="currentColor" strokeWidth={1.5} />
-            <circle cx="32" cy="32" r="19.5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeDasharray="3 3" className="text-line" />
-          </>
-        )}
         {isText(glyph) && (
           <text
             x="32"
@@ -166,7 +240,7 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
 
   if (!onClick) return emblem;
   return (
-    // 押すと沈むだけ（.pressable の押した時の細い影は付けない。厚みは紋章の SVG が描く）
+    // 押すと沈むだけ（.pressable の押した時の細い影は付けない。厚みはメダルのドット絵が描く）
     <button type="button" onClick={onClick} aria-label={label} className="pressable inline-grid shrink-0 place-items-center active:shadow-none">
       {emblem}
     </button>

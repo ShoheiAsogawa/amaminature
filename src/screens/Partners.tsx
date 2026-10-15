@@ -482,7 +482,7 @@ function Kpis({ totals }: { totals: PartnerSummary['totals'] }) {
       {/* 区切りの線は、格子の地（sep）を 1px のすき間から見せる。パネルの面はドット絵の枠が塗るので、地は内側の格子に敷く */}
       <div className="grid grid-cols-2 gap-px bg-sep sm:grid-cols-4">
         {items.map((k) => (
-          <div key={k.label} className="bg-fill px-4 pb-3.5 pt-3">
+          <div key={k.label} className="bg-surface px-4 pb-3.5 pt-3">
             <div className="text-sub text-fg-2">{k.label}</div>
             <div className="num mt-1 text-num-kpi text-fg">{fmt(k.value)}</div>
           </div>

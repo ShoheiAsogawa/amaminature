@@ -144,10 +144,10 @@ export function CollectibleCard({
                   photoId={photoId}
                   photoSize="full"
                   patternSize="large"
-                  className="px-clip-1 aspect-[5/4] w-full"
+                  className="px-clip-1 h-[189px] w-full"
                 />
               ) : (
-                <div className="px-clip-1 relative aspect-[5/4] w-full bg-fill">
+                <div className="px-clip-1 relative h-[189px] w-full bg-fill">
                   {unknownSrc && <img src={unknownSrc} alt="" draggable={false} className="photo absolute inset-0 h-full w-full object-cover" />}
                 </div>
               )}

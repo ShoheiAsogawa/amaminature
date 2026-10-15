@@ -226,7 +226,7 @@ export default function Admin() {
         <Sparkles count={5} className="opacity-60" />
         <div className="relative mx-auto flex max-w-[960px] items-center gap-3 px-4 pb-5 pt-5">
           {/* ドット絵の丸：白い丸に瑠璃の丸を 3px 内側に重ねる。切り抜いた丸は影を描けないので、影は外側の箱の filter で落とす */}
-          <span className="grid h-11 w-11 shrink-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
+          <span className="grid h-11 w-11 shrink-0 self-start [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]">
             <span className="px-circle-m relative grid place-items-center bg-white">
               <span aria-hidden className="px-circle-m absolute inset-[3px] bg-brand-fill" />
               <LogoMark size={24} className="relative text-white" />
@@ -604,7 +604,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
                   <span className="truncate text-callout font-black text-fg">{speciesName(t.speciesId)}</span>
                   {sp && <Stars rarity={sp.rarity} size={11} />}
                 </span>
-                <span className="px-clip-1 mt-1 block h-2.5 overflow-hidden bg-fill-strong">
+                <span className="mt-1 block h-2.5 overflow-hidden bg-fill-strong">
                   <span className={cn('block h-full', sp ? TYPE_META[sp.category].bg : 'bg-fg-3')} style={{ width: `${(t.n / topMax) * 100}%` }} />
                 </span>
               </span>
@@ -1221,9 +1221,9 @@ function UsersTab({
                   <IconUser size={24} />
                 </span>
               )}
-              <LevelBadge level={u.level} size={26} className="absolute -bottom-1 -right-2" />
+              <LevelBadge level={u.level} size={32} className="absolute -bottom-1.5 -right-2.5" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 pl-1">
               <p className="flex flex-wrap items-center gap-1.5">
                 <span className="truncate text-callout font-black text-fg">{u.nickname || u.displayName || '（名前なし）'}</span>
                 {u.nickname && u.displayName && u.nickname !== u.displayName && <span className="text-caption text-fg-3">LINE: {u.displayName}</span>}

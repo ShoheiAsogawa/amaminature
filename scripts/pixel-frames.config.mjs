@@ -159,7 +159,7 @@ export const FRAMES = {
     note: '飾りの窓（シート・ダイアログ・大事なパネル）。外は墨、空色の帯、内に細い墨、角に金のひし形',
     bands: ['O', 'S', 'S', 'I'],
     ornament: [[2, 1, 'G'], [1, 2, 'G'], [2, 2, 'G'], [3, 2, 'G'], [2, 3, 'G']],
-    colors: { O: INK, S: SKY, I: INK, F: 'surface', L: 'edge', G: 'gold' },
+    colors: { O: INK, S: SKY, I: INK, F: 'surface', L: 'rgba(0,0,0,0.28)', G: 'gold' },
     lipOutside: true,
   }),
   sheet: pixelBox({

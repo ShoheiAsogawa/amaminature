@@ -91,7 +91,8 @@ export default {
       keyframes: {
         'pop-in': { '0%': { transform: 'scale(.6)', opacity: '0' }, '60%': { transform: 'scale(1.08)', opacity: '1' }, '100%': { transform: 'scale(1)' } },
         float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
-        'ring-pulse': { '0%': { transform: 'scale(1)', opacity: '.55' }, '100%': { transform: 'scale(1.55)', opacity: '0' } },
+        // ドット絵の波紋：拡大（scale）するとドットがにじむので、枠の大きさを 3px ずつ広げる（steps）
+        'ring-pulse': { '0%': { inset: '0px', opacity: '.55' }, '100%': { inset: '-18px', opacity: '0' } },
         wiggle: { '0%,100%': { transform: 'rotate(0)' }, '25%': { transform: 'rotate(-8deg)' }, '75%': { transform: 'rotate(8deg)' } },
         shine: { '0%': { transform: 'translateX(-120%) skewX(-20deg)' }, '60%,100%': { transform: 'translateX(220%) skewX(-20deg)' } },
         stripes: { '0%': { backgroundPosition: '0 0' }, '100%': { backgroundPosition: '20px 0' } },
@@ -101,7 +102,7 @@ export default {
       animation: {
         'pop-in': 'pop-in .45s cubic-bezier(.2,.9,.3,1.3) both',
         float: 'float 3s ease-in-out infinite',
-        'ring-pulse': 'ring-pulse 1.8s ease-out infinite',
+        'ring-pulse': 'ring-pulse 1.8s steps(6, end) infinite',
         wiggle: 'wiggle .5s ease-in-out',
         shine: 'shine 3.2s ease-in-out infinite',
         stripes: 'stripes 1s linear infinite',

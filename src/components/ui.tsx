@@ -772,7 +772,7 @@ export function ChipRow({ children, className }: { children: ReactNode; classNam
 
 // ───────── セグメント（§7.8） ─────────
 
-/** セグメント。溝はドット絵のくぼみ（px-well）、つまみは角を段々に切った瑠璃の四角で、layoutId で動かす（spring 500 / 40）。全幅で使う */
+/** セグメント。溝はドット絵のくぼみ（px-well）、つまみは角を段々に切った瑠璃の四角（1 ドットの厚み）で、layoutId で動かす（spring 500 / 40）。全幅で使う */
 export function Segmented<T extends string>({
   options,
   value,
@@ -788,7 +788,7 @@ export function Segmented<T extends string>({
 }) {
   const id = useId();
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn('px-well flex h-11 w-full p-0.5', className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn('px-well flex h-12 w-full p-0.5', className)}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -803,9 +803,12 @@ export function Segmented<T extends string>({
             {active && (
               <m.span
                 layoutId={`seg-${id}`}
-                className="px-clip-2 absolute inset-0 bg-brand-fill"
+                className="absolute inset-x-0 bottom-[3px] top-0 [filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]"
                 transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-              />
+              >
+                {/* 切り抜いた四角は自分の影を描けないので、厚みは外側の filter で落とす */}
+                <span className="px-clip-2 absolute inset-0 bg-brand-fill" />
+              </m.span>
             )}
             <span className="relative">{o.label}</span>
           </button>

@@ -25,7 +25,7 @@ export function PlayerAvatar({ size = 64, className }: { size?: number; classNam
   const src = url ?? (firstPhotoId ? null : pictureUrl);
   return (
     <span className={cn('relative block shrink-0', className)} style={{ width: size, height: size }}>
-      <span aria-hidden className="absolute -inset-[3px] bg-[rgb(var(--c-ink))]" style={{ clipPath: pxCircleClip(size + 6) }} />
+      <span aria-hidden className="absolute -inset-[3px] bg-brand-pressed" style={{ clipPath: pxCircleClip(size + 6) }} />
       <span aria-hidden className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(size) }} />
       <span className="absolute inset-[3px] grid place-items-center overflow-hidden bg-brand-soft text-brand" style={{ clipPath: pxCircleClip(size - 6) }}>
         {src ? <img src={src} alt="" className="photo absolute inset-0 h-full w-full object-cover" draggable={false} /> : <IconUser size={Math.round(size * 0.5)} />}

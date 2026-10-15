@@ -299,7 +299,7 @@ function Reveal({
                       className={cn(
                         'num text-[46px] leading-[52px]',
                         rarity === 4 ? 'text-gold' : 'text-white',
-                        '[text-shadow:0_4px_0_rgb(var(--c-capture)),0_0_24px_rgb(255_255_255/.4)]',
+                        '[text-shadow:0_4px_0_rgb(var(--c-capture))]',
                       )}
                     >
                       {species ? (isNew ? 'GET!' : 'NICE!') : 'NICE!'}

@@ -49,17 +49,16 @@ function FramePreview() {
   const sp = latest?.speciesId ? (SPECIES_BY_ID[latest.speciesId] ?? null) : null;
   return (
     <figure className="bg-fill px-4 pb-5 pt-6">
-      <div className="mx-auto h-[330px] w-[280px]" aria-hidden>
-        <div className="origin-top" style={{ transform: 'scale(.82) rotate(-3deg)' }}>
-          <CollectibleCard
-            species={sp}
-            name={latest ? undefined : 'あなたが撮った生き物'}
-            nickname={latest ? latest.nickname : '見本'}
-            photoId={latest?.photoId}
-            observedAt={latest?.observedAt}
-            frame="tsumugi"
-          />
-        </div>
+      {/* ドット絵の枠は縮小・傾きでにじむので、カードはそのままの大きさで見せる */}
+      <div className="mx-auto w-[280px]" aria-hidden>
+        <CollectibleCard
+          species={sp}
+          name={latest ? undefined : 'あなたが撮った生き物'}
+          nickname={latest ? latest.nickname : '見本'}
+          photoId={latest?.photoId}
+          observedAt={latest?.observedAt}
+          frame="tsumugi"
+        />
       </div>
       <figcaption className="mt-1 text-center text-sub text-fg-2">大島紬の限定フレーム（近日追加）</figcaption>
     </figure>
