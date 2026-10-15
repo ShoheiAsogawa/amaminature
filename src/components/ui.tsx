@@ -241,7 +241,7 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
               type="button"
               onClick={back}
               aria-label="戻る"
-              className="pressable grid h-10 w-10 place-items-center rounded-full border-2 border-line bg-surface text-fg shadow-pop-sm"
+              className="px-btn-secondary pressable grid h-10 w-10 place-items-center text-fg"
             >
               <IconCaretLeft size={20} />
             </button>
@@ -254,7 +254,7 @@ export function ScreenHeader({ title, variant = 'tab', right, onBack, left, soli
   );
 }
 
-/** ヘッダー右側の 40px のアイコンボタン（アイコン 24、色は fg） */
+/** ヘッダー右側の 40px のアイコンボタン（白いドット絵の四角いボタン px-btn-secondary、アイコン 20、色は fg） */
 export function HeaderButton({
   icon: Icon,
   label,
@@ -268,7 +268,7 @@ export function HeaderButton({
   to?: string;
   className?: string;
 }) {
-  const cls = cn('pressable grid h-10 w-10 place-items-center rounded-full border-2 border-line bg-surface text-fg shadow-pop-sm', className);
+  const cls = cn('px-btn-secondary pressable grid h-10 w-10 place-items-center text-fg', className);
   if (to) {
     return (
       <Link to={to} aria-label={label} className={cls}>
@@ -283,7 +283,7 @@ export function HeaderButton({
   );
 }
 
-/** 写真の上の丸ボタン（36px の円、var(--scrim) の地に白いアイコン 20、当たり判定 44） */
+/** 写真の上の丸ボタン（36px のドット絵の丸 px-circle-m、var(--scrim) の地に白いアイコン 20、当たり判定 44） */
 export function PhotoButton({
   icon: Icon,
   label,
@@ -305,7 +305,7 @@ export function PhotoButton({
       aria-pressed={pressed}
       className={cn('pointer-events-auto grid h-11 w-11 place-items-center active:opacity-80', className)}
     >
-      <span className="grid h-9 w-9 place-items-center rounded-full text-white" style={{ background: 'var(--scrim)' }}>
+      <span className="px-circle-m grid h-9 w-9 place-items-center text-white" style={{ background: 'var(--scrim)' }}>
         <Icon size={20} />
       </span>
     </button>
@@ -334,9 +334,8 @@ export type SectionHeaderProps = {
 
 /** セクション見出し。左に section（18/26、600）、右に任意で「すべて見る ›」 */
 export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見る', action, note, first = false, id, className }: SectionHeaderProps) {
-  // 「すべて見る」は 400（見出しと行の太さに埋もれないよう、太さは構造だけに使う）
-  const linkCls =
-    'pressable -my-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full border-2 border-line bg-surface pl-3 pr-2 text-caption font-black text-brand shadow-pop-sm';
+  // 「すべて見る」は 400（見出しと行の太さに埋もれないよう、太さは構造だけに使う）。ドット絵の小さなパネル（枠 6px の分、左右の余白を詰める）
+  const linkCls = 'px-panel pressable -my-1 flex h-8 shrink-0 items-center gap-0.5 pl-2 pr-1 text-caption font-black text-brand';
   const right = to ? (
     <Link to={to} className={linkCls}>
       {actionLabel}
@@ -354,7 +353,7 @@ export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見
     <div className={cn('px-4 pb-3', first ? 'pt-4' : 'pt-7', className)}>
       <div className="flex items-center justify-between gap-3">
         <h2 id={id} className="balance flex min-w-0 items-center gap-2 text-section text-fg">
-          <span aria-hidden className="h-5 w-1.5 shrink-0 rounded-full bg-brand-fill" />
+          <span aria-hidden className="h-5 w-1.5 shrink-0 bg-brand-fill" />
           <span className="min-w-0">{typeof title === 'string' ? <Phrase text={title} /> : title}</span>
         </h2>
         {right}
@@ -369,7 +368,7 @@ export function SectionHeader({ title, to, onAction, actionLabel = 'すべて見
 const GroupContext = createContext(false);
 
 /**
- * グループ（fill、rounded-md、左右 16px の余白）。設定・フォーム・種詳細の項目・料金プラン・
+ * グループ（ドット絵のパネル .panel、左右 16px の余白）。設定・フォーム・種詳細の項目・料金プラン・
  * セーフドライブのチェック・KPI・グラフ・シート内の選択肢だけに使う（§4.4）。見出しはグループの外に置く。
  */
 export function Group({
@@ -431,7 +430,7 @@ export type ListRowProps = {
   /** 外部サイト（新しいタブで開く） */
   href?: string;
   onClick?: MouseEventHandler<HTMLElement>;
-  /** 選択中の候補行（brand-soft）。記録の名前の段階だけ（§8.4） */
+  /** 選択中の候補行（グループの外は px-selected の枠、中は brand-soft）。記録の名前の段階だけ（§8.4） */
   selected?: boolean;
   /** 準備中など（文字を fg-3 にし、押せなくする） */
   disabled?: boolean;
@@ -477,15 +476,25 @@ export function ListRow({
   const inGroup = useInGroup();
   const interactive = !disabled && Boolean(to || href || onClick);
   const size = titleSize ?? (inGroup ? 'callout' : 'headline');
-  const minH = thumbSize === 56 ? 'min-h-[76px]' : thumbSize ? 'min-h-16' : subtitle ? 'min-h-16' : inGroup ? 'min-h-12' : 'min-h-14';
+  // グループの外の行はドット絵の枠（上下 6px）が付くので、中の高さと余白を 8px 減らして外の高さをそろえる
+  const minH = inGroup
+    ? thumbSize === 56
+      ? 'min-h-[76px]'
+      : thumbSize || subtitle
+        ? 'min-h-16'
+        : 'min-h-12'
+    : thumbSize === 56
+      ? 'min-h-[68px]'
+      : thumbSize || subtitle
+        ? 'min-h-14'
+        : 'min-h-12';
 
-  // グループの外の行は 1 行ずつのカード（白い面・2px の線・厚み）。グループの中の行は線で区切る
+  // グループの外の行は 1 行ずつのドット絵のカード（px-panel、選んでいる行は px-selected）。グループの中の行は線で区切る
   const rowCls = cn(
-    'group/row relative flex w-full items-stretch pl-4 text-left',
+    'group/row relative flex w-full items-stretch text-left',
     inGroup
-      ? interactive && 'active:bg-fill'
-      : cn('mx-4 mb-2.5 w-[calc(100%-2rem)] rounded-md border-2 border-line bg-surface shadow-pop-sm', interactive && 'pressable'),
-    selected && (inGroup ? 'bg-brand-soft' : 'border-brand bg-brand-soft'),
+      ? cn('pl-4', interactive && 'active:bg-fill', selected && 'bg-brand-soft')
+      : cn('mx-4 mb-2.5 w-[calc(100%-2rem)] pl-3', selected ? 'px-selected' : 'px-panel', interactive && 'pressable'),
     className,
   );
 
@@ -498,7 +507,8 @@ export function ListRow({
       )}
       <span
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-4',
+          'flex min-w-0 flex-1 items-center gap-3',
+          inGroup ? 'py-2.5 pr-4' : 'py-1.5 pr-3',
           minH,
           inGroup && !noDivider && 'border-b-2 border-sep group-last/row:border-b-0',
         )}
@@ -515,7 +525,7 @@ export function ListRow({
         {value != null && value !== false && <span className="shrink-0 text-callout text-fg-2">{value}</span>}
         {trailing}
         {checked && (
-          <span className="flex h-6 shrink-0 items-center gap-1 rounded-full bg-xp px-2 text-caption font-black text-[#0b3d22]">
+          <span className="px-clip-1 flex h-6 shrink-0 items-center gap-1 bg-xp px-2 text-caption font-black text-[#0b3d22]">
             <IconCheck size={12} aria-hidden />
             GET
             <span className="sr-only">（記録済み）</span>
@@ -572,42 +582,31 @@ export function InfoRow({ label, children, trailing, className }: { label: React
 
 // ───────── ボタン（§7.6） ─────────
 
-/** 押した時に沈む動き（厚みの影は variant ごとに書く。Tailwind が読めるようクラス名は省略せずに書く） */
-const PRESS = 'transition-[transform,box-shadow] duration-75 active:translate-y-[3px]';
-
 /**
  * ボタンのクラス。<button className={button({ variant: 'secondary', size: 'md' })}> や <Link> にも使える。
- * ゲームのボタン：太い文字、角丸 18、下に 4px の厚み。押すと沈む。
+ * ゲームのボタン：太い文字、ドット絵の枠（px-btn-*、面・線・下の 1 ドットの厚みは枠の絵が描く）。押すと沈む（pressable）。
+ * 押せない時は index.css が灰色の平らな枠（px-btn-disabled の絵）に替えるので、ここでは文字の色だけ変える。
+ * text・danger-text は枠のない文字だけのボタン。
  */
 export const button = cva(
   'inline-flex select-none items-center justify-center gap-2 pt-[1px] font-black tracking-[0.02em] disabled:pointer-events-none disabled:translate-y-0',
   {
     variants: {
       variant: {
-        primary: cn(
-          PRESS,
-          'bg-brand-fill text-on-brand shadow-[0_4px_0_rgb(var(--c-brand-pressed))] active:shadow-[0_1px_0_rgb(var(--c-brand-pressed))]',
-          'disabled:bg-fill-strong disabled:text-fg-3 disabled:shadow-[0_4px_0_rgb(var(--c-edge))]',
-        ),
-        secondary: cn(
-          PRESS,
-          'border-2 border-line bg-surface text-brand shadow-[0_4px_0_rgb(var(--c-edge))] active:shadow-[0_1px_0_rgb(var(--c-edge))] disabled:text-fg-3',
-        ),
-        gold: cn(
-          PRESS,
-          'bg-gold text-[#3d2a00] shadow-[0_4px_0_rgb(var(--c-gold-edge))] active:shadow-[0_1px_0_rgb(var(--c-gold-edge))]',
-          'disabled:bg-fill-strong disabled:text-fg-3 disabled:shadow-[0_4px_0_rgb(var(--c-edge))]',
-        ),
-        capture: cn(PRESS, 'bg-capture text-white shadow-[0_4px_0_rgb(var(--c-capture-edge))] active:shadow-[0_1px_0_rgb(var(--c-capture-edge))]'),
+        primary: 'px-btn-primary pressable text-on-brand disabled:text-fg-3',
+        secondary: 'px-btn-secondary pressable text-brand disabled:text-fg-3',
+        gold: 'px-btn-gold pressable text-[#3d2a00] disabled:text-fg-3',
+        capture: 'px-btn-capture pressable text-white disabled:text-fg-3',
         text: 'bg-transparent font-bold text-brand active:opacity-60',
         'danger-text': 'bg-transparent font-bold text-danger active:opacity-60',
-        danger: cn(PRESS, 'bg-danger text-on-danger shadow-[0_4px_0_#78140e] active:shadow-[0_1px_0_#78140e]'),
-        line: cn(PRESS, 'bg-line-green text-white shadow-[0_4px_0_#049640] active:shadow-[0_1px_0_#049640]'),
-        'on-stage': cn(PRESS, 'border-2 border-white/25 bg-white/[.12] text-white shadow-[0_4px_0_rgb(0_0_0/.35)] active:shadow-[0_1px_0_rgb(0_0_0/.35)]'),
+        danger: 'px-btn-danger pressable text-on-danger disabled:text-fg-3',
+        line: 'px-btn-line pressable text-white disabled:text-fg-3',
+        'on-stage': 'px-btn-stage pressable text-white disabled:text-fg-3',
       },
+      // 枠（6px）の分、左右の余白は 16px にする
       size: {
-        lg: 'h-14 w-full rounded-md px-5 text-[17px]',
-        md: 'h-11 rounded-sm px-5 text-callout',
+        lg: 'h-14 w-full px-4 text-[17px]',
+        md: 'h-11 px-4 text-callout',
         hit: 'min-h-11 px-1 text-callout',
       },
     },
@@ -632,14 +631,14 @@ export function ButtonNote({ children, className }: { children: ReactNode; class
 export const CTA_PADDING = 'pb-[calc(100px+var(--safe-bottom))]';
 
 /**
- * 固定 CTA バー（§7.6）。page の地、上辺に 1px の sep。主な操作が 1 つの画面だけ（記録 3、Plus、
- * セーフドライブ、オンボーディング）。本文には CTA_PADDING を付ける。
+ * 固定 CTA バー（§7.6）。ドット絵のバー（px-bar、上の角が段々、下は画面の端まで）。主な操作が 1 つの画面だけ（記録 3、Plus、
+ * セーフドライブ、オンボーディング）。本文には CTA_PADDING を付ける。余白は枠（6px）を含めて上 16・左右 16・下 14。
  */
 export function CtaBar({ children, note, className }: { children: ReactNode; note?: ReactNode; className?: string }) {
   return (
     <div
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] rounded-t-xl border-t-2 border-line bg-surface/95 px-4 pb-[calc(14px+var(--safe-bottom))] pt-3.5 backdrop-blur',
+        'px-bar fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] px-2.5 pb-[calc(8px+var(--safe-bottom))] pt-2.5',
         className,
       )}
     >
@@ -660,9 +659,15 @@ function useToggleScale() {
   return first.current ? false : { scale: 0.9 };
 }
 
+/** 大きさ（px）に合うドット絵の丸（切り抜き） */
+function pxCircle(size: number) {
+  return size <= 28 ? 'px-circle-s' : size <= 48 ? 'px-circle-m' : size <= 72 ? 'px-circle-l' : 'px-circle-xl';
+}
+
 /**
- * チェックの円（セーフドライブの出発前のチェックなど）。既定 24px。
- * チェック済みは brand-fill の円に on-brand の check、未チェックは fg-3 の輪。行の trailing に置く。
+ * チェックの丸（セーフドライブの出発前のチェックなど）。既定 24px。ドット絵の丸（px-circle-*）。
+ * チェック済みは xp の丸に白い check と下に 1 ドットの影、未チェックは line の輪（line の丸に surface の丸を 3px 内側に重ねる）。行の trailing に置く。
+ * 切り抜いた丸は自分の影を描けないので、影は外側（切り抜かない m.span）の filter で落とす。
  */
 export function CheckMark({ checked, size = 24, className }: { checked: boolean; size?: number; className?: string }) {
   const initial = useToggleScale();
@@ -673,21 +678,20 @@ export function CheckMark({ checked, size = 24, className }: { checked: boolean;
       initial={initial}
       animate={{ scale: 1 }}
       transition={{ duration: 0.12 }}
-      className={cn(
-        'grid shrink-0 place-items-center rounded-full',
-        checked ? 'bg-xp text-white shadow-[0_2px_0_rgb(var(--c-xp-edge))]' : 'border-[2.5px] border-line bg-surface',
-        className,
-      )}
+      className={cn('grid shrink-0', checked && '[filter:drop-shadow(0_3px_0_rgb(var(--c-xp-edge)))]', className)}
       style={{ width: size, height: size }}
     >
-      {checked && <IconCheck size={Math.round(size * 0.62)}/>}
+      <span className={cn('relative grid place-items-center', pxCircle(size), checked ? 'bg-xp text-white' : 'bg-line')}>
+        {checked ? <IconCheck size={Math.round(size * 0.62)} /> : <span className={cn('absolute inset-[3px] bg-surface', pxCircle(size - 6))} />}
+      </span>
     </m.span>
   );
 }
 
 /**
- * ラジオの円（Plus のプラン、路上レポートの種類など）。20px。
- * 選択中は brand-fill の円に on-brand の 8px の点、それ以外は fg-3 の輪。行の外枠を色で囲まない。
+ * ラジオの丸（Plus のプラン、路上レポートの種類など）。24px のドット絵の丸（px-circle-s）。
+ * 選択中は brand-fill の丸に on-brand の 12px の点（角を 1 段切った四角）と下に 1 ドットの影、
+ * それ以外は line の輪（line の丸に surface の丸を 3px 内側に重ねる）。行の外枠を色で囲まない。
  */
 export function RadioMark({ checked, className }: { checked: boolean; className?: string }) {
   const initial = useToggleScale();
@@ -698,13 +702,11 @@ export function RadioMark({ checked, className }: { checked: boolean; className?
       initial={initial}
       animate={{ scale: 1 }}
       transition={{ duration: 0.12 }}
-      className={cn(
-        'grid h-6 w-6 shrink-0 place-items-center rounded-full',
-        checked ? 'bg-brand-fill shadow-[0_2px_0_rgb(var(--c-brand-pressed))]' : 'border-[2.5px] border-line bg-surface',
-        className,
-      )}
+      className={cn('grid h-6 w-6 shrink-0', checked && '[filter:drop-shadow(0_3px_0_rgb(var(--c-brand-pressed)))]', className)}
     >
-      {checked && <span className="h-2.5 w-2.5 rounded-full bg-on-brand" />}
+      <span className={cn('px-circle-s relative grid place-items-center', checked ? 'bg-brand-fill' : 'bg-line')}>
+        {checked ? <span className="px-clip-1 h-3 w-3 bg-on-brand" /> : <span className="px-circle-s absolute inset-[3px] bg-surface" />}
+      </span>
     </m.span>
   );
 }
@@ -730,7 +732,10 @@ export type ChipProps = {
   'aria-label'?: string;
 };
 
-/** チップ。高さ 32、rounded-full、sub。選択中は brand-fill の地に on-brand の 600 */
+/**
+ * チップ。高さ 36、sub。ドット絵の枠：ふつうは px-panel、グループやシートの中は px-chip-well、
+ * 選択中は瑠璃の px-chip-on に on-brand の文字。枠（6px）の分、左右の余白は 10px
+ */
 export function Chip({ children, selected = false, icon, selectedIcon, count, onFill = false, removable = false, onClick, disabled, className, ...aria }: ChipProps) {
   const Icon = selected ? (selectedIcon ?? icon) : icon;
   return (
@@ -740,12 +745,8 @@ export function Chip({ children, selected = false, icon, selectedIcon, count, on
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        'pressable inline-flex h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 pt-[1px] text-sub font-bold',
-        selected
-          ? 'border-brand-pressed bg-brand-fill text-on-brand shadow-[0_3px_0_rgb(var(--c-brand-pressed))]'
-          : onFill
-            ? 'border-line bg-fill text-fg shadow-pop-sm'
-            : 'border-line bg-surface text-fg shadow-pop-sm',
+        'pressable inline-flex h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap px-2.5 pt-[1px] text-sub font-bold',
+        selected ? 'px-chip-on text-on-brand' : onFill ? 'px-chip-well text-fg' : 'px-panel text-fg',
         disabled && 'text-fg-3',
         className,
       )}
@@ -770,7 +771,7 @@ export function ChipRow({ children, className }: { children: ReactNode; classNam
 
 // ───────── セグメント（§7.8） ─────────
 
-/** セグメント。溝 32、つまみは layoutId で動かす（spring 500 / 40）。全幅で使う */
+/** セグメント。溝はドット絵のくぼみ（px-well）、つまみは角を段々に切った瑠璃の四角で、layoutId で動かす（spring 500 / 40）。全幅で使う */
 export function Segmented<T extends string>({
   options,
   value,
@@ -786,7 +787,7 @@ export function Segmented<T extends string>({
 }) {
   const id = useId();
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn('flex h-11 w-full rounded-full border-2 border-line bg-fill p-1', className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn('px-well flex h-11 w-full p-0.5', className)}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -796,12 +797,12 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={cn('relative flex-1 select-none whitespace-nowrap rounded-full px-2 pt-[1px] text-sub font-bold', active ? 'text-on-brand' : 'text-fg-2')}
+            className={cn('relative flex-1 select-none whitespace-nowrap px-2 pt-[1px] text-sub font-bold', active ? 'text-on-brand' : 'text-fg-2')}
           >
             {active && (
               <m.span
                 layoutId={`seg-${id}`}
-                className="absolute inset-0 rounded-full bg-brand-fill shadow-[0_2px_0_rgb(var(--c-brand-pressed))]"
+                className="px-clip-2 absolute inset-0 bg-brand-fill"
                 transition={{ type: 'spring', stiffness: 500, damping: 40 }}
               />
             )}
@@ -815,7 +816,7 @@ export function Segmented<T extends string>({
 
 // ───────── 検索欄・入力欄（§7.9） ─────────
 
-/** 検索欄。高さ 36、fill、左に虫眼鏡 16。入力中は右に消去ボタン */
+/** 検索欄。高さ 44、ドット絵の入力欄の枠（px-field、入力中は瑠璃の線）、左に虫眼鏡 18。入力中は右に消去ボタン（ドット絵の丸） */
 export function SearchField({
   value,
   onChange,
@@ -832,8 +833,8 @@ export function SearchField({
   'aria-label'?: string;
 }) {
   return (
-    <div className={cn('relative flex h-11 min-w-0 items-center rounded-full border-2 border-line bg-surface focus-within:border-brand', className)}>
-      <IconMagnifyingGlass size={18} className="pointer-events-none absolute left-3.5 text-fg-3" />
+    <div className={cn('px-field relative flex h-11 min-w-0 items-center', className)}>
+      <IconMagnifyingGlass size={18} className="pointer-events-none absolute left-2.5 text-fg-3" />
       <input
         type="search"
         size={1}
@@ -843,11 +844,11 @@ export function SearchField({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label={ariaLabel}
-        className="h-full w-full min-w-0 appearance-none rounded-full bg-transparent pl-10 pr-10 text-input font-bold leading-5 text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-full w-full min-w-0 appearance-none bg-transparent pl-9 pr-9 text-input font-bold leading-5 text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
-        <button type="button" onClick={() => onChange('')} aria-label="入力を消す" className="absolute right-0.5 grid h-10 w-10 place-items-center">
-          <span className="grid h-5 w-5 place-items-center rounded-full bg-fg-3 text-fill">
+        <button type="button" onClick={() => onChange('')} aria-label="入力を消す" className="absolute -right-1 grid h-10 w-10 place-items-center">
+          <span className="px-circle-s grid h-5 w-5 place-items-center bg-fg-3 text-fill">
             <IconX size={12} />
           </span>
         </button>
@@ -867,29 +868,33 @@ export function Field({ label, children, note, className }: { label: ReactNode; 
   );
 }
 
-const fieldBox =
-  'rounded-sm border-2 border-line bg-surface text-input font-bold text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none';
+/** 入力欄の文字（枠は px-field。入力中は index.css が瑠璃の線の枠に替える） */
+const fieldText = 'text-input font-bold text-fg outline-none placeholder:font-medium placeholder:text-fg-3 focus-visible:outline-none';
 
-/** 入力欄。高さ 48、fill、枠線なし、フォーカスで 2px の brand のリング。trailing で右端にボタン（40px）を置ける */
+/**
+ * 入力欄。高さ 48、ドット絵の入力欄の枠（px-field）、入力中は瑠璃の線。trailing で右端にボタン（40px）を置ける。
+ * 余白は枠（6px）を含めて左右 16。
+ */
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { trailing?: ReactNode }>(function Input(
   { className, trailing, ...props },
   ref,
 ) {
   // size={1}: 和文フォントの字幅で入力欄の最小幅が広がり、横スクロールが出るのを防ぐ（幅は w-full で決める）
   if (!trailing) {
-    return <input ref={ref} size={1} className={cn(fieldBox, 'h-12 w-full min-w-0 px-[14px] focus:border-brand', className)} {...props} />;
+    return <input ref={ref} size={1} className={cn('px-field', fieldText, 'h-12 w-full min-w-0 px-2.5', className)} {...props} />;
   }
+  // 枠は外側の div に付け、中の <input> は枠なし（入力中は .px-field:focus-within で瑠璃の線になる）
   return (
-    <div className={cn('flex h-12 w-full min-w-0 items-center rounded-sm border-2 border-line bg-surface focus-within:border-brand', className)}>
-      <input ref={ref} size={1} className={cn(fieldBox, 'h-full min-w-0 flex-1 border-0 bg-transparent pl-[14px] pr-1')} {...props} />
-      <span className="flex shrink-0 items-center pr-1">{trailing}</span>
+    <div className={cn('px-field flex h-12 w-full min-w-0 items-center', className)}>
+      <input ref={ref} size={1} className={cn(fieldText, 'h-full min-w-0 flex-1 bg-transparent pl-2.5 pr-1')} {...props} />
+      <span className="flex shrink-0 items-center">{trailing}</span>
     </div>
   );
 });
 
-/** 複数行の入力欄（最小 96px、入力欄と同じ見た目） */
+/** 複数行の入力欄（最小 96px、入力欄と同じドット絵の枠） */
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...props }, ref) {
-  return <textarea ref={ref} cols={1} className={cn(fieldBox, 'block min-h-24 w-full min-w-0 resize-none px-[14px] py-3 focus:border-brand', className)} {...props} />;
+  return <textarea ref={ref} cols={1} className={cn('px-field', fieldText, 'block min-h-24 w-full min-w-0 resize-none px-2.5 py-2', className)} {...props} />;
 });
 
 /**
@@ -944,7 +949,7 @@ const lastBarValues = new Map<string, number>();
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
 /**
- * 進捗バー。高さ 4、溝 fill、値 brand。値の文字はバーの外に置く。
+ * 進捗バー。高さ 14、溝はドット絵の細い枠（px-track、線 3px）、中のバーは四角のまま（値 brand-fill に斜線）。値の文字はバーの外に置く。
  * 画面に出た時に 0 から伸ばさない。id を渡すと、同じセッションで前に見た値から 300ms で動かす。
  */
 export function ProgressBar({
@@ -975,10 +980,10 @@ export function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(v * 100)}
-      className={cn('h-3 overflow-hidden rounded-full border-2 border-line bg-fill', className)}
+      className={cn('px-track h-[14px] overflow-hidden', className)}
     >
       <div
-        className="stripes h-full rounded-full bg-brand-fill transition-[width] duration-500 ease-out"
+        className="stripes h-full bg-brand-fill transition-[width] duration-500 ease-out"
         style={{ width: `${shown * 100}%` }}
       />
     </div>
@@ -1013,14 +1018,14 @@ export function Stat({ value, unit, label, className }: { value: ReactNode; unit
   );
 }
 
-/** 統計の行。3〜4 列を高さ 28px の 1px の縦線（sep）で区切る。囲みは付けない */
+/** 統計の行。ドット絵のパネル（.panel）に 3〜4 列を並べ、高さ 32px の 2px の縦線（sep）で区切る */
 export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
   const items = Children.toArray(children);
   return (
-    <div className={cn('panel mx-4 flex items-center px-2 py-3.5', className)}>
+    <div className={cn('panel mx-4 flex items-center px-1 py-2.5', className)}>
       {items.map((c, i) => (
         <Fragment key={i}>
-          {i > 0 && <span aria-hidden className="h-8 w-[2px] shrink-0 rounded-full bg-sep" />}
+          {i > 0 && <span aria-hidden className="h-8 w-[2px] shrink-0 bg-sep" />}
           {c}
         </Fragment>
       ))}
@@ -1162,9 +1167,9 @@ export function EmptyState({
       )
     ) : null);
   return (
-    <div className={cn('panel mx-4 my-2 flex flex-col items-center px-5 py-6 text-center', className)}>
+    <div className={cn('panel mx-4 my-2 flex flex-col items-center px-4 py-5 text-center', className)}>
       {Icon && (
-        <span className="mb-3 grid h-16 w-16 animate-float place-items-center rounded-full bg-brand-soft text-brand">
+        <span className="px-circle-l mb-3 grid h-16 w-16 animate-float place-items-center bg-brand-soft text-brand">
           <Icon size={34} />
         </span>
       )}
@@ -1181,11 +1186,12 @@ export function EmptyState({
   );
 }
 
+// box はお知らせの種類ごとのドット絵の枠（色は枠の絵が持つ）
 const NOTICE = {
-  info: { icon: IconInfo, iconCls: 'bg-brand-soft text-brand', textCls: 'text-fg-2', box: 'border-line bg-surface' },
-  caution: { icon: IconWarning, iconCls: 'bg-gold-soft text-warning', textCls: 'text-fg', box: 'border-gold/60 bg-gold-soft/60' },
-  danger: { icon: IconWarningCircleFill, iconCls: 'bg-danger text-on-danger', textCls: 'text-fg', box: 'border-danger/50 bg-danger/[.06]' },
-  night: { icon: IconMoonStars, iconCls: 'bg-night text-gold', textCls: 'text-fg', box: 'border-night-2/40 bg-brand-soft' },
+  info: { icon: IconInfo, iconCls: 'bg-brand-soft text-brand', textCls: 'text-fg-2', box: 'px-notice-info' },
+  caution: { icon: IconWarning, iconCls: 'bg-gold-soft text-warning', textCls: 'text-fg', box: 'px-notice-caution' },
+  danger: { icon: IconWarningCircleFill, iconCls: 'bg-danger text-on-danger', textCls: 'text-fg', box: 'px-notice-danger' },
+  night: { icon: IconMoonStars, iconCls: 'bg-night text-gold', textCls: 'text-fg', box: 'px-notice-night' },
 } as const;
 
 export type NoticeKind = keyof typeof NOTICE;
@@ -1193,7 +1199,7 @@ export type NoticeKind = keyof typeof NOTICE;
 /**
  * お知らせ行（§7.20）。色はアイコンだけに付け、文字は fg か fg-2。色付きの面や破線の枠は使わない。
  * info: info / caution: warning（ハブなど）/ danger: warning-circle-fill（最初の一文 title を 600）/ night: moon-stars（右端に text ボタン）。
- * boxed はデモデータの告知だけ（fill の rounded-sm、パディング 12）。
+ * 箱は種類ごとのドット絵の枠（px-notice-*）、アイコンの地はドット絵の丸。boxed はデモデータの告知だけ（くぼんだ地の px-notice-demo）。
  */
 export function Notice({
   kind = 'info',
@@ -1220,16 +1226,16 @@ export function Notice({
   return (
     <div
       role={kind === 'danger' || kind === 'caution' ? 'note' : undefined}
-      className={cn('mx-4 flex items-start gap-3 rounded-md border-2 p-3', k.box, boxed && 'border-dashed', action && 'items-center', className)}
+      className={cn('mx-4 flex items-start gap-3 p-2', boxed ? 'px-notice-demo' : k.box, action && 'items-center', className)}
     >
-      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full', k.iconCls)}>
+      <span className={cn('px-circle-m grid h-8 w-8 shrink-0 place-items-center', k.iconCls)}>
         <Icon size={18} />
       </span>
       <p className={cn('min-w-0 flex-1 pt-1 text-sub font-bold', k.textCls)}>
         {title && <span className="font-black">{typeof title === 'string' ? <Phrase text={title} /> : title}</span>}
         {typeof children === 'string' ? <Phrase text={children} /> : children}
       </p>
-      {action && <div className="-my-3 shrink-0">{action}</div>}
+      {action && <div className="-my-2 shrink-0">{action}</div>}
     </div>
   );
 }

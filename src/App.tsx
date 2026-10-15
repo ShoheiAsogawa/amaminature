@@ -86,7 +86,7 @@ function RouteError() {
   }, [error, chunk]);
   return (
     <main className="mx-auto grid min-h-dvh max-w-[480px] place-items-center bg-page px-6 text-center">
-      <div className="panel w-full p-6">
+      <div className="panel w-full p-5">
         <IconWarningCircleFill size={40} className="mx-auto text-warning" />
         <h1 className="mt-3 text-title font-black text-fg">画面を表示できませんでした</h1>
         <p className="mt-2 text-body text-fg-2">
@@ -141,7 +141,7 @@ function useRouteTitle() {
 }
 
 /**
- * トースト（Sonner、§7.18）。アプリに 1 つだけ。上中央（下はタブバーと固定 CTA で混んでいる）。
+ * トースト（Sonner、§7.18）。アプリに 1 つだけ。上中央（下はタブバーと固定 CTA で混んでいる）。箱はドット絵の枠（px-toast）。
  * シート（body 直下のポータル）より上に出すため、body 直下に置く。
  */
 function AppToaster() {
@@ -164,7 +164,7 @@ function AppToaster() {
         unstyled: true,
         classNames: {
           toast:
-            'flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 rounded-full border-2 border-white/15 bg-toast px-5 py-3 font-sans text-toast-fg shadow-toast dark:shadow-none',
+            'px-toast flex min-h-12 w-[calc(100vw-32px)] max-w-[448px] items-center gap-3 px-4 py-2 font-sans text-toast-fg',
           title: 'text-callout font-bold',
           description: 'text-sub opacity-80',
           icon: 'shrink-0',
