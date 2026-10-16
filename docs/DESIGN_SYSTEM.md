@@ -76,11 +76,11 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 - 書体の割り当ては `src/styles/index.css` の「ドット文字の決まり」。`:is(.text-sub …)` でボタン・入力欄にも効く。`.num` や `font-*` のクラスがあればそちらが勝つ。`font-sans` を小さい文字に付けない（PixelMplus12 にならない）。
 - 太字：PixelMplus12 は太字の字形を使わない（鑑・録・験のような漢字のすき間が埋まる）。本文の DotGothic16 の太字は、画面の 1 画素（2 倍の画面で 0.5px）だけ重ねる。見出しは重ねない。
 - 共有カード（`src/lib/share.ts`）も同じ書体。名前は DotGothic16 の 64・48・32px（16 の倍数）から入る大きさを選ぶ。canvas では太さを指定しない（DotGothic16 には太字がなく、にじんだ太字になる）。
-- 数字：PixelMplus12 の 0 は斜線入りで「θ」に見えるので、O と同じ形に置き換えてある（`scripts/subset-pixel-font.py`）。
+- PixelMplus12 の直し（`scripts/subset-pixel-font.py` の `prepare`）：斜線入りの 0（「θ」に見える）を O と同じ形に、「.」「:」の 3×3 の十字（「2026+10+16」に見える）を 2×2 の四角に。フォントにない「〜」「›」「−」「—」は形の近い字（～ > - ―）を使う。
 - 字間は整数 px（`tracking-[1px]`）。em の小数はドットがにじむ。
 - 学名（`.sci`）は斜体にしない（ドット文字の斜体はにじむ）。色（`fg-2`）で区別する。
 - 改行：ドット文字は字幅が広く文の途中で折り返しやすいので、本文は `<Prose>`、見出し・短い文は `<Phrase>`（どちらも BudouX の文節で折り返す）。対応するブラウザでは `p` に `word-break: auto-phrase` も付ける。
-- 読み込み：DotGothic16・Pixelify Sans・Jersey 15 は Google Fonts。PixelMplus12 は `public/fonts/`（`scripts/subset-pixel-font.py` で作る）。アプリの文言に出てくる文字の分（`pm12-regular-ui.woff2`、約 60KB）は先に読み込み・オフライン用に保存し、それ以外の漢字（`pm12-regular-more.woff2`、約 220KB）はニックネームなどで使われた時だけ読み込む。**アプリの文言に新しい漢字を足したら、スクリプトで作り直す**（作り直さなくても表示はされるが、大きい方を読み込む）。PixelMplus12 は ascent / descent を指定して、ドットが画面の整数 px に乗るようにしてある（行の高さは偶数 px にする）。
+- 読み込み：DotGothic16・Pixelify Sans・Jersey 15 は Google Fonts。PixelMplus12 は `public/fonts/`（`scripts/subset-pixel-font.py` で作る）。アプリの文言に出てくる文字の分（`pm12-regular-ui.woff2`、約 60KB）は先に読み込み・オフライン用に保存し、それ以外の漢字（`pm12-regular-more.woff2`、約 220KB）はニックネームなどで使われた時だけ読み込む。**アプリの文言に新しい漢字を足したら、スクリプトで作り直す**（作り直さなくても表示はされるが、大きい方を読み込む）。元の PixelMplus12 はドットの格子が基準線から 0.4 ドット下にずれていて、ブラウザが基準線を整数 px に丸めると横の線が 2 行ににじむ。スクリプトで輪郭を格子に合わせて基準線をドットの境目にし、上 11・下 1 ドット（`ascent-override` と、Safari 用にフォントの hhea・OS/2 も同じ値）にしてある。行の高さを偶数 px にすれば、ドットが画面の整数 px に乗る。
 
 ## 4. 形と部品
 
