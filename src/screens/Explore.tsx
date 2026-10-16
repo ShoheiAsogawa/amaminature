@@ -112,7 +112,7 @@ function Stamps() {
       <div className="px-4 pt-4">
         <p className="flex items-baseline justify-between text-callout text-fg">
           <span>スタンプ</span>
-          <span className="font-semibold">
+          <span>
             <span className="num">
               {visited}/{AREAS.length}
             </span>

@@ -346,7 +346,7 @@ function Reveal({
 
             <div className="mt-5 flex-1 px-4">
               {!front && (
-                <p aria-live="polite" className="animate-pulse text-center font-pixel text-[18px] tracking-[0.08em] text-white/85">
+                <p aria-live="polite" className="animate-pulse text-center font-pixel text-[18px] tracking-[1px] text-white/85">
                   {shake < 3 ? 'なにが でるかな……？' : 'もうすこし……！'}
                 </p>
               )}
@@ -396,7 +396,7 @@ function Reveal({
                         <p className="mt-1 text-right text-caption text-white/60">
                           {after.next ? (
                             <>
-                              次のレベルまで <span className="num text-[13px] text-white">{after.toNext}</span> pt
+                              次のレベルまで <span className="num text-[12px] text-white">{after.toNext}</span> pt
                             </>
                           ) : (
                             'レベル MAX！'
@@ -407,7 +407,7 @@ function Reveal({
                   </div>
                   {isNew && species && (
                     <div className="px-stage flex items-center gap-3 px-2.5 py-1.5">
-                      <span className="px-clip-1 bg-capture px-2 pt-[1px] font-num text-[12px] leading-5 text-white">NEW</span>
+                      <span className="px-clip-1 bg-capture px-2 font-num text-[12px] leading-5 text-white">NEW</span>
                       <span className="flex-1 text-sub font-black">図鑑に とうろく！</span>
                       <span className="num text-[20px] leading-6">
                         {discovered}

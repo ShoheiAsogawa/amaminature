@@ -3,6 +3,7 @@ import { AI_CONSENT_VERSION, ROAD_CONSENT_VERSION } from '../data/legalVersions'
 import { api } from '../lib/api';
 import { useStore } from '../store/useStore';
 import { IconMapPin, IconScan, type IconComponent } from './icons';
+import { Prose } from './Prose';
 import { Button, Sheet } from './ui';
 
 type Decision = { version: string | null } | null | undefined;
@@ -59,13 +60,15 @@ function ConsentSheet({
         <span className="px-circle-m grid h-11 w-11 shrink-0 place-items-center bg-brand-soft text-brand">
           <Icon size={24} />
         </span>
-        <p className="prose whitespace-pre-line text-body text-fg-2">{text.body}</p>
+        <p className="prose whitespace-pre-line text-body text-fg-2">
+          <Prose text={text.body} />
+        </p>
       </div>
       {text.items.length > 0 && (
         <ul className="mt-3 list-disc space-y-1 pl-5 text-body text-fg-2 marker:text-fg-3">
           {text.items.map((it) => (
             <li key={it} className="prose">
-              {it}
+              <Prose text={it} />
             </li>
           ))}
         </ul>

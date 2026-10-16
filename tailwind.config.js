@@ -7,20 +7,20 @@ export default {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     // 文字はすべてドット文字（docs/DESIGN_SYSTEM.md §3）。本文は DotGothic16（16px で 1 ドット = 1px）、
-    // 小さい文字（12px）と見出し（24・36px）は PixelMplus12、数字は Jersey 15
+    // 見出し（24・32px）も DotGothic16、小さい文字（12px）は PixelMplus12（標準の字形だけ）、数字は Jersey 15
     fontFamily: {
-      sans: ['DotGothic16', '"Hiragino Sans"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
+      sans: ['"Pixelify Sans"', 'DotGothic16', '"Hiragino Sans"', '"Yu Gothic UI"', 'Meiryo', 'system-ui', 'sans-serif'],
       num: ['"Jersey 15"', 'DotGothic16', 'system-ui', 'sans-serif'],
       pixel: ['DotGothic16', '"Hiragino Sans"', 'monospace'],
-      small: ['"PixelMplus12 Text"', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
-      head: ['PixelMplus12', '"Jersey 15"', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
+      small: ['PixelMplus12', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
+      head: ['"Pixelify Sans"', 'DotGothic16', '"Hiragino Sans"', 'sans-serif'],
     },
     fontWeight: { normal: '500', semibold: '700', bold: '800', black: '900' },
     fontSize: {
-      // ドット文字がにじまない大きさ：PixelMplus12 は 12 の倍数（12・24・36）、DotGothic16 は 16
-      display: ['36px', { lineHeight: '44px', fontWeight: '900' }],
-      title: ['24px', { lineHeight: '32px', fontWeight: '800' }],
-      section: ['24px', { lineHeight: '30px', fontWeight: '800' }],
+      // ドット文字の大きさ：DotGothic16 は 16・24・32（見出しは太字にしない）、PixelMplus12 は 12
+      display: ['32px', { lineHeight: '40px', fontWeight: '400' }],
+      title: ['24px', { lineHeight: '32px', fontWeight: '400' }],
+      section: ['24px', { lineHeight: '30px', fontWeight: '400' }],
       headline: ['16px', { lineHeight: '24px', fontWeight: '700' }],
       body: ['16px', { lineHeight: '26px' }],
       callout: ['16px', { lineHeight: '24px' }],

@@ -7,7 +7,7 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 - 2026-10: 前のデザインシステム「瑠璃の野帳」（白い紙と墨、瑠璃 1 色の静かな図鑑）を廃止した。依頼は「もっとドパガキ向けの、ポケモンのゲームみたいな UI/UX」。中高生〜若い大人が、ゲームと同じ手ざわりで遊べることを優先する。
 - 方向: 空色の盤面に白いパネル、押せる厚みのあるボタン、生き物のタイプ（分類）とレア度の色、丸ゴシックの太い文字、ゲットの演出・効果音・紙吹雪・レベルアップ。
 - 2026-10: 「ドット絵の文字なんやから、BOX も丸っぽいのじゃなくてドットに。ポケモンみたいな装飾ドット BOX」の依頼で、角丸をやめ、すべての箱をドット絵の枠（§4.1）にした。
-- 2026-10: 「フォントもドット絵風に。文字が潰れない程度に」の依頼で、文字をすべてドット文字にした（§3）。小さい文字は 12px 用の書体で、太字にしない。
+- 2026-10: 「フォントもドット絵風に。文字が潰れない程度に」の依頼で、文字をすべてドット文字にした（§3）。小さい文字は 12px 用の書体で、太字にしない。見出しは最初 PixelMplus12 の 2〜3 倍にしたが、12 ドットでは画数の多い漢字が詰まるので DotGothic16 に変えた。
 - ポケモンそのもの（モンスターボール、キャラクター、ロゴ、専用フォント、「ポケモン」「図鑑」以外の固有名詞）は使わない。手ざわりだけを借り、図柄はすべてオリジナル（§9）。
 
 ## 1. 原則
@@ -63,21 +63,24 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 
 ## 3. 文字
 
-すべてドット文字（2026-10「フォントもドット絵風に。文字が潰れない程度に」）。ドット文字は、1 ドットが画面の整数 px になる大きさでにじまない。小さい文字は 12px のために作られた書体にして、漢字がつぶれないようにする。
+すべてドット文字（2026-10「フォントもドット絵風に。文字が潰れない程度に」）。ドット文字は、1 ドットが画面の整数 px になる大きさでにじまない。小さい文字は 12px のために作られた書体にし、漢字がつぶれる太字は使わない。
 
 | 用途 | 書体 | 大きさ（Tailwind） | 太さ |
 |---|---|---|---|
-| 本文・行のタイトル・ボタン | DotGothic16（`font-sans`） | `body` `callout` `headline` `input` 16px（1 ドット = 1px） | 太字は「ドットの太字」（1px 右に重ねる `text-shadow`）。合成の太字・斜体は使わない |
-| 見出し | PixelMplus12 の太字（`font-head`） | `section` `title` 24px（2 倍）、`display` 36px（3 倍） | 太字の字形 |
-| 小さい文字（補足・ラベル・タブ・タイル） | PixelMplus12（`font-small`、`'PixelMplus12 Text'`） | `sub` `caption` `tab` `tile` 12px（1 倍）。`text-[10〜13px]` もこの書体 | いつも標準の字形（12px の太字は漢字がつぶれる） |
-| 数字・英字のラベル（Lv、No.、GET!、pt） | Jersey 15（`.num`、`font-num`） | `num-xl` 48、`num-kpi` 30、`num-l` 24 など | 1 つ |
-| メッセージ窓 | DotGothic16（`.msg-window`） | 16px | — |
+| 本文・行のタイトル・ボタン | DotGothic16（英数字は Pixelify Sans）（`font-sans`） | `body` `callout` `headline` `input` 16px（1 ドット = 1px） | 太字は「ドットの太字」（画面の 1 画素だけ右に重ねる `text-shadow`。`--px-bold`） |
+| 見出し | DotGothic16（英数字は Pixelify Sans）（`font-head`） | `section` `title` 24px、`display` 32px（2 倍） | 太字にしない（重ねない）。12 ドットの PixelMplus12 は「鑑」「撮影」「観察」の線が詰まるので、見出しは 16 ドットの DotGothic16 |
+| 小さい文字（補足・ラベル・タブ・タイル） | PixelMplus12（`font-small`） | `sub` `caption` `tab` `tile` と `text-[12px]`。**12px より小さい文字は使わない** | 標準の字形だけ。中の太字も重ねない |
+| 数字・英字のラベル（Lv、No.、GET!、pt） | Jersey 15（`.num`、`font-num`） | `num-xl` 48、`num-kpi` 30、`num-l` 24 など。小さい文字の中の `.num` は PixelMplus12 になる | 1 つ |
+| メッセージ窓 | DotGothic16（`.msg-window`） | 16px、字間 1px | — |
 
-- 書体の割り当ては `src/styles/index.css` の「ドット文字の決まり」（`:where(.text-section …)` など）。`.num` や `font-*` のクラスがあればそちらが勝つ。
-- 数字：PixelMplus12 の 0 は点があり「θ」に見えるので、PixelMplus12 からは数字を抜いてある。数字は小さい文字では DotGothic16、見出しでは Jersey 15 で出る。
+- 書体の割り当ては `src/styles/index.css` の「ドット文字の決まり」。`:is(.text-sub …)` でボタン・入力欄にも効く。`.num` や `font-*` のクラスがあればそちらが勝つ。`font-sans` を小さい文字に付けない（PixelMplus12 にならない）。
+- 太字：PixelMplus12 は太字の字形を使わない（鑑・録・験のような漢字のすき間が埋まる）。本文の DotGothic16 の太字は、画面の 1 画素（2 倍の画面で 0.5px）だけ重ねる。見出しは重ねない。
+- 共有カード（`src/lib/share.ts`）も同じ書体。名前は DotGothic16 の 64・48・32px（16 の倍数）から入る大きさを選ぶ。canvas では太さを指定しない（DotGothic16 には太字がなく、にじんだ太字になる）。
+- 数字：PixelMplus12 の 0 は斜線入りで「θ」に見えるので、O と同じ形に置き換えてある（`scripts/subset-pixel-font.py`）。
+- 字間は整数 px（`tracking-[1px]`）。em の小数はドットがにじむ。
 - 学名（`.sci`）は斜体にしない（ドット文字の斜体はにじむ）。色（`fg-2`）で区別する。
-- 読み込み：DotGothic16 と Jersey 15 は Google Fonts。PixelMplus12 は `public/fonts/`（`scripts/subset-pixel-font.py` で作る）。アプリの文言に出てくる文字の分（`pm12-*-ui.woff2`、約 60KB ずつ）は先に読み込み・オフライン用に保存し、それ以外の漢字（`*-more.woff2`、約 210KB ずつ）はニックネームなどで使われた時だけ読み込む。**アプリの文言に新しい漢字を足したら、スクリプトで作り直す**（作り直さなくても表示はされるが、大きい方を読み込む）。
-- 和文の改行は `line-break: strict` と BudouX（`<Phrase>`）。
+- 改行：ドット文字は字幅が広く文の途中で折り返しやすいので、本文は `<Prose>`、見出し・短い文は `<Phrase>`（どちらも BudouX の文節で折り返す）。対応するブラウザでは `p` に `word-break: auto-phrase` も付ける。
+- 読み込み：DotGothic16・Pixelify Sans・Jersey 15 は Google Fonts。PixelMplus12 は `public/fonts/`（`scripts/subset-pixel-font.py` で作る）。アプリの文言に出てくる文字の分（`pm12-regular-ui.woff2`、約 60KB）は先に読み込み・オフライン用に保存し、それ以外の漢字（`pm12-regular-more.woff2`、約 220KB）はニックネームなどで使われた時だけ読み込む。**アプリの文言に新しい漢字を足したら、スクリプトで作り直す**（作り直さなくても表示はされるが、大きい方を読み込む）。PixelMplus12 は ascent / descent を指定して、ドットが画面の整数 px に乗るようにしてある（行の高さは偶数 px にする）。
 
 ## 4. 形と部品
 
@@ -211,7 +214,7 @@ AMAMI NATURE の画面の決まり。ゲームのように「見つけて、ゲ�
 ## 9. 権利
 
 - 使わないもの: ポケモンのキャラクター・モンスターボールの図柄（赤と白に帯の球）・ロゴ・専用フォント・固有の文言（「ゲットだぜ」など）。
-- 文字: DotGothic16、Jersey 15 は SIL Open Font License。PixelMplus12（itouhiro、M+ FONTS PROJECT）は M+ FONT LICENSE（自由に使用・改変・再配布できる）。`public/fonts/LICENSE-PixelMplus.txt`。
+- 文字: DotGothic16、Pixelify Sans、Jersey 15 は SIL Open Font License。PixelMplus12（itouhiro、M+ FONTS PROJECT）は M+ FONT LICENSE（自由に使用・改変・再配布できる）。`public/fonts/LICENSE-PixelMplus.txt`。
 - アイコン: Phosphor（MIT）と奄美の独自グリフ（`src/icons/amami`）。`npm run icons:ui` で `src/components/icons.tsx` を生成。
 - 種の絵: シルエット 62 点は発注中（`docs/SILHOUETTE_LIST.md`、`npm run check:sil`）。
 

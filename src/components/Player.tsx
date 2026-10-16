@@ -65,12 +65,12 @@ export function PlayerHud({ className }: { className?: string }) {
         </Link>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <span className="num shrink-0 text-[13px] text-fg-2">Lv.{level.level}</span>
+        <span className="num shrink-0 text-[12px] text-fg-2">Lv.{level.level}</span>
         <XPBar value={level.progress} id="hud-xp" label={`レベル ${level.level}。次のレベルまで ${level.toNext}pt`} className="flex-1" />
         <span className="shrink-0 text-caption text-fg-3">
           {level.next ? (
             <>
-              あと<span className="num px-0.5 text-[13px] text-fg-2">{level.toNext}</span>pt
+              あと<span className="num px-0.5 text-[12px] text-fg-2">{level.toNext}</span>pt
             </>
           ) : (
             'MAX'

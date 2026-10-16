@@ -92,8 +92,8 @@ export function StampSeal({ name, visited, date, caption, className }: StampSeal
         <Ring dots={SMALL} d={RINGS.small} className={cn('min-[360px]:hidden', !visited && 'text-line')} />
         <Ring dots={LARGE} d={RINGS.large} className={cn('hidden min-[360px]:block', !visited && 'text-line')} />
         <span aria-hidden className="relative flex flex-col items-center">
-          <span className={cn('whitespace-nowrap pt-[2px] text-[14px] leading-5 min-[360px]:text-callout', visited ? 'font-semibold' : 'font-normal')}>{label}</span>
-          {day && <span className="num whitespace-nowrap text-[11px] leading-[14px] tracking-normal min-[360px]:text-caption">{day}</span>}
+          <span className={cn('whitespace-nowrap pt-[2px] text-[14px] leading-5 min-[360px]:text-callout')}>{label}</span>
+          {day && <span className="num whitespace-nowrap text-[12px] leading-[14px] tracking-normal min-[360px]:text-caption">{day}</span>}
         </span>
       </div>
       {caption && <span className="mt-1.5 whitespace-nowrap text-caption text-fg-3">{caption}</span>}

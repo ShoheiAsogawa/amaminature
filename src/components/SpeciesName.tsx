@@ -31,7 +31,7 @@ type Props = {
 export function SpeciesName({ species, name, nameBreak, hidden = false, clamp = true, as: Tag = 'span', className }: Props) {
   if (hidden) {
     return (
-      <Tag className={cn('whitespace-nowrap tracking-[0.08em]', className)}>
+      <Tag className={cn('whitespace-nowrap tracking-[1px]', className)}>
         <span aria-hidden>{HIDDEN_NAME}</span>
         <span className="sr-only">{HIDDEN_NAME_LABEL}</span>
       </Tag>

@@ -82,7 +82,7 @@ function BadgeCell({ badge, earned, size, onOpen }: { badge: Badge; earned: bool
       className="pressable flex min-w-0 flex-col items-center gap-1.5 px-0.5 pb-1 pt-1.5"
     >
       <BadgeEmblem badge={badge} earned={earned} size={size} />
-      <span aria-hidden className={`line-clamp-2 text-center text-[10px] font-black leading-[13px] ${earned ? 'text-fg' : 'text-fg-3'}`}>
+      <span aria-hidden className={`line-clamp-2 text-center text-[12px] font-black leading-4 ${earned ? 'text-fg' : 'text-fg-3'}`}>
         <BadgeName badge={badge} />
       </span>
     </button>
@@ -210,7 +210,7 @@ export default function Me() {
       <section aria-label="レンジャーカード" className="px-night relative mx-4 overflow-hidden text-white" style={TATSUGO_STYLE}>
         <div className="relative bg-gradient-to-br from-brand-fill/95 via-brand-fill/85 to-brand-pressed/95 p-3">
           <div className="flex items-center justify-between">
-            <span className="num text-[13px] tracking-[0.1em] text-white/80">RANGER CARD</span>
+            <span className="num text-[12px] tracking-[1px] text-white/80">RANGER CARD</span>
             <span className="px-clip-1 num bg-white/15 px-2 text-[12px] leading-5 text-gold">AMAMI NATURE</span>
           </div>
           <div className="mt-3 flex items-center gap-3.5">
@@ -224,7 +224,7 @@ export default function Me() {
             </div>
           </div>
           <div className="mt-3.5 flex items-center gap-2">
-            <span className="num shrink-0 text-[13px]">Lv.{level.level}</span>
+            <span className="num shrink-0 text-[12px]">Lv.{level.level}</span>
             <XPBar value={level.progress} id="me-xp" label="次のレベルまで" className="flex-1" />
             <span className="shrink-0 text-caption text-white/80">{level.next ? `あと${level.toNext}pt` : 'MAX'}</span>
           </div>
@@ -237,7 +237,7 @@ export default function Me() {
             ].map((x) => (
               <div key={x.l} className="px-clip-2 bg-white/[.14] px-1 py-2 text-center">
                 <div className="num text-[22px] leading-6">{x.v}</div>
-                <div className="mt-0.5 text-[10px] font-black leading-3 text-white/80">{x.l}</div>
+                <div className="mt-0.5 text-[12px] font-black leading-3 text-white/80">{x.l}</div>
               </div>
             ))}
           </div>
@@ -254,7 +254,7 @@ export default function Me() {
           <span className="block text-sub font-black text-fg-2">もっているポイント</span>
           <span className="num block text-[28px] leading-8 text-fg">
             {balance.toLocaleString()}
-            <span className="ml-1 font-sans text-sub font-black text-fg-2">pt</span>
+            <span className="ml-1 text-sub text-fg-2">pt</span>
           </span>
         </span>
         <span className={cn(button({ variant: 'gold', size: 'md' }), 'pointer-events-none h-10 px-4')}>こうかん</span>

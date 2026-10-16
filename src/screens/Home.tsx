@@ -44,7 +44,7 @@ function Brand() {
           <LogoMark size={22} className="text-white" />
         </span>
       </span>
-      <span aria-hidden className="num text-[19px] leading-none tracking-[0.03em] text-fg">
+      <span aria-hidden className="num text-[19px] leading-none tracking-[1px] text-fg">
         AMAMI <span className="text-brand">NATURE</span>
       </span>
     </span>
@@ -176,7 +176,7 @@ export default function Home() {
       <section className="px-night mx-4 mt-4 overflow-hidden bg-night text-white" aria-labelledby="home-season-title">
         <div className="relative px-3 pb-3 pt-2.5" style={{ background: 'radial-gradient(120% 140% at 100% 0%, rgb(var(--c-night-2)) 0%, transparent 60%)' }}>
           <Sparkles count={4} className="opacity-70" />
-          <p className="num text-[13px] tracking-[0.08em] text-gold">
+          <p className="num text-[12px] tracking-[1px] text-gold">
             {MONTH_EN[month - 1]} · {night ? 'NIGHT MODE' : 'DAY MODE'}
           </p>
           <h1 id="home-season-title" className="mt-0.5 text-title font-black">
@@ -280,7 +280,7 @@ export default function Home() {
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-caption text-fg-2">
                       ほうしゅう <Coin size={14} />
-                      <span className="num text-[13px] text-legend">+{qp.quest.reward}</span>
+                      <span className="num text-[12px] text-legend">+{qp.quest.reward}</span>
                     </span>
                   </span>
                   <span className="num shrink-0 text-[18px] text-fg-2">
@@ -384,18 +384,18 @@ function MissionRow({ mission }: { mission: Mission }) {
         {mission.done ? <IconCheck size={22} /> : <Icon size={22} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className={cn('block text-callout font-black', mission.done ? 'text-fg-3 line-through decoration-2' : 'text-fg')}>{mission.title}</span>
+        <span className={cn('block text-callout font-black', mission.done ? 'text-fg-3' : 'text-fg')}>{mission.title}</span>
         {mission.target > 1 && (
           <span className="mt-1.5 flex items-center gap-2">
             <XPBar value={mission.current / mission.target} height={10} className="flex-1" />
-            <span className="num text-[13px] text-fg-2">
+            <span className="num text-[12px] text-fg-2">
               {mission.current}/{mission.target}
             </span>
           </span>
         )}
       </span>
       {mission.done ? (
-        <span className="px-clip-1 num shrink-0 animate-pop-in bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
+        <span className="px-clip-1 num shrink-0 animate-pop-in bg-xp px-2.5 py-0.5 text-[12px] text-[#0b3d22]">CLEAR</span>
       ) : (
         <IconCaretRight size={18} className="shrink-0 text-fg-3" />
       )}
@@ -428,10 +428,10 @@ function SeasonCard({ species, entry, featured }: { species: Species; entry?: Co
       {/* まだ見つけていない種は参考写真も出さない（名前と同じく、ゲットするまでのお楽しみ） */}
       <SpeciesPlate species={species} photoId={entry?.photoId} discovered={found} showReference={found} className="px-clip-2 aspect-square w-full">
         {featured && (
-          <span className="px-clip-1 absolute left-1 top-1 bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">PICK UP</span>
+          <span className="px-clip-1 absolute left-1 top-1 bg-capture px-1.5 font-num text-[12px] leading-4 text-white">PICK UP</span>
         )}
         {found && (
-          <span className="px-clip-1 absolute bottom-1 right-1 bg-xp px-1.5 pt-[1px] font-num text-[10px] leading-4 text-[#0b3d22]">GET</span>
+          <span className="px-clip-1 absolute bottom-1 right-1 bg-xp px-1.5 font-num text-[12px] leading-4 text-[#0b3d22]">GET</span>
         )}
       </SpeciesPlate>
       <span className="mt-1.5 flex items-center justify-between gap-1 px-0.5">

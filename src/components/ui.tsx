@@ -573,7 +573,7 @@ export function InfoRow({ label, children, trailing, className }: { label: React
     <div className={cn('group/row flex pl-3', className)}>
       <div className="flex min-h-12 min-w-0 flex-1 items-start gap-3 border-b-2 border-sep py-3 pr-3 group-last/row:border-b-0">
         <span className="w-24 shrink-0 text-callout font-bold text-fg-2">{label}</span>
-        <span className="min-w-0 flex-1 text-callout font-bold text-fg">{children}</span>
+        <span className="min-w-0 flex-1 text-callout font-bold text-fg">{typeof children === 'string' ? <Phrase text={children} /> : children}</span>
         {trailing && <span className="-my-1 shrink-0 self-center">{trailing}</span>}
       </div>
     </div>
@@ -589,7 +589,7 @@ export function InfoRow({ label, children, trailing, className }: { label: React
  * text・danger-text は枠のない文字だけのボタン。
  */
 export const button = cva(
-  'inline-flex select-none items-center justify-center gap-2 pt-[1px] font-black tracking-[0.02em] disabled:pointer-events-none disabled:translate-y-0',
+  'inline-flex select-none items-center justify-center gap-2 font-black disabled:pointer-events-none disabled:translate-y-0',
   {
     variants: {
       variant: {
@@ -746,7 +746,7 @@ export function Chip({ children, selected = false, icon, selectedIcon, count, on
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        'pressable inline-flex h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap px-2.5 pt-[1px] text-sub font-bold',
+        'pressable inline-flex h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap px-2.5 text-sub font-bold',
         selected ? 'px-chip-on text-on-brand' : onFill ? 'px-chip-well text-fg' : 'px-panel text-fg',
         disabled && 'text-fg-3',
         className,
@@ -798,7 +798,7 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={cn('relative flex-1 select-none whitespace-nowrap px-2 pt-[1px] text-sub font-bold', active ? 'text-on-brand' : 'text-fg-2')}
+            className={cn('relative flex-1 select-none whitespace-nowrap px-2 text-sub font-bold', active ? 'text-on-brand' : 'text-fg-2')}
           >
             {active && (
               <m.span

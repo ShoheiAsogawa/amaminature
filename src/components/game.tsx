@@ -91,7 +91,7 @@ export function TypeBadge({ category, size = 'md', className }: { category: Cate
       className={cn(
         'px-clip-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-bold text-white',
         t.bg,
-        size === 'sm' ? 'h-5 px-2 text-[10px] leading-none' : 'h-7 px-2.5 text-caption',
+        size === 'sm' ? 'h-5 px-2 text-[12px] leading-none' : 'h-7 px-2.5 text-caption',
         className,
       )}
     >
@@ -141,7 +141,7 @@ export function Stars({
         ))}
       </span>
       {withLabel && (
-        <span className={cn('text-sub font-bold', onDark ? 'text-white' : LABEL_COLOR[rarity])} aria-hidden>
+        <span className={cn('text-[16px] font-bold leading-5', onDark ? 'text-white' : LABEL_COLOR[rarity])} aria-hidden>
           {word}
         </span>
       )}
@@ -167,7 +167,7 @@ export function LevelBadge({ level, size = 48, className }: { level: number; siz
       <span aria-hidden className="absolute inset-0 bg-white" style={{ clipPath: pxCircleClip(size) }} />
       <span aria-hidden className="absolute inset-[3px] bg-brand-fill" style={{ clipPath: pxCircleClip(size - 6) }} />
       <span aria-hidden className="relative flex flex-col items-center leading-none">
-        <span className="num text-[10px] leading-none opacity-80">Lv</span>
+        <span className="num text-[12px] leading-none opacity-80">Lv</span>
         <span className="num leading-none" style={{ fontSize: Math.round(size * 0.42) }}>
           {level}
         </span>
@@ -356,7 +356,7 @@ export function MessageWindow({
     <div className={cn('relative', speaker && 'pt-[13px]', className)}>
       {/* 名札は窓の上の枠（12px）に重ね、札の下の端を枠の内側の線にそろえる */}
       {speaker && (
-        <span className="px-nametag absolute left-4 top-0 z-10 px-3 py-0.5 font-sans text-caption font-black text-[#1b1f3b]">
+        <span className="px-nametag absolute left-4 top-0 z-10 px-3 py-0.5 text-caption font-black text-[#1b1f3b]">
           {speaker}
         </span>
       )}
@@ -370,7 +370,9 @@ export function MessageWindow({
         </p>
         <p aria-hidden className="whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:keep-all]">
           {chars.slice(0, n).join('')}
-          {done && <span className="ml-1 inline-block animate-bounce text-[13px] text-[#2160E8]">▼</span>}
+          {/* まだ出ていない文字も透明で置いておく（打つたびに折り返しの位置が変わらないように） */}
+          {!done && <span className="invisible">{chars.slice(n).join('')}</span>}
+          {done && <span className="ml-1 inline-block animate-bounce text-[12px] text-[#2160E8]">▼</span>}
         </p>
         {done && children}
       </div>

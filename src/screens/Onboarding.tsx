@@ -26,7 +26,7 @@ function TitleLogo() {
         </span>
       </span>
       <div className="leading-none">
-        <div className="num text-[24px] tracking-[0.03em] text-white">
+        <div className="num text-[24px] tracking-[1px] text-white">
           AMAMI <span className="text-gold">NATURE</span>
         </div>
         <div className="mt-1 text-caption text-white/75">奄美いきもの図鑑クエスト</div>
@@ -301,8 +301,10 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
   return (
     <main className={cn('min-h-dvh pt-safe', CTA_PADDING)}>
       <section className="px-4 pt-8">
-        <p className="num text-[14px] tracking-[0.1em] text-brand">RANGER OATH</p>
-        <h1 className="mt-1 text-display text-fg">レンジャーの3つの約束</h1>
+        <p className="num text-[14px] tracking-[1px] text-brand">RANGER OATH</p>
+        <h1 className="balance mt-1 text-display text-fg">
+          <Phrase text="レンジャーの3つの約束" />
+        </h1>
         <p className="mt-2 text-body font-bold text-fg-2">
           <Phrase text="島の生き物を守るための約束です。約束すると、最初のバッジがもらえます。" />
         </p>
@@ -345,14 +347,14 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
       {/* 利用規約・プライバシーポリシーへの同意（ボタン1つで約束と同意をする。同意した版と日時を残す） */}
       <p className="mt-6 px-4 text-sub font-bold text-fg-2">
         ［約束してはじめる］を押すと、
-        <button type="button" className="font-black text-brand underline underline-offset-2" onClick={() => setReading('terms')}>
+        <button type="button" className="text-brand underline underline-offset-2" onClick={() => setReading('terms')}>
           利用規約
         </button>
         と
-        <button type="button" className="font-black text-brand underline underline-offset-2" onClick={() => setReading('privacy')}>
+        <button type="button" className="text-brand underline underline-offset-2" onClick={() => setReading('privacy')}>
           プライバシーポリシー
         </button>
-        に同意したことになります。未成年の方は、保護者の方と一緒に読んでください。
+        <Phrase text="に同意したことになります。未成年の方は、保護者の方と一緒に読んでください。" />
       </p>
       <LegalSheet kind={reading} onClose={() => setReading(null)} />
 

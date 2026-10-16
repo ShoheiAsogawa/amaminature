@@ -69,12 +69,15 @@
   --chart-2: rgb(var(--c-capture));
   --chart-grid: rgb(var(--c-sep));
   --chart-band: rgb(var(--c-fill-strong));
-  /* ドット文字（docs/DESIGN_SYSTEM.md §3）。数字は PixelMplus12 に入れていない（点のある 0 が θ に見える）ので、続く書体で出す */
-  --font-ui: DotGothic16, "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  /* ドット文字（docs/DESIGN_SYSTEM.md §3）。PixelMplus12 は 12px の文字だけ・標準の字形だけ（太字にすると漢字がつぶれる）。
+     見出しは DotGothic16（16 ドットの漢字。12 ドットの PixelMplus12 だと「鑑」「撮影」の線が詰まる） */
+  /* 本文の英数字は Pixelify Sans（DotGothic16 の I は l と見分けにくく、英字の間も空く）。Google Fonts の英字の分だけが読み込まれる */
+  --font-ui: "Pixelify Sans", DotGothic16, "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
   --font-num: "Jersey 15", DotGothic16, system-ui, sans-serif;
-  /* 小さい文字は太字を指定されても標準の字形（12px の太字は漢字がつぶれる） */
-  --font-small: "PixelMplus12 Text", DotGothic16, "Hiragino Sans", sans-serif;
-  --font-head: PixelMplus12, "Jersey 15", DotGothic16, "Hiragino Sans", sans-serif;
+  --font-small: PixelMplus12, DotGothic16, "Hiragino Sans", sans-serif;
+  --font-head: "Pixelify Sans", DotGothic16, "Hiragino Sans", sans-serif;
+  /* ドットの太字のずらし幅。画面の 1 画素にする（2 画素ずらすと漢字のすき間が埋まる） */
+  --px-bold: 1px;
   --dot: rgb(var(--c-brand) / 0.07);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -147,6 +150,17 @@
     font-feature-settings: normal;
     text-wrap: pretty;
   }
+  /* ドット文字は字幅が広く、文の途中で折り返しやすいので、文節で折り返す（対応するブラウザだけ。iPhone は <Phrase>） */
+  @supports (word-break: auto-phrase) {
+    p,
+    li {
+      word-break: auto-phrase;
+    }
+  }
+  /* 入力欄の見本の文字は太字にしない */
+  ::placeholder {
+    text-shadow: none;
+  }
   #root {
     isolation: isolate;
   }
@@ -161,20 +175,22 @@
 
 @layer components {
   /* ───────── ドット文字の決まり（§3） ─────────
-     見出し（24・36px）は PixelMplus12 の太字、12px 以下の文字は PixelMplus12（どちらも 1 ドット = 1・2・3px でにじまない）。
-     :where で詳細度を 0 にして、.num や font-* のクラスが勝つようにする */
-  :where(.text-display, .text-title, .text-section) {
+     見出し（24・32px）は DotGothic16、12px の文字は PixelMplus12（1 ドット = 1px でにじまない）。
+     :is でクラス 1 つ分の詳細度にして、ボタン・入力欄の font-family: inherit（preflight）に勝たせる。
+     .num はこの後ろに書くので .num が勝つ */
+  :is(.text-display, .text-title, .text-section) {
     font-family: var(--font-head);
   }
-  :where(.text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[10px]'], [class*='text-[11px]'], [class*='text-[12px]'], [class*='text-[13px]']) {
+  :is(.text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[12px]']) {
     font-family: var(--font-small);
   }
-  /* ドットの太字：DotGothic16 には太字がないので、1px 右に重ねて線を太くする（ゲームの太字と同じ） */
+  /* ドットの太字：DotGothic16 には太字がないので、右に 1 画素重ねて線を太くする（ゲームの太字と同じ） */
   :where(.font-bold, .font-black, .font-semibold, .text-headline) {
-    text-shadow: 1px 0 currentColor;
+    text-shadow: var(--px-bold) 0 currentColor;
   }
-  /* PixelMplus12・数字の書体は太字の字形があるので、重ねない */
-  :where(.text-display, .text-title, .text-section, .text-sub, .text-tile, .text-caption, .text-tab, .num, .font-num, .font-small, .font-head, [class*='text-[10px]'], [class*='text-[11px]'], [class*='text-[12px]'], [class*='text-[13px]']) {
+  /* 見出し・PixelMplus12・数字の書体は重ねない（小さい文字・見出しの中の太字も） */
+  :where(.text-display, .text-title, .text-section, .text-sub, .text-tile, .text-caption, .text-tab, .num, .font-num, .font-small, .font-head, [class*='text-[12px]']),
+  :where(.text-display, .text-title, .text-section, .text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[12px]']) :where(.font-bold, .font-black, .font-semibold) {
     text-shadow: none;
   }
 
@@ -185,9 +201,13 @@
     font-variant-numeric: tabular-nums lining-nums;
     letter-spacing: 0.01em;
   }
-  /* 学名: <i lang="la" className="sci">。ドット文字は斜体にするとにじむので、立てたまま色で区別する */
+  /* 小さい文字の中の数字は、まわりと同じ PixelMplus12（Jersey 15 は小さいとにじみ、高さもそろわない） */
+  :is(.text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[12px]']) .num,
+  .num:is(.text-sub, .text-tile, .text-caption, .text-tab, [class*='text-[12px]']) {
+    font-family: var(--font-small);
+  }
+  /* 学名: <i lang="la" className="sci">。ドット文字は斜体にするとにじむので、立てたまま色で区別する（書体は大きさのクラスに従う） */
   .sci {
-    font-family: var(--font-ui);
     font-style: normal;
     font-weight: 500;
     letter-spacing: 0;
@@ -224,7 +244,8 @@
     font-family: var(--font-ui);
     font-weight: 400;
     font-feature-settings: normal;
-    letter-spacing: 0.04em;
+    /* 字間は整数 px（小数だとドットがにじむ） */
+    letter-spacing: 1px;
   }
 
   /* 進捗バーの流れる斜線 */
@@ -379,6 +400,18 @@
 }
 
 /* リング（Ring）の進んだ角度。登録しておくと角度が transition で動く */
+/* ドットの太字のずらし幅を、画面の 1 画素にする */
+@media (min-resolution: 2dppx) {
+  :root {
+    --px-bold: 0.5px;
+  }
+}
+@media (min-resolution: 3dppx) {
+  :root {
+    --px-bold: 0.34px;
+  }
+}
+
 @property --ring {
   syntax: '<angle>';
   inherits: false;

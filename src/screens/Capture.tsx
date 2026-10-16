@@ -674,7 +674,7 @@ function CaptureFlow() {
                     </span>
                     <IconCameraFill size={34} className="relative" />
                   </button>
-                  <Button variant="text" size="hit" className="justify-self-end text-white" disabled={processing} onClick={afterPhoto}>
+                  <Button variant="text" size="hit" className="justify-self-end whitespace-nowrap px-0 text-white" disabled={processing} onClick={afterPhoto}>
                     写真なしで記録
                   </Button>
                 </div>

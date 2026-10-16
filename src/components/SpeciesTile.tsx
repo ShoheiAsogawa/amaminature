@@ -252,7 +252,7 @@ export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = f
         className={cn('px-clip-2 aspect-square w-full', discovered && species.rarity >= 3 && 'shine')}
       >
         {isNew && (
-          <span aria-hidden className="px-clip-1 absolute right-1 top-1 animate-pop-in bg-capture px-1.5 pt-[1px] font-num text-[10px] leading-4 text-white">
+          <span aria-hidden className="px-clip-1 absolute right-1 top-1 animate-pop-in bg-capture px-1.5 font-num text-[12px] leading-4 text-white">
             NEW
           </span>
         )}

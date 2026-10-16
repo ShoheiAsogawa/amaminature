@@ -233,7 +233,7 @@ export default function Admin() {
             </span>
           </span>
           <div className="min-w-0 flex-1">
-            <p className="num truncate text-[11px] tracking-[0.1em] text-gold sm:text-[13px]">AMAMI NATURE · ADMIN</p>
+            <p className="num truncate text-[12px] tracking-[1px] text-gold sm:text-[12px]">AMAMI NATURE · ADMIN</p>
             {/* スマホ幅でも1行に収める */}
             <h1 className="truncate text-headline font-black leading-7 sm:text-title sm:leading-8">運営ダッシュボード</h1>
           </div>
@@ -266,7 +266,7 @@ export default function Admin() {
                   sfx('tap');
                   setTab(t.id);
                 }}
-                count={badges[t.id] ? <span className="px-clip-1 bg-capture px-1.5 text-[11px] text-white opacity-100">{badges[t.id]}</span> : undefined}
+                count={badges[t.id] ? <span className="px-clip-1 bg-capture px-1.5 text-[12px] text-white opacity-100">{badges[t.id]}</span> : undefined}
               >
                 {t.label}
               </Chip>
@@ -549,7 +549,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
               <span className="mt-0.5 block text-caption text-fg-2">{t.sub}</span>
             </span>
             {t.n === 0 ? (
-              <span className="num px-clip-1 bg-xp px-2.5 py-0.5 text-[13px] text-[#0b3d22]">CLEAR</span>
+              <span className="num px-clip-1 bg-xp px-2.5 py-0.5 text-[12px] text-[#0b3d22]">CLEAR</span>
             ) : (
               <span className="num px-clip-1 shrink-0 bg-capture px-3 py-0.5 text-[18px] text-white">{t.n}</span>
             )}
@@ -576,14 +576,14 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
         <div className="flex h-40 items-end gap-1.5" role="img" aria-label={`この2週間の記録数。${s.daily.map((d) => `${d.day.slice(5)} ${d.sightings}件`).join('、')}`}>
           {s.daily.map((d) => (
             <div key={d.day} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
-              <span className="num text-[11px] text-fg-2">{d.sightings}</span>
+              <span className="num text-[12px] text-fg-2">{d.sightings}</span>
               <div className="stripes w-full bg-brand-fill" style={{ height: `${Math.max(4, (d.sightings / max) * 120)}px` }} />
             </div>
           ))}
         </div>
         <div className="mt-1.5 flex gap-1.5 border-t-2 border-sep pt-1.5" aria-hidden>
           {s.daily.map((d, i) => (
-            <span key={d.day} className="num min-w-0 flex-1 text-center text-[10px] text-fg-3">
+            <span key={d.day} className="num min-w-0 flex-1 text-center text-[12px] text-fg-3">
               {i % 2 === 1 ? '' : `${Number(d.day.slice(5, 7))}/${Number(d.day.slice(8))}`}
             </span>
           ))}
@@ -868,9 +868,9 @@ function SightingCard({ s, adminKey, onRevoke, onRestore }: { s: AdminSighting; 
           <div className="px-clip-2 h-24 w-full bg-fill" />
         )}
         <span className="absolute left-2 top-2 flex flex-wrap gap-1">
-          {sp && sp.rarity >= 3 && <span className="num px-clip-1 bg-rare-3 px-2 text-[11px] leading-5 text-white">{sp.rarity === 4 ? 'LEGEND' : 'RARE'}</span>}
-          {s.roadReport && <span className="px-clip-1 bg-danger px-2 text-[11px] font-black leading-5 text-on-danger">路上</span>}
-          {!s.hasPhoto && <span className="px-clip-1 bg-fill-strong px-2 text-[11px] font-black leading-5 text-fg-2">写真なし</span>}
+          {sp && sp.rarity >= 3 && <span className="num px-clip-1 bg-rare-3 px-2 text-[12px] leading-5 text-white">{sp.rarity === 4 ? 'LEGEND' : 'RARE'}</span>}
+          {s.roadReport && <span className="px-clip-1 bg-danger px-2 text-[12px] font-black leading-5 text-on-danger">路上</span>}
+          {!s.hasPhoto && <span className="px-clip-1 bg-fill-strong px-2 text-[12px] font-black leading-5 text-fg-2">写真なし</span>}
         </span>
         {s.revokedAt && (
           <span className="px-clip-2 absolute inset-0 grid place-items-center bg-night/60">
@@ -998,7 +998,7 @@ function RoadTab({
               {r.lat != null && r.lng != null ? (
                 <a href={`https://www.google.com/maps?q=${r.lat},${r.lng}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-brand underline-offset-2 hover:underline">
                   <IconMapPin size={16} />
-                  <span className="num text-[13px]">
+                  <span className="num text-[12px]">
                     {r.lat.toFixed(4)}, {r.lng.toFixed(4)}
                   </span>
                 </a>
@@ -1227,21 +1227,21 @@ function UsersTab({
               <p className="flex flex-wrap items-center gap-1.5">
                 <span className="truncate text-callout font-black text-fg">{u.nickname || u.displayName || '（名前なし）'}</span>
                 {u.nickname && u.displayName && u.nickname !== u.displayName && <span className="text-caption text-fg-3">LINE: {u.displayName}</span>}
-                {u.plus && <span className="num px-clip-1 bg-gold px-2 text-[11px] leading-5 text-[#3d2a00]">PLUS</span>}
-                {u.isFriend && <span className="px-clip-1 bg-line-green px-2 text-[11px] font-black leading-5 text-white">友だち</span>}
+                {u.plus && <span className="num px-clip-1 bg-gold px-2 text-[12px] leading-5 text-[#3d2a00]">PLUS</span>}
+                {u.isFriend && <span className="px-clip-1 bg-line-green px-2 text-[12px] font-black leading-5 text-white">友だち</span>}
               </p>
               <p className="mt-0.5 text-caption text-fg-2">
                 記録 {u.sightings} ・ {u.species} 種 ・ 最終 {ago(u.lastSeenAt ?? u.createdAt)}
               </p>
               <p className="mt-0.5 text-caption text-fg-3">
-                <span className="num tracking-[0.04em]">{u.supportCode ?? '番号なし'}</span>
+                <span className="num tracking-[1px]">{u.supportCode ?? '番号なし'}</span>
                 {' ・ '}規約 {u.termsVersion ? '同意済み' : '未同意'}
                 {' ・ '}路上の位置 {u.roadConsentVersion ? '同意' : 'なし'}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Ring value={u.species / 62} size={44} stroke={6}>
-                <span className="num text-[11px] text-fg-2">{Math.round((u.species / 62) * 100)}%</span>
+                <span className="num text-[12px] text-fg-2">{Math.round((u.species / 62) * 100)}%</span>
               </Ring>
               <div className="text-right">
                 <p className="flex items-center justify-end gap-1">
@@ -1301,7 +1301,7 @@ function LogTab({ items }: { items: AdminAction[] }) {
         {sorted.length === 0 && <p className="px-4 py-4 text-sub font-bold text-fg-2">まだ操作はありません</p>}
         {sorted.map((a, i) => (
           <div key={`${a.createdAt}-${i}`} className="flex items-start gap-3 border-b-2 border-sep px-4 py-3 last:border-b-0">
-            <span className="num mt-0.5 w-20 shrink-0 text-[13px] text-fg-3">{when(a.createdAt)}</span>
+            <span className="num mt-0.5 w-20 shrink-0 text-[12px] text-fg-3">{when(a.createdAt)}</span>
             <span className="min-w-0 flex-1">
               <span className="block text-callout font-black text-fg">{ACTION_LABEL[a.action] ?? a.action}</span>
               <span className="mt-0.5 block break-all text-caption text-fg-2">

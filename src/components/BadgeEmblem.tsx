@@ -208,22 +208,20 @@ export function BadgeEmblem({ badge, earned, size = 56, onClick, className }: Ba
         className="absolute [image-rendering:pixelated]"
         style={{ width: n * DOT, height: (n + 1) * DOT, left: Math.floor((size - n * DOT) / 2), top: Math.floor((size - n * DOT) / 2) }}
       />
-      <svg viewBox="0 0 64 64" width={size} height={size} className="absolute inset-0 overflow-visible" aria-hidden="true" focusable="false">
-        {isText(glyph) && (
-          <text
-            x="32"
-            y="33"
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="currentColor"
-            fontSize={glyph.size}
-            className={cn('font-black', glyph.font === 'num' ? 'font-num' : 'font-sans', glyphColor)}
-            style={earned ? { filter: `drop-shadow(0 1.5px 0 ${c.edge})` } : undefined}
-          >
-            {glyph.text}
-          </text>
-        )}
-      </svg>
+      {/* 文字の図柄（幻・12）はドット文字（PixelMplus12）。にじまないよう 12 の倍数の大きさにし、影も 1 ドット */}
+      {isText(glyph) &&
+        (() => {
+          const px = Math.max(12, Math.round((size * glyph.size) / 64 / 12) * 12);
+          return (
+            <span
+              aria-hidden
+              className={cn('relative font-small leading-none', glyphColor)}
+              style={{ fontSize: px, filter: earned ? `drop-shadow(0 ${px / 12}px 0 ${c.edge})` : undefined }}
+            >
+              {glyph.text}
+            </span>
+          );
+        })()}
       {!isText(glyph) &&
         (() => {
           const G = glyph;

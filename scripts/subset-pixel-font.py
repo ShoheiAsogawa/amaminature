@@ -6,11 +6,15 @@
   .venv/bin/python scripts/subset-pixel-font.py <PixelMplus12-Regular.ttf のあるフォルダ>
 
 元のフォントは https://github.com/itouhiro/PixelMplus （リリースの PixelMplus-*.zip）。
-public/fonts/ に次を書き出す（数字 0〜9 は入れない。点のある 0 が「θ」に見えるので、数字はほかの書体で出す）:
-  pm12-{regular,bold}-ui.woff2   … かな・記号・英字と、アプリの文言（src と index.html）に出てくる漢字
-  pm12-{regular,bold}-more.woff2 … それ以外の漢字（利用者が書いたニックネームなどで使われた時だけ読み込む）
+public/fonts/ に次を書き出す（標準の字形だけ。太字は 12px でも 2〜3 倍でも漢字がつぶれるので使わない）:
+  pm12-regular-ui.woff2   … かな・記号・英数字と、アプリの文言（src と index.html）に出てくる漢字
+  pm12-regular-more.woff2 … それ以外の漢字（利用者が書いたニックネームなどで使われた時だけ読み込む）
+数字の 0 は斜線入り（「θ」に見える）なので、O と同じ形に置き換える。
 src/styles/pixel-fonts.css に @font-face（unicode-range つき）を書き出す。
+ドットの格子は基準線から 0.4 ドット下にずれているので、ascent / descent を指定して、行の高さが偶数 px の時に
+ドットが画面の整数 px に乗るようにする（12px で上 10.4px・下 1.6px）。
 """
+import copy
 import pathlib
 import re
 import sys
@@ -22,7 +26,6 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC_DIR = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / '.fonts'
 OUT = ROOT / 'public' / 'fonts'
 CSS = ROOT / 'src' / 'styles' / 'pixel-fonts.css'
-DIGITS = set(range(0x30, 0x3A))
 
 
 def app_chars() -> set[int]:
@@ -53,9 +56,9 @@ def main() -> None:
     used = app_chars()
     css = ['/* このファイルは scripts/subset-pixel-font.py が作る。手で直さない */',
            '/* PixelMplus12 (c) M+ FONTS PROJECT / itouhiro, M+ FONT LICENSE（public/fonts/LICENSE-PixelMplus.txt） */']
-    for weight, name in [(400, 'Regular'), (700, 'Bold')]:
+    for name in ['Regular']:
         font = TTFont(SRC_DIR / f'PixelMplus12-{name}.ttf')
-        cmap = set(font.getBestCmap().keys()) - DIGITS
+        cmap = set(font.getBestCmap().keys())
         def is_base(c: int) -> bool:
             # かな・記号・英字（漢字以外）はいつも使う
             return not (0x3400 <= c <= 0x9FFF or 0xF900 <= c <= 0xFAFF)
@@ -71,20 +74,24 @@ def main() -> None:
             opts.notdef_outline = True
             sub = subset.Subsetter(opts)
             f = TTFont(SRC_DIR / f'PixelMplus12-{name}.ttf')
+            # 斜線入りの 0 を、O と同じ形にする
+            glyf = f['glyf']
+            glyf['zero'] = copy.deepcopy(glyf['O'])
             sub.populate(unicodes=cps)
             sub.subset(f)
             f.flavor = 'woff2'
             f.save(dst)
-            # 小さい文字用の 'PixelMplus12 Text' は、太字を指定されても標準の字形を使う（12px の太字は漢字がつぶれる）
-            families = [('PixelMplus12', str(weight))] + ([('PixelMplus12 Text', '100 900')] if weight == 400 else [])
-            for family, wdesc in families:
-              css.append(
+            css.append(
                 '@font-face {\n'
-                f"  font-family: '{family}';\n"
+                "  font-family: 'PixelMplus12';\n"
                 f"  src: url('/fonts/{dst.name}') format('woff2');\n"
-                f'  font-weight: {wdesc};\n'
+                # 太字を指定されても標準の字形を使う（合成もしない）
+                '  font-weight: 100 900;\n'
                 '  font-style: normal;\n'
                 '  font-display: swap;\n'
+                '  ascent-override: 86.6667%;\n'
+                '  descent-override: 13.3333%;\n'
+                '  line-gap-override: 0%;\n'
                 # more は漢字の範囲をまとめて書く（ui が先に選ばれるので、ui にない漢字だけが more に来る）
                 f"  unicode-range: {ranges(cps) if key == 'ui' else 'U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF'};\n"
                 '}'

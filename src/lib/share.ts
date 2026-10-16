@@ -1,3 +1,4 @@
+import { loadDefaultJapaneseParser } from 'budoux';
 import { AREA_BY_ID } from '../data/areas';
 import type { Category, Rarity, Species } from '../data/types';
 import { GAME, LIGHT, type ColorStop } from '../styles/palette';
@@ -26,9 +27,9 @@ const FRAME = 40;
 /** 写真の窓（5:4）。線は 1 ドット */
 const PHOTO = { x: 84, y: 200, w: 912, h: 730, border: DOT } as const;
 
-/** アプリと同じドット文字（docs/DESIGN_SYSTEM.md §3）。名前とラベルは PixelMplus12 の太字、説明と地名は DotGothic16、数字は Jersey 15 */
-const FONT_HEAD = 'PixelMplus12, "Jersey 15", DotGothic16, "Hiragino Sans", sans-serif';
-const FONT_JP = 'DotGothic16, "Hiragino Sans", sans-serif';
+/** アプリと同じドット文字（docs/DESIGN_SYSTEM.md §3）。名前・ラベル・説明・地名は DotGothic16（16 ドットの倍数の大きさ）、数字は Jersey 15。
+ *  DotGothic16 には太字がないので太さは指定しない（指定すると線がにじんだ太字になる） */
+const FONT_JP = '"Pixelify Sans", DotGothic16, "Hiragino Sans", sans-serif';
 const FONT_NUM = '"Jersey 15", DotGothic16, "Hiragino Sans", sans-serif';
 
 const TYPE_LABEL: Record<Category, string> = {
@@ -183,16 +184,20 @@ function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
 }
 
 /** 文章を max 幅で折り返す（文字単位。句読点を行頭に置かない）。maxLines を超えたら末尾を … にする */
+const budoux = loadDefaultJapaneseParser();
+
+/** 文節（BudouX）の間で折り返す。1 つの文節が 1 行に入らない時だけ、文字の間で折り返す */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number, maxLines: number): string[] {
   const lines: string[] = [];
   let line = '';
-  for (const ch of Array.from(text)) {
-    if (ctx.measureText(line + ch).width > max && line && !/[、。」）！？]/.test(ch)) {
+  const tokens = budoux.parse(text).flatMap((t) => (ctx.measureText(t).width > max ? Array.from(t) : [t]));
+  for (const t of tokens) {
+    if (ctx.measureText(line + t).width > max && line && !/^[、。」）！？]/.test(t)) {
       lines.push(line);
-      line = ch;
+      line = t;
       if (lines.length === maxLines) break;
     } else {
-      line += ch;
+      line += t;
     }
   }
   if (lines.length < maxLines && line) lines.push(line);
@@ -206,8 +211,8 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number, maxL
 
 /** 名前は 60px（PixelMplus12 の 5 倍）、入らなければ 12 の倍数で縮める。図鑑にない生き物の名前は最後に末尾を省く */
 function fitName(ctx: CanvasRenderingContext2D, name: string, max: number): string {
-  for (const px of [60, 48, 36]) {
-    ctx.font = `700 ${px}px ${FONT_HEAD}`;
+  for (const px of [64, 48, 32]) {
+    ctx.font = `${px}px ${FONT_JP}`;
     if (ctx.measureText(name).width <= max) return name;
   }
   let s = name;
@@ -242,8 +247,8 @@ export async function renderShareCard(opts: {
 
   await loadFonts([
     [`400 56px ${FONT_NUM}`, `${no}${brand}${date}GET!`],
-    [`700 60px ${FONT_HEAD}`, name],
-    [`700 36px ${FONT_HEAD}`, `${nickname}${typeLabel}`],
+    [`64px ${FONT_JP}`, name],
+    [`32px ${FONT_JP}`, `${nickname}${typeLabel}`],
     [`400 32px ${FONT_JP}`, area ?? '奄美群島'],
     [`400 32px ${FONT_JP}`, species?.description ?? ''],
   ]);
@@ -320,12 +325,12 @@ export async function renderShareCard(opts: {
 
   // タイプと星
   const rowY = PHOTO.y + PHOTO.h + 52;
-  pill(ctx, typeLabel, 84, rowY, 64, typeColor, '#FFFFFF', `700 36px ${FONT_HEAD}`);
+  pill(ctx, typeLabel, 84, rowY, 64, typeColor, '#FFFFFF', `32px ${FONT_JP}`);
   if (species) drawStars(ctx, species.rarity, W - 84, rowY + 32);
 
   // ニックネーム
   if (nickname) {
-    ctx.font = `700 36px ${FONT_HEAD}`;
+    ctx.font = `32px ${FONT_JP}`;
     pixelRect(ctx, 84, rowY + 90, W - 168, 76, CLIP_1);
     ctx.fillStyle = LIGHT.fill;
     ctx.fill();
@@ -357,13 +362,13 @@ export async function renderShareCard(opts: {
   // 日付と市町村（希少種は市町村名を出さない）、右下にブランド
   const footY = H - FRAME - 44;
   ctx.fillStyle = LIGHT.fg3;
-  ctx.font = `400 34px ${FONT_NUM}`;
+  ctx.font = `400 30px ${FONT_NUM}`;
   ctx.fillText(date, 84, footY);
   const dw = ctx.measureText(date).width;
   ctx.font = `400 32px ${FONT_JP}`;
   ctx.fillText(area ?? '奄美群島', 84 + dw + 24, footY);
   ctx.fillStyle = LIGHT.brand;
-  ctx.font = `400 34px ${FONT_NUM}`;
+  ctx.font = `400 30px ${FONT_NUM}`;
   ctx.textAlign = 'right';
   ctx.fillText(brand, W - 84, footY);
   ctx.textAlign = 'left';

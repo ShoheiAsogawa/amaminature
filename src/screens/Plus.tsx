@@ -124,10 +124,12 @@ export default function Plus() {
       <FramePreview />
 
       <section className="px-4 pt-6">
-        <h1 className="balance text-display text-fg">
+        <h1 className="balance text-title text-fg">
           <Phrase text="名前がわからなくても、写真から調べられる" />
         </h1>
-        <p className="mt-3 text-body text-fg-2">写真を撮ると、AIが図鑑の中から候補を出します。</p>
+        <p className="mt-3 text-body text-fg-2">
+          <Phrase text="写真を撮ると、AIが図鑑の中から候補を出します。" />
+        </p>
         {active && (
           <p className="mt-4 flex items-center gap-2 text-callout text-fg">
             <IconCheckCircleFill size={20} className="shrink-0 text-success" />

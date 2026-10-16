@@ -103,7 +103,7 @@ export function Wordmark({ size = 'md', className }: { size?: 'md' | 'sm'; class
     return (
       <span className={cn('inline-flex items-center gap-1.5 text-fg-3', className)}>
         <LogoMark size={16} className="text-current" />
-        <span className="font-num text-caption tracking-[0.04em]">
+        <span className="font-num text-caption tracking-[1px]">
           <span className="font-semibold">AMAMI</span>
           <span className="ml-[0.28em]">NATURE</span>
         </span>
@@ -114,7 +114,7 @@ export function Wordmark({ size = 'md', className }: { size?: 'md' | 'sm'; class
     <div className={cn('flex items-center gap-3', className)}>
       <LogoMark size={36} />
       <div>
-        <div className="font-num text-headline tracking-[0.03em] text-fg">
+        <div className="font-num text-headline tracking-[1px] text-fg">
           <span className="font-semibold">AMAMI</span>
           <span className="ml-[0.28em] font-normal">NATURE</span>
         </div>

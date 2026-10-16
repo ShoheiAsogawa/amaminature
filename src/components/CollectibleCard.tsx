@@ -128,7 +128,7 @@ export function CollectibleCard({
           <div className="relative flex flex-1 flex-col overflow-hidden bg-surface">
             {/* 名前の帯 */}
             <div className="flex items-center gap-2 px-3 pb-1.5 pt-2">
-              <SpeciesName species={species ?? undefined} name={displayName} className="min-w-0 flex-1 text-[19px] font-black leading-6 text-fg" />
+              <SpeciesName species={species ?? undefined} name={displayName} className="min-w-0 flex-1 text-[16px] font-black leading-6 text-fg" />
               {species && (
                 <span className="num shrink-0 text-[18px] leading-6" style={{ color: typeColor }} aria-label={`No.${speciesNo(species)}`}>
                   No.{speciesNo(species)}
@@ -161,7 +161,7 @@ export function CollectibleCard({
               <div className="px-clip-1 mx-3 mt-2 truncate bg-fill px-3 py-1 text-center text-sub font-black text-fg">「{nickname}」</div>
             )}
             {species && (
-              <p className={cn('mx-3 mt-2 border-t-2 border-dashed border-sep pt-1.5 text-[11px] font-bold leading-[16px] text-fg-2', nickname ? 'line-clamp-2' : 'line-clamp-3')}>
+              <p className={cn('mx-3 mt-2 border-t-2 border-dashed border-sep pt-1.5 text-[12px] font-bold leading-[16px] text-fg-2', nickname ? 'line-clamp-2' : 'line-clamp-3')}>
                 {species.description}
               </p>
             )}
@@ -169,7 +169,7 @@ export function CollectibleCard({
               <span className="num min-w-0 truncate text-[12px] leading-4 text-fg-3">
                 {observedAt && dotDate(observedAt)}
                 {observedAt && place && '　'}
-                {place && <span className="font-sans font-bold">{place}</span>}
+                {place && <span>{place}</span>}
               </span>
               <LogoMark size={16} className={species ? TYPE_META[species.category].text : 'text-fg-3'} />
             </div>
