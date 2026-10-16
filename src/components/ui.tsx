@@ -755,7 +755,8 @@ export function Chip({ children, selected = false, icon, selectedIcon, count, on
     >
       {Icon && <Icon size={16} className="shrink-0" />}
       <span>{children}</span>
-      {count != null && <span className="num opacity-[.72]">{count}</span>}
+      {/* 数・文字の件数だけ薄くする（管理画面の赤い件数バッジなど、要素で渡したものはそのまま。薄いと 1 ドットの数字が読みにくい） */}
+      {count != null && <span className={cn('num', (typeof count === 'number' || typeof count === 'string') && 'opacity-[.72]')}>{count}</span>}
       {removable && <IconX size={14} className="shrink-0" aria-hidden />}
     </button>
   );
@@ -994,9 +995,9 @@ export function ProgressBar({
   );
 }
 
-/** 欧文の単位は 0.15em あけ、和文の単位は詰める（§3.7） */
+/** 欧文の単位は 2px あけ、和文の単位は詰める（§3.7。em の小数だとドットが画素からずれる） */
 function unitGap(unit: string) {
-  return /^[A-Za-z]/.test(unit) ? 'ml-[0.15em]' : '';
+  return /^[A-Za-z]/.test(unit) ? 'ml-[2px]' : '';
 }
 
 /** 数字と単位（160 pt、62種）。数字は .num */

@@ -29,9 +29,11 @@ export default {
       tile: ['12px', { lineHeight: '16px', fontWeight: '800' }],
       caption: ['12px', { lineHeight: '16px', fontWeight: '700' }],
       tab: ['12px', { lineHeight: '14px', fontWeight: '800' }],
-      'num-xl': ['48px', { lineHeight: '52px', letterSpacing: '0.01em' }],
-      'num-kpi': ['30px', { lineHeight: '34px', letterSpacing: '0.01em' }],
-      'num-l': ['24px', { lineHeight: '28px', letterSpacing: '0.01em' }],
+      // 数字の Jersey 15 は 1em = 27 ドット。27・54px で 1 ドット = 1・2px（2 倍・3 倍の画面とも整数）。
+      // 字の箱の高さが 1em なので、行の高さは 27px なら奇数・54px なら偶数（上下の余白が整数 px になる）
+      'num-xl': ['54px', { lineHeight: '56px' }],
+      'num-kpi': ['27px', { lineHeight: '31px' }],
+      'num-l': ['27px', { lineHeight: '31px' }],
     },
     borderRadius: { none: '0', bar: '999px', xs: '10px', thumb: '12px', sm: '14px', md: '18px', lg: '24px', xl: '28px', full: '9999px' },
     boxShadow: {

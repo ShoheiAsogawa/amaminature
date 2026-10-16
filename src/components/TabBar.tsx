@@ -34,7 +34,7 @@ const TABS: (Tab | null)[] = [
 export function TabBar() {
   return (
     <nav aria-label="メインメニュー" className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] px-3 pb-[calc(10px+var(--safe-bottom))]">
-      <div className="px-panel grid h-16 grid-cols-5">
+      <div className="px-panel tab-grid grid h-16">
         {TABS.map((t) =>
           t === null ? (
             <div key="capture" className="relative grid place-items-center">
@@ -80,7 +80,7 @@ export function TabBar() {
                     >
                       <Icon size={24} />
                     </span>
-                    <span className="text-tab">{t.label}</span>
+                    <span className="whitespace-nowrap text-tab">{t.label}</span>
                   </>
                 );
               }}

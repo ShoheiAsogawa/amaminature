@@ -167,7 +167,7 @@ export default function Plus() {
                 </span>
               }
               subtitle={p.note}
-              trailing={<span className="num shrink-0 text-callout font-semibold text-fg">{p.price}</span>}
+              trailing={<span className="num shrink-0 text-[18px] leading-6 text-fg">{p.price}</span>}
               onClick={() => setPlan(p.id)}
             />
           ))}

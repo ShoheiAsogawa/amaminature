@@ -163,7 +163,7 @@ function SpeciesDetail({ id }: { id: string }) {
       {/* ───── 名前 ───── */}
       <div className="px-4 pt-4">
         <div className="flex items-center gap-3">
-          <span className={cn('num text-[20px] leading-6', t.text)}>No.{speciesNo(sp)}</span>
+          <span className={cn('num text-[18px] leading-6', t.text)}>No.{speciesNo(sp)}</span>
           <Stars rarity={sp.rarity} size={18} withLabel />
         </div>
         <h1 ref={nameRef} className={cn('mt-1 text-display', found ? 'text-fg' : 'text-fg-3')}>

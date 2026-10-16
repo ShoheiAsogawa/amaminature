@@ -25,11 +25,12 @@ function TitleLogo() {
           <LogoMark size={26} className="relative text-white" />
         </span>
       </span>
+      {/* 高さを偶数 px に（27 + 3 + 16 = 46）。ロゴと中央でそろえても文字が画素に乗る */}
       <div className="leading-none">
-        <div className="num text-[24px] tracking-[1px] text-white">
+        <div className="num text-[27px] tracking-[1px] text-white">
           AMAMI <span className="text-gold">NATURE</span>
         </div>
-        <div className="mt-1 text-caption text-white/75">奄美いきもの図鑑クエスト</div>
+        <div className="mt-[3px] text-caption text-white/75">奄美いきもの図鑑クエスト</div>
       </div>
     </div>
   );
@@ -78,7 +79,7 @@ function CardFan() {
 function GuardBadges() {
   const ids = ['pledge', 'safe-driver', 'road-guardian'];
   return (
-    <div className="grid w-full max-w-[340px] grid-cols-3 gap-2">
+    <div className="px-cols grid w-full max-w-[340px] gap-y-2 [--cols:3] [--gap:8px]">
       {ids.map((id) => {
         const b = BADGES.find((x) => x.id === id)!;
         return (
@@ -100,7 +101,7 @@ function StampsAndReward() {
   const yesterday = new Date(today.getTime() - 864e5);
   return (
     <div className="w-full max-w-[358px] px-4">
-      <div className="px-clip-2 grid grid-cols-4 justify-items-center bg-surface py-3">
+      <div className="px-clip-2 px-cols grid justify-items-center bg-surface py-3 [--cols:4]">
         <StampSeal name="奄美市" visited date={yesterday} />
         <StampSeal name="龍郷町" visited date={today} />
         <StampSeal name="徳之島町" visited={false} />
@@ -117,7 +118,7 @@ function StampsAndReward() {
               <span className="min-w-0 flex-1 text-callout font-bold text-fg">{r.title}</span>
               <span className="flex shrink-0 items-center gap-1">
                 <Coin size={20} />
-                <span className="num text-[17px] text-fg">{r.points}</span>
+                <span className="num text-[18px] leading-6 text-fg">{r.points}</span>
               </span>
             </span>
           </div>
@@ -301,7 +302,7 @@ function Pledge({ onFinish }: { onFinish: (name: string) => void }) {
   return (
     <main className={cn('min-h-dvh pt-safe', CTA_PADDING)}>
       <section className="px-4 pt-8">
-        <p className="num text-[14px] tracking-[1px] text-brand">RANGER OATH</p>
+        <p className="num text-[12px] tracking-[1px] text-brand">RANGER OATH</p>
         <h1 className="balance mt-1 text-display text-fg">
           <Phrase text="レンジャーの3つの約束" />
         </h1>

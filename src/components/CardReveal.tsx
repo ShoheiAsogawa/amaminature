@@ -243,7 +243,7 @@ function Reveal({
           // ───── バッジ ゲット！ ─────
           <m.div key={badge.id} className="flex flex-1 flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
             <div className="flex flex-1 flex-col items-center justify-center px-8 py-12 text-center">
-              <p className="num animate-pop-in text-[34px] leading-10 text-gold [text-shadow:0_3px_0_#7a4b00]">BADGE GET!</p>
+              <p className="num animate-pop-in text-[36px] leading-10 text-gold [text-shadow:0_3px_0_#7a4b00]">BADGE GET!</p>
               <m.div
                 className="relative mt-6"
                 initial={reduce ? false : { scale: 0.3, rotate: -180, opacity: 0 }}
@@ -297,7 +297,7 @@ function Reveal({
                       animate={{ scale: 1, opacity: 1, rotate: -4 }}
                       transition={{ type: 'spring', stiffness: 420, damping: 14 }}
                       className={cn(
-                        'num text-[46px] leading-[52px]',
+                        'num text-[45px] leading-[53px]',
                         rarity === 4 ? 'text-gold' : 'text-white',
                         '[text-shadow:0_4px_0_rgb(var(--c-capture))]',
                       )}
@@ -346,7 +346,7 @@ function Reveal({
 
             <div className="mt-5 flex-1 px-4">
               {!front && (
-                <p aria-live="polite" className="animate-pulse text-center font-pixel text-[18px] tracking-[1px] text-white/85">
+                <p aria-live="polite" className="animate-pulse text-center font-pixel text-callout tracking-[1px] text-white/85">
                   {shake < 3 ? 'なにが でるかな……？' : 'もうすこし……！'}
                 </p>
               )}
@@ -383,7 +383,7 @@ function Reveal({
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="text-sub font-black text-white/80">{levelPop ? 'レベルアップ！' : 'けいけんち'}</span>
                           {points > 0 && (
-                            <span className="flex items-center gap-1.5 text-[22px] leading-7 text-gold">
+                            <span className="flex items-center gap-1.5 text-[27px] leading-[29px] text-gold">
                               <Coin size={20} />
                               <span aria-hidden className="num">
                                 <NumberFlow value={shownPoints} prefix="+" animated={!reduce} />
@@ -409,9 +409,9 @@ function Reveal({
                     <div className="px-stage flex items-center gap-3 px-2.5 py-1.5">
                       <span className="px-clip-1 bg-capture px-2 font-num text-[12px] leading-5 text-white">NEW</span>
                       <span className="flex-1 text-sub font-black">図鑑に とうろく！</span>
-                      <span className="num text-[20px] leading-6">
+                      <span className="num text-[18px] leading-6">
                         {discovered}
-                        <span className="text-[14px] text-white/60">/{SPECIES.length}</span>
+                        <span className="text-white/60">/{SPECIES.length}</span>
                       </span>
                     </div>
                   )}
@@ -438,7 +438,7 @@ function Reveal({
                 <Button variant={lineMode ? 'line' : 'gold'} onClick={share} aria-busy={sharing}>
                   {lineMode ? 'LINEで自慢する' : 'カード画像をシェア'}
                 </Button>
-                <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <div className="px-cols mt-3 grid gap-y-2.5 [--cols:2] [--gap:10px]">
                   <Button variant="on-stage" size="md" onClick={() => close(onAgain)}>
                     つづけてさがす
                   </Button>

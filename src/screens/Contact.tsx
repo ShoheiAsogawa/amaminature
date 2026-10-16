@@ -48,7 +48,7 @@ export default function Contact() {
       <SectionHeader title="お問い合わせ番号" />
       {code ? (
         <div className="panel mx-4 flex items-center gap-3 p-3">
-          <span className="num min-w-0 flex-1 text-[24px] tracking-[1px] text-fg" aria-label={`お問い合わせ番号 ${code.split('').join(' ')}`}>
+          <span className="num min-w-0 flex-1 text-[27px] leading-[31px] tracking-[1px] text-fg" aria-label={`お問い合わせ番号 ${code.split('').join(' ')}`}>
             {code}
           </span>
           <Button variant="secondary" size="md" className="h-10 px-2" onClick={copy}>

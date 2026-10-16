@@ -1,6 +1,7 @@
 // 主要画面のスクリーンショットを撮って見た目を確認する（DEMO_BUILD の preview を対象）
 // 使い方: npm run build:demo && npx vite preview --outDir dist-demo --port 4173 & node scripts/screenshots.mjs
 //   THEME=dark で夜の森（prefers-color-scheme: dark）。OUT_DIR で保存先、BASE_URL で対象、PW_CHROMIUM でブラウザを指定。
+//   PIXEL_CHECK=1 で、ドット文字が画面の整数 px に乗っていない所を書き出す。
 //
 // docs/DESIGN_SYSTEM.md §13.2 の「画面の検査」用。390×844 の全画面をライトとダークで撮り、目で確認する。
 // 横スクロールが出た画面は「OVERFLOW」と表示する（撮影は続ける）。
@@ -52,8 +53,38 @@ page.on('pageerror', (e) => {
 });
 page.on('console', (m) => m.type() === 'error' && console.error('CONSOLE', m.text()));
 
+// PIXEL_CHECK=1：ドット文字が画面の整数 px に乗っているかを確かめる（docs/DESIGN_SYSTEM.md §3）。
+// 文字の左端（すべての書体）と、上端（PixelMplus12・Jersey 15。上端が整数なら基準線も整数）が小数 px の文字を数える
+const PIXEL_CHECK = process.env.PIXEL_CHECK === '1';
+const offGrid = () =>
+  page.evaluate(() => {
+    const out = [];
+    const range = document.createRange();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const frac = (v) => Math.abs(v - Math.round(v)) > 0.02;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const text = n.textContent.trim();
+      const el = n.parentElement;
+      if (!text || !el || el.closest('[aria-hidden="true"] svg, svg')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
+      const font = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+      const checkY = font === 'PixelMplus12' || font === 'Jersey 15';
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) {
+        if (r.width < 1 || r.bottom < 0 || r.top > innerHeight) continue;
+        if (frac(r.left) || (checkY && frac(r.top))) out.push(`${font} ${cs.fontSize} x=${+r.left.toFixed(2)} y=${+r.top.toFixed(2)} 「${text.slice(0, 14)}」`);
+      }
+    }
+    return out;
+  });
+
 const shot = async (name, full = false) => {
   await page.waitForTimeout(900);
+  if (PIXEL_CHECK) {
+    const off = await offGrid();
+    if (off.length) console.log(`GRID ${name}: ${off.length}\n  ${off.slice(0, 40).join('\n  ')}`);
+  }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (overflow > 0) {
     problems++;

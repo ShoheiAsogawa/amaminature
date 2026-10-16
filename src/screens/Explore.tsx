@@ -123,7 +123,7 @@ function Stamps() {
       </div>
 
       {/* 12 の印を 4 列 3 段の 1 つの格子に並べる（島の順）。島の名前は印の下に小さく添える */}
-      <div className="mt-6 grid grid-cols-4 justify-items-center gap-y-5 px-4">
+      <div className="px-cols mt-6 grid justify-items-center gap-y-5 px-4 [--cols:4]">
         {ISLAND_ORDER.flatMap((island) =>
           AREAS.filter((a) => a.island.startsWith(island)).map((a) => (
             <StampSeal key={a.id} name={a.name} visited={firstAt.has(a.id)} date={firstAt.get(a.id)} caption={island} />

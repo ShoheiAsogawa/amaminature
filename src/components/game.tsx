@@ -168,9 +168,8 @@ export function LevelBadge({ level, size = 48, className }: { level: number; siz
       <span aria-hidden className="absolute inset-[3px] bg-brand-fill" style={{ clipPath: pxCircleClip(size - 6) }} />
       <span aria-hidden className="relative flex flex-col items-center leading-none">
         <span className="num text-[12px] leading-none opacity-80">Lv</span>
-        <span className="num leading-none" style={{ fontSize: Math.round(size * 0.42) }}>
-          {level}
-        </span>
+        {/* 数字は Jersey 15 の 27・18px（ドットが画素に乗る大きさ）。小さいバッジは 12px（PixelMplus12） */}
+        <span className={cn('num leading-none', size < 36 ? 'text-[12px]' : size < 48 ? 'text-[18px]' : 'text-[27px]')}>{level}</span>
       </span>
     </span>
   );

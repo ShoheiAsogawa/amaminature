@@ -165,7 +165,7 @@ describe('admin key', () => {
     expect(await isAdminKey('short', await sha256Hex('short'))).toBe(false);
     expect(await isAdminKey(null, hash)).toBe(false);
     const p1 = newPartnerKey();
-    expect(p1).toMatch(/^pk_[A-Za-z0-9_-]{43}$/);
+    expect(p1).toMatch(/^pk_[0-9a-f]{64}$/);
     expect(newPartnerKey()).not.toBe(p1);
   });
 });

@@ -1,9 +1,6 @@
 import { Fragment, useMemo } from 'react';
-import { loadDefaultJapaneseParser } from 'budoux';
 import { cn } from '../lib/cn';
-
-// BudouX の日本語モデル。モジュールの外で 1 回だけ作る（§3.5）
-const parser = loadDefaultJapaneseParser();
+import { phrases } from '../lib/phrases';
 
 /**
  * 日本語を文節で改行する（docs/DESIGN_SYSTEM.md §3.5）。
@@ -13,7 +10,8 @@ const parser = loadDefaultJapaneseParser();
  * （text-wrap: balance はインラインの <span> では効かない）。
  */
 export function Phrase({ text, className }: { text: string; className?: string }) {
-  const parts = useMemo(() => parser.parse(text), [text]);
+  // 括弧は前後の文節に付けて分ける（src/lib/phrases.ts）
+  const parts = useMemo(() => phrases(text), [text]);
   return (
     <span className={cn('phrase', className)}>
       {parts.map((p, i) => (

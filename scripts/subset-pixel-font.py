@@ -9,14 +9,14 @@
 public/fonts/ に次を書き出す（標準の字形だけ。太字は 12px でも 2〜3 倍でも漢字がつぶれるので使わない）:
   pm12-regular-ui.woff2   … かな・記号・英数字と、アプリの文言（src と index.html）に出てくる漢字
   pm12-regular-more.woff2 … それ以外の漢字（利用者が書いたニックネームなどで使われた時だけ読み込む）
-src/styles/pixel-fonts.css に @font-face（unicode-range つき）を書き出す。
+src/styles/pixel-fonts.css に @font-face（unicode-range つき）を書き出す（英数字の Pixelify Sans の分も）。
 
 元のフォントから直すところ（prepare）:
 - ドットの格子が基準線から 0.4 ドット下にずれている（行が y = 50 + 83.33k）。ブラウザは基準線を整数 px に丸めるので、
   そのままだと横の線がすべて 2 行ににじむ。輪郭をドットの格子に合わせて 0.4 ドット上げ、基準線をドットの境目にする。
   上 11 ドット・下 1 ドット（12px で 11px・1px）を ascent / descent にし、行の高さが偶数 px ならドットが整数 px に乗る。
 - 数字の 0 は斜線入り（「θ」に見える）なので、O と同じ形にする。
-- 「.」「:」の点は 3×3 の十字で、小さいと「2026+10+16」「13+30」に見える。2×2 の四角にする。
+- 「.」「,」「:」「;」「·」の点は 3×3 の十字で、小さいと「2026+10+16」「13+30」に見える。2×2 の四角にする。
 - フォントにない「〜」「›」「−」「—」は、形の近い字（～ > - ―）を使う。
 """
 import copy
@@ -87,7 +87,10 @@ def prepare(font: TTFont) -> TTFont:
     if len(off_grid) > 1:
         print(f'ドットの格子に乗らない字: {", ".join(off_grid[:20])}（{len(off_grid)} 字）')
     glyf['period'] = squares([(1, 0, 2, 2)])
+    glyf['comma'] = squares([(1, 0, 2, 2), (1, -1, 1, 1)])
     glyf['colon'] = squares([(1, 2, 2, 2), (1, 5, 2, 2)])
+    glyf['semicolon'] = squares([(1, 4, 2, 2), (1, 0, 2, 2), (1, -1, 1, 1)])
+    glyf['periodcentered'] = squares([(2, 3, 2, 2)])
     hmtx = font['hmtx']
     for name in font.getGlyphOrder():
         g = glyf[name]
@@ -169,6 +172,20 @@ def main() -> None:
                 '}'
             )
             print(f'{dst.name}: {len(cps)} 文字, {dst.stat().st_size // 1024} KB')
+    # 英字の Pixelify Sans（OFL、public/fonts/LICENSE-PixelifySans.txt。Google Fonts の latin の woff2 をそのまま置いたもの）。
+    # DotGothic16 の英字は I と l の見分けがつきにくいので、英字だけ Pixelify Sans にする。
+    # 数字・記号・スペースは入れない：Pixelify Sans の字幅は画素の整数にならず（スペースは 16px で 3.2px）、後ろの和文が画素からずれる。
+    # それらは次の DotGothic16（半角は 0.5em = 16px で 8px）になる
+    css.append(
+        '@font-face {\n'
+        "  font-family: 'Pixelify Sans';\n"
+        "  src: url('/fonts/pixelify-sans-latin.woff2') format('woff2');\n"
+        '  font-weight: 400;\n'
+        '  font-style: normal;\n'
+        '  font-display: swap;\n'
+        '  unicode-range: U+0041-005A, U+0061-007A, U+00AA, U+00B5, U+00BA, U+00C0-00D6, U+00D8-00F6, U+00F8-00FF, U+0131, U+0152-0153;\n'
+        '}'
+    )
     CSS.write_text('\n'.join(css) + '\n', encoding='utf-8')
 
 

@@ -1,9 +1,6 @@
-import { loadDefaultJapaneseParser } from 'budoux';
 import { Fragment, useMemo } from 'react';
 import { SPECIES } from '../data/species';
-
-// BudouX の日本語モデル（Phrase.tsx と同じ。モジュールの外で 1 回だけ作る）
-const parser = loadDefaultJapaneseParser();
+import { canBreakBetween, phrases } from '../lib/phrases';
 
 /**
  * 本文の中で途中で改行させない生き物の名前（§11 の 15「カタカナの和名の途中で改行しない」）。
@@ -24,27 +21,19 @@ const NAME_RE = new RegExp(`(${NAMES.map(escape).join('|')})`, 'g');
  * （ドット文字は字幅が広く、文の途中で折り返しやすい）。最終行の 1 文字の改行は CSS の text-wrap: pretty で防ぐ（index.css）。
  */
 export function Prose({ text }: { text: string }) {
-  const parts = useMemo(() => text.split(NAME_RE).map((p, i) => (i % 2 === 1 ? [p] : parser.parse(p))), [text]);
+  // 名前は 1 つのかたまり（折り返さない）、それ以外は文節に分ける
+  const items = useMemo(
+    () => text.split(NAME_RE).flatMap((p, i) => (i % 2 === 1 ? [{ t: p, name: true }] : phrases(p).map((t) => ({ t, name: false })))),
+    [text],
+  );
   return (
     <span className="phrase">
-      {parts.map((p, i) =>
-        i % 2 === 1 ? (
-          <Fragment key={i}>
-            <wbr />
-            <span className="whitespace-nowrap">{p[0]}</span>
-            <wbr />
-          </Fragment>
-        ) : (
-          <Fragment key={i}>
-            {p.map((ph, j) => (
-              <Fragment key={j}>
-                {j > 0 && <wbr />}
-                {ph}
-              </Fragment>
-            ))}
-          </Fragment>
-        ),
-      )}
+      {items.map((it, i) => (
+        <Fragment key={i}>
+          {i > 0 && canBreakBetween(items[i - 1].t, it.t) && <wbr />}
+          {it.name ? <span className="whitespace-nowrap">{it.t}</span> : it.t}
+        </Fragment>
+      ))}
     </span>
   );
 }

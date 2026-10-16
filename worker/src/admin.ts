@@ -323,8 +323,9 @@ adminApp.get('/users', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, 40);
   const limit = clampLimit(c.req.query('limit'), 50, 100);
   const like = `%${q.replace(/[%_]/g, '')}%`;
-  // お問い合わせ番号（AN-XXXXXXXX、ハイフンなしでも可）でも探せる
-  const code = /^AN-?[0-9A-F]{8}$/i.test(q) ? `AN-${q.replace(/^AN-?/i, '').toUpperCase()}` : '';
+  // お問い合わせ番号（AN-XXXXXXXX、ハイフンなしでも可）でも探せる。番号は 16 進数で、画面のドット文字では 0 と O が同じ形なので O は 0 と読む
+  const m = /^AN-?([0-9A-FO]{8})$/i.exec(q);
+  const code = m ? `AN-${m[1].toUpperCase().replace(/O/g, '0')}` : '';
   const { results: users } = await c.env.DB.prepare(
     `SELECT id, display_name AS displayName, nickname, picture_url AS pictureUrl, is_friend AS isFriend, plus_until AS plusUntil,
        created_at AS createdAt, last_seen_at AS lastSeenAt, support_code AS supportCode,

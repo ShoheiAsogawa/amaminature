@@ -153,13 +153,13 @@ export default function Zukan() {
         <Sparkles count={4} className="opacity-60" />
         <div className="relative flex items-center gap-4">
           <Ring value={found / Math.max(1, total)} size={84} stroke={10} color="rgb(var(--c-gold))" track="rgb(255 255 255 / .15)">
-            <span className="num text-[22px] leading-none">{pct}%</span>
+            <span className="num text-[27px] leading-none">{pct}%</span>
           </Ring>
           <div className="min-w-0 flex-1">
             <p className="text-sub font-black text-white/70">ゲットした生き物</p>
             <p className="mt-0.5 leading-none">
-              <span className="num text-[40px]">{found}</span>
-              <span className="num text-[20px] text-white/60"> / {total}</span>
+              <span className="num text-[45px]">{found}</span>
+              <span className="num text-[18px] text-white/60"> / {total}</span>
             </p>
             <p className="mt-1.5 text-caption text-gold">{found >= total ? 'コンプリート！ おめでとう！' : `コンプまで あと ${total - found} 種`}</p>
           </div>

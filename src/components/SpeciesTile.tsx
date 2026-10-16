@@ -58,7 +58,8 @@ export function SciName({ sci, className }: { sci: string; className?: string })
 /** 「？」の大きさの目安（tile: 図鑑のタイル、thumb: 行のサムネイル 40〜56、large: 図鑑カード・ヒーロー） */
 export type PatternSize = 'tile' | 'thumb' | 'large';
 
-const MYSTERY_SIZE: Record<PatternSize, string> = { tile: 'text-[44px]', thumb: 'text-[26px]', large: 'text-[96px]' };
+// Jersey 15 は 9 の倍数の大きさで 3 倍の画面のドットが整数 px になる（27 は 2 倍の画面も）
+const MYSTERY_SIZE: Record<PatternSize, string> = { tile: 'text-[45px]', thumb: 'text-[27px]', large: 'text-[90px]' };
 
 /**
  * まだ見つけていない種のプレート（ゲームの「？」）。灰青の地に白い「？」と、タイプのアイコン。
@@ -270,7 +271,7 @@ export function SpeciesTile({ species, photoId, count = 0, discovered, isNew = f
 
 /** 種タイルの並び（3 列、間隔 10、左右 16） */
 export function SpeciesGrid({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('grid grid-cols-3 gap-2.5 px-4', className)}>{children}</div>;
+  return <div className={cn('px-cols grid gap-y-2.5 px-4 [--cols:3] [--gap:10px]', className)}>{children}</div>;
 }
 
 // ───────── 見られる季節（§8.3） ─────────

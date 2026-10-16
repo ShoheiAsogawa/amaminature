@@ -44,7 +44,7 @@ function Brand() {
           <LogoMark size={22} className="text-white" />
         </span>
       </span>
-      <span aria-hidden className="num text-[19px] leading-none tracking-[1px] text-fg">
+      <span aria-hidden className="num text-[18px] leading-none tracking-[1px] text-fg">
         AMAMI <span className="text-brand">NATURE</span>
       </span>
     </span>
@@ -160,7 +160,7 @@ export default function Home() {
               aria-label={`${streak}日連続でプレイ中`}
             >
               <IconFireFill size={18} className="text-capture" aria-hidden />
-              <span className="num text-[16px] leading-none text-capture" aria-hidden>
+              <span className="num text-[18px] leading-none text-capture" aria-hidden>
                 {streak}
               </span>
               <span className="text-caption text-fg-2" aria-hidden>
@@ -200,7 +200,7 @@ export default function Home() {
           id="home-missions"
           title="きょうのミッション"
           action={
-            <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${missions.length}つ中${done}つ達成`}>
+            <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[12px] leading-5 text-fg-2" aria-label={`${missions.length}つ中${done}つ達成`}>
               {done}/{missions.length}
             </span>
           }
@@ -220,15 +220,18 @@ export default function Home() {
       {/* ───── 図鑑のコンプ率 ───── */}
       <Link to="/zukan" onClick={() => sfx('tap')} className="panel pressable mx-4 mt-7 flex items-center gap-4 p-3">
         <Ring value={rate} size={78} stroke={10}>
-          <span className="num text-[20px] leading-none text-fg">{Math.round(rate * 100)}%</span>
+          <span className="num text-[18px] leading-none text-fg">{Math.round(rate * 100)}%</span>
         </Ring>
         <span className="min-w-0 flex-1">
           <span className="block text-section font-black text-fg">アマミ図鑑</span>
-          <span className="mt-0.5 block text-sub font-bold text-fg-2">
-            <span className="num text-[18px] text-brand">{stats.discovered}</span>
-            <span className="num text-[14px]"> / {SPECIES.length}</span> 種 ゲット
+          {/* 数字は Jersey 15 の 18px（text-sub の中に入れると PixelMplus12 になる）。基準線でそろえる */}
+          <span className="mt-0.5 flex items-baseline gap-1 text-fg-2">
+            <span className="num text-[18px] leading-6 text-brand">{stats.discovered}</span>
+            <span className="num text-[18px] leading-6">/ {SPECIES.length}</span>
+            <span className="text-sub font-bold">種 ゲット</span>
           </span>
-          <span className="mt-2 flex gap-1" aria-hidden>
+          {/* 列の高さを偶数 px（30 + 2 + 24 + 9 + 9 = 74）にして、輪と中央でそろえても文字が画素に乗るようにする */}
+          <span className="mt-[9px] flex gap-1" aria-hidden>
             {CATEGORY_ORDER.map((c) => {
               const v = stats.byCategory[c];
               return (
@@ -620,7 +623,7 @@ function QuestGroup({ heading, items }: { heading: string; items: QuestProgress[
                     <span className="sr-only">達成</span>
                   </>
                 ) : (
-                  <span className="num shrink-0 text-callout text-fg-2">
+                  <span className="num shrink-0 text-[18px] leading-6 text-fg-2">
                     {current}/{target}
                   </span>
                 )}

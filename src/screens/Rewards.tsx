@@ -117,7 +117,7 @@ export default function Rewards() {
       </div>
 
       <SectionHeader title="こうかんできるもの" />
-      <div className="grid grid-cols-2 gap-2.5 px-4">
+      <div className="px-cols grid gap-y-2.5 px-4 [--cols:2] [--gap:10px]">
         {REWARDS.map((r) => {
           const Icon = KIND_ICON[r.kind];
           const s = status(r);
@@ -143,8 +143,8 @@ export default function Rewards() {
               <span className="mt-2 line-clamp-2 min-h-10 text-callout font-black leading-5 text-fg">
                 <Phrase text={r.title} />
               </span>
-              {r.note && <span className="mt-1 line-clamp-2 text-caption text-fg-2">{r.note}</span>}
-              {s.badge && s.locked && <span className="mt-1 text-caption text-fg-3">「{s.badge.title}」バッジが必要</span>}
+              {r.note && <span className="mt-1 line-clamp-2 text-caption text-fg-2"><Phrase text={r.note} /></span>}
+              {s.badge && s.locked && <span className="mt-1 text-caption text-fg-3"><Phrase text={`「${s.badge.title}」バッジが必要`} /></span>}
               <span className="mt-auto pt-2.5">
                 {s.done ? (
                   <span className="px-clip-1 inline-flex h-8 items-center bg-fill-strong px-3 text-caption text-fg-3">交換済み</span>
@@ -156,7 +156,7 @@ export default function Rewards() {
                 ) : (
                   <span className={cn('px-clip-1 inline-flex h-8 items-center gap-1 pl-1 pr-3', s.ok ? 'bg-gold-soft' : 'bg-fill')}>
                     <Coin size={22} />
-                    <span className={cn('num text-[17px]', s.ok ? 'text-fg' : 'text-fg-3')}>{r.points.toLocaleString()}</span>
+                    <span className={cn('num text-[18px] leading-6', s.ok ? 'text-fg' : 'text-fg-3')}>{r.points.toLocaleString()}</span>
                   </span>
                 )}
                 {!s.locked && !s.done && s.short > 0 && r.points > 0 && <span className="mt-1 block text-caption text-fg-3">あと{s.short}pt</span>}

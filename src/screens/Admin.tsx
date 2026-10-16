@@ -26,6 +26,7 @@ import {
   type IconComponent,
 } from '../components/icons';
 import { SpeciesPlate } from '../components/SpeciesTile';
+import { Phrase } from '../components/Phrase';
 import { Button, Chip, ChipRow, cn, ConfirmDialog, Field, Input, Notice, RadioMark, SearchField, Segmented, Sheet, toast } from '../components/ui';
 import { demoAdmin } from '../lib/adminDemo';
 import { AREA_BY_ID, AREAS } from '../data/areas';
@@ -408,7 +409,7 @@ export default function Admin() {
             items={
               demo
                 ? data.users.filter(
-                    (u) => !userQuery || `${u.displayName}${u.nickname}`.includes(userQuery) || u.supportCode === userQuery.toUpperCase(),
+                    (u) => !userQuery || `${u.displayName}${u.nickname}`.includes(userQuery) || u.supportCode === userQuery.toUpperCase().replace(/O/g, '0'),
                   )
                 : data.users
             }
@@ -526,7 +527,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
   return (
     <>
       {/* きょうのやること（ミッション） */}
-      <SectionTitle right={<span className="num px-clip-1 bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2">{done}/{todos.length}</span>}>
+      <SectionTitle right={<span className="num px-clip-1 bg-fill-strong px-2.5 py-0.5 text-[12px] leading-5 text-fg-2">{done}/{todos.length}</span>}>
         きょうのやること
       </SectionTitle>
       <div className="panel overflow-hidden">
@@ -545,7 +546,9 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
               {t.n === 0 ? <IconCheck size={22} /> : <t.icon size={22} />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn('block text-callout font-black', t.n === 0 ? 'text-fg-3 line-through decoration-2' : 'text-fg')}>{t.title}</span>
+              <span className={cn('block text-callout font-black', t.n === 0 ? 'text-fg-3' : 'text-fg')}>
+                <Phrase text={t.title} />
+              </span>
               <span className="mt-0.5 block text-caption text-fg-2">{t.sub}</span>
             </span>
             {t.n === 0 ? (
@@ -608,7 +611,7 @@ function HomeTab({ data, demo, go, openRare }: { data: Data; demo: boolean; go: 
                   <span className={cn('block h-full', sp ? TYPE_META[sp.category].bg : 'bg-fg-3')} style={{ width: `${(t.n / topMax) * 100}%` }} />
                 </span>
               </span>
-              <span className="num shrink-0 text-[17px] text-fg">{t.n}</span>
+              <span className="num shrink-0 text-[18px] text-fg">{t.n}</span>
             </div>
           );
         })}
@@ -628,7 +631,7 @@ function Kpi({ icon: Icon, label, value, sub, tone }: { icon: IconComponent; lab
         </span>
         <span className="min-w-0 truncate text-caption text-fg-2">{label}</span>
       </div>
-      <p className="num mt-2 text-[30px] leading-8 text-fg">{value.toLocaleString()}</p>
+      <p className="num mt-2 text-[27px] leading-[31px] text-fg">{value.toLocaleString()}</p>
       <p className="mt-0.5 truncate text-caption text-fg-3">{sub}</p>
     </div>
   );
@@ -671,8 +674,11 @@ function RedemptionsTab({
               <span className="px-clip-2 grid h-12 w-12 shrink-0 place-items-center bg-gold-soft text-gold-edge">
                 <Icon size={26} />
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-callout font-black text-fg">{r.rewardTitle || reward?.title || r.rewardId}</p>
+              {/* スマホでは名前と申請者を 1 行目に、ポイントと状態を 2 行目に（同じ行だと名前の幅が 128px しかなく、単語の途中で折り返す） */}
+              <div className="min-w-0 grow basis-[calc(100%-60px)] sm:basis-0">
+                <p className="text-callout font-black text-fg">
+                  <Phrase text={r.rewardTitle || reward?.title || r.rewardId} />
+                </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-caption text-fg-2">
                   <span>{userLabel(r.displayName, r.nickname)}</span>
                   <span>{when(r.createdAt)}（{ago(r.createdAt)}）</span>
@@ -680,7 +686,7 @@ function RedemptionsTab({
                 </p>
                 {r.note && <p className="mt-0.5 text-caption text-fg-3">メモ: {r.note}</p>}
               </div>
-              <span className="flex items-center gap-1">
+              <span className="ml-[60px] flex items-center gap-1 sm:ml-0">
                 <Coin size={22} />
                 <span className="num text-[18px] text-fg">{r.points}</span>
               </span>
@@ -1114,7 +1120,7 @@ function PartnersTab({
             <div className="px-notice-caution relative overflow-hidden p-3">
               <Sparkles count={3} />
               <p className="text-sub font-black text-fg">このキーは、この画面でしか表示されません</p>
-              <p className="px-clip-2 mt-2 break-all bg-surface px-3 py-2 font-mono text-[14px] font-bold text-fg">{issued}</p>
+              <p className="px-clip-2 mt-2 break-all bg-surface px-3 py-2 text-callout text-fg">{issued}</p>
             </div>
             <Button
               variant="gold"
@@ -1239,7 +1245,8 @@ function UsersTab({
                 {' ・ '}路上の位置 {u.roadConsentVersion ? '同意' : 'なし'}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            {/* スマホでは数字を別の行に（同じ行だと名前の幅が足りず、ニックネームが切れる） */}
+            <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
               <Ring value={u.species / 62} size={44} stroke={6}>
                 <span className="num text-[12px] text-fg-2">{Math.round((u.species / 62) * 100)}%</span>
               </Ring>
@@ -1304,8 +1311,8 @@ function LogTab({ items }: { items: AdminAction[] }) {
             <span className="num mt-0.5 w-20 shrink-0 text-[12px] text-fg-3">{when(a.createdAt)}</span>
             <span className="min-w-0 flex-1">
               <span className="block text-callout font-black text-fg">{ACTION_LABEL[a.action] ?? a.action}</span>
-              <span className="mt-0.5 block break-all text-caption text-fg-2">
-                {a.detail} <span className="text-fg-3">（{a.targetId.slice(0, 8)}）</span>
+              <span className="mt-0.5 block text-caption text-fg-2 [overflow-wrap:anywhere]">
+                {a.detail} <span className="whitespace-nowrap text-fg-3">（{a.targetId.slice(0, 8)}）</span>
               </span>
             </span>
           </div>

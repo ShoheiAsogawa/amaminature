@@ -210,8 +210,9 @@ export default function Me() {
       <section aria-label="レンジャーカード" className="px-night relative mx-4 overflow-hidden text-white" style={TATSUGO_STYLE}>
         <div className="relative bg-gradient-to-br from-brand-fill/95 via-brand-fill/85 to-brand-pressed/95 p-3">
           <div className="flex items-center justify-between">
-            <span className="num text-[12px] tracking-[1px] text-white/80">RANGER CARD</span>
-            <span className="px-clip-1 num bg-white/15 px-2 text-[12px] leading-5 text-gold">AMAMI NATURE</span>
+            {/* 12px のドット文字は線が 1 ドットなので、瑠璃の地の上では白・暗い地の金にする（薄い白・明るい地では読みにくい） */}
+            <span className="num text-[12px] tracking-[1px] text-white">RANGER CARD</span>
+            <span className="px-clip-1 num bg-black/30 px-2 text-[12px] leading-5 text-gold">AMAMI NATURE</span>
           </div>
           <div className="mt-3 flex items-center gap-3.5">
             <span className="relative shrink-0">
@@ -226,18 +227,18 @@ export default function Me() {
           <div className="mt-3.5 flex items-center gap-2">
             <span className="num shrink-0 text-[12px]">Lv.{level.level}</span>
             <XPBar value={level.progress} id="me-xp" label="次のレベルまで" className="flex-1" />
-            <span className="shrink-0 text-caption text-white/80">{level.next ? `あと${level.toNext}pt` : 'MAX'}</span>
+            <span className="shrink-0 text-caption text-white">{level.next ? `あと${level.toNext}pt` : 'MAX'}</span>
           </div>
-          <div className="mt-3.5 grid grid-cols-4 gap-1.5">
+          <div className="px-cols mt-3.5 grid gap-y-1.5 [--cols:4] [--gap:6px]">
             {[
               { v: stats.total, l: '記録' },
               { v: `${stats.discovered}`, l: `図鑑/${SPECIES.length}` },
               { v: `${stats.areas.size}`, l: '市町村/12' },
               { v: badges.size, l: 'バッジ' },
             ].map((x) => (
-              <div key={x.l} className="px-clip-2 bg-white/[.14] px-1 py-2 text-center">
-                <div className="num text-[22px] leading-6">{x.v}</div>
-                <div className="mt-0.5 text-[12px] font-black leading-3 text-white/80">{x.l}</div>
+              <div key={x.l} className="px-clip-2 bg-black/15 px-1 py-2 text-center">
+                <div className="num text-[27px] leading-[29px]">{x.v}</div>
+                <div className="mt-0.5 text-[12px] font-black leading-4 text-white">{x.l}</div>
               </div>
             ))}
           </div>
@@ -252,7 +253,7 @@ export default function Me() {
         <Coin size={40} />
         <span className="min-w-0 flex-1">
           <span className="block text-sub font-black text-fg-2">もっているポイント</span>
-          <span className="num block text-[28px] leading-8 text-fg">
+          <span className="num block text-[27px] leading-[31px] text-fg">
             {balance.toLocaleString()}
             <span className="ml-1 text-sub text-fg-2">pt</span>
           </span>
@@ -264,14 +265,14 @@ export default function Me() {
       <SectionHeader
         title="バッジケース"
         action={
-          <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[14px] text-fg-2" aria-label={`${BADGES.length}個中${badges.size}個`}>
+          <span className="px-clip-1 num bg-fill-strong px-2.5 py-0.5 text-[12px] leading-5 text-fg-2" aria-label={`${BADGES.length}個中${badges.size}個`}>
             {badges.size}/{BADGES.length}
           </span>
         }
       />
       {/* 夜空のグラデーションのケース（ドット絵の枠 px-night）に、段々に切り抜いた白い台（px-clip-2） */}
       <div className="px-night mx-4 bg-gradient-to-b from-night to-night-2 p-1.5">
-        <div className="px-clip-2 grid grid-cols-4 gap-1 bg-surface/95 p-1.5 dark:bg-surface">
+        <div className="px-clip-2 px-cols grid gap-y-1 bg-surface/95 p-1.5 [--cols:4] [--gap:2px] dark:bg-surface">
           {BADGES.map((b) => (
             <BadgeCell key={b.id} badge={b} earned={badges.has(b.id)} size={56} onOpen={setBadge} />
           ))}

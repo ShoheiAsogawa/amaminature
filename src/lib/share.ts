@@ -1,9 +1,9 @@
-import { loadDefaultJapaneseParser } from 'budoux';
 import { AREA_BY_ID } from '../data/areas';
 import type { Category, Rarity, Species } from '../data/types';
 import { GAME, LIGHT, type ColorStop } from '../styles/palette';
 import { api } from './api';
 import { shareToLine } from './liff';
+import { phrases } from './phrases';
 import type { Sighting } from './types';
 
 // 共有画像（トレーディングカード風）。1080×1350。テーマに関係なく常にひるの島の色。
@@ -27,7 +27,7 @@ const FRAME = 40;
 /** 写真の窓（5:4）。線は 1 ドット */
 const PHOTO = { x: 84, y: 200, w: 912, h: 730, border: DOT } as const;
 
-/** アプリと同じドット文字（docs/DESIGN_SYSTEM.md §3）。名前・ラベル・説明・地名は DotGothic16（16 ドットの倍数の大きさ）、数字は Jersey 15。
+/** アプリと同じドット文字（docs/DESIGN_SYSTEM.md §3）。名前・ラベル・説明・地名は DotGothic16（16 ドットの倍数の大きさ）、数字は Jersey 15（1em = 27 ドットなので 27 の倍数の大きさ）。
  *  DotGothic16 には太字がないので太さは指定しない（指定すると線がにじんだ太字になる） */
 const FONT_JP = '"Pixelify Sans", DotGothic16, "Hiragino Sans", sans-serif';
 const FONT_NUM = '"Jersey 15", DotGothic16, "Hiragino Sans", sans-serif';
@@ -136,7 +136,7 @@ async function drawPlate(ctx: CanvasRenderingContext2D, species: Species | null)
   }
   ctx.save();
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = `400 360px ${FONT_NUM}`;
+  ctx.font = `400 351px ${FONT_NUM}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('?', x + w / 2, y + h / 2 + 20);
@@ -183,14 +183,11 @@ function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
   return w;
 }
 
-/** 文章を max 幅で折り返す（文字単位。句読点を行頭に置かない）。maxLines を超えたら末尾を … にする */
-const budoux = loadDefaultJapaneseParser();
-
-/** 文節（BudouX）の間で折り返す。1 つの文節が 1 行に入らない時だけ、文字の間で折り返す */
+/** 文節（BudouX、src/lib/phrases.ts）の間で折り返す。1 つの文節が 1 行に入らない時だけ、文字の間で折り返す */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number, maxLines: number): string[] {
   const lines: string[] = [];
   let line = '';
-  const tokens = budoux.parse(text).flatMap((t) => (ctx.measureText(t).width > max ? Array.from(t) : [t]));
+  const tokens = phrases(text).flatMap((t) => (ctx.measureText(t).width > max ? Array.from(t) : [t]));
   for (const t of tokens) {
     if (ctx.measureText(line + t).width > max && line && !/^[、。」）！？]/.test(t)) {
       lines.push(line);
@@ -246,7 +243,7 @@ export async function renderShareCard(opts: {
   const typeLabel = species ? TYPE_LABEL[species.category] : '図鑑にない生き物';
 
   await loadFonts([
-    [`400 56px ${FONT_NUM}`, `${no}${brand}${date}GET!`],
+    [`400 54px ${FONT_NUM}`, `${no}${brand}${date}GET!`],
     [`64px ${FONT_JP}`, name],
     [`32px ${FONT_JP}`, `${nickname}${typeLabel}`],
     [`400 32px ${FONT_JP}`, area ?? '奄美群島'],
@@ -268,14 +265,14 @@ export async function renderShareCard(opts: {
   // 名前と番号
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
-  ctx.font = `400 56px ${FONT_NUM}`;
+  ctx.font = `400 54px ${FONT_NUM}`;
   const noWidth = no ? ctx.measureText(no).width : 0;
   ctx.fillStyle = LIGHT.fg;
   const shown = fitName(ctx, name, W - 84 * 2 - noWidth - 30);
   ctx.fillText(shown, 84, 160);
   if (no) {
     ctx.fillStyle = typeColor;
-    ctx.font = `400 56px ${FONT_NUM}`;
+    ctx.font = `400 54px ${FONT_NUM}`;
     ctx.textAlign = 'right';
     ctx.fillText(no, W - 84, 158);
     ctx.textAlign = 'left';
@@ -315,7 +312,7 @@ export async function renderShareCard(opts: {
   ctx.fillStyle = GAME.xp;
   ctx.fill();
   ctx.fillStyle = GAME.xpInk;
-  ctx.font = `400 52px ${FONT_NUM}`;
+  ctx.font = `400 54px ${FONT_NUM}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('GET!', 0, 4);
@@ -362,13 +359,13 @@ export async function renderShareCard(opts: {
   // 日付と市町村（希少種は市町村名を出さない）、右下にブランド
   const footY = H - FRAME - 44;
   ctx.fillStyle = LIGHT.fg3;
-  ctx.font = `400 30px ${FONT_NUM}`;
+  ctx.font = `400 27px ${FONT_NUM}`;
   ctx.fillText(date, 84, footY);
   const dw = ctx.measureText(date).width;
   ctx.font = `400 32px ${FONT_JP}`;
   ctx.fillText(area ?? '奄美群島', 84 + dw + 24, footY);
   ctx.fillStyle = LIGHT.brand;
-  ctx.font = `400 30px ${FONT_NUM}`;
+  ctx.font = `400 27px ${FONT_NUM}`;
   ctx.textAlign = 'right';
   ctx.fillText(brand, W - 84, footY);
   ctx.textAlign = 'left';
